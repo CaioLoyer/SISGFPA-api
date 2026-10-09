@@ -1,0 +1,353 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===================== Autenticação (Better Auth) =====================
+// Identidade única do sistema: usada pela API Financeira e pelo Chatbot.
+
+enum Role {
+  ADMIN
+  FUNCIONARIO
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          Role     @default(FUNCIONARIO)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  // Conversas (Chatbot)
+  chats    Chat[]
+  messages Message[]
+
+  // Domínio financeiro
+  despesasCriadas       Despesa[]              @relation("DespesaCriadaPor")
+  despesasPagamentos    DespesaPagamento[]
+  despesasHistorico     DespesaHistorico[]
+  recebimentosCriados   Recebimento[]          @relation("RecebimentoCriadoPor")
+  recebimentosBaixas    RecebimentoBaixa[]
+  recebimentosHistorico RecebimentoHistorico[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ===================== Domínio Financeiro =====================
+
+// Status comum ao ciclo de vida de títulos e parcelas.
+// PENDENTE -> PARCIAL -> PAGO (nunca há exclusão física; cancelamento = CANCELADO)
+enum StatusTitulo {
+  PENDENTE
+  PARCIAL
+  PAGO
+  CANCELADO
+}
+
+enum TipoCategoria {
+  DESPESA
+  RECEBIMENTO
+}
+
+// Categoria de títulos (ex.: Mercadorias, Despesas Operacionais, Vendas).
+// O mesmo nome pode existir para tipos diferentes (ex.: "Outros").
+model Categoria {
+  id        String        @id @default(uuid())
+  nome      String
+  tipo      TipoCategoria
+  createdAt DateTime      @default(now()) @db.Timestamptz()
+
+  despesas     Despesa[]
+  recebimentos Recebimento[]
+
+  @@unique([nome, tipo])
+  @@map("categoria")
+}
+
+// ---------- Contas a Pagar (RF-FM-001 a RF-FM-005) ----------
+
+model Despesa {
+  id             String       @id @default(uuid())
+  descricao      String
+  fornecedor     String
+  valor          Decimal      @db.Decimal(12, 2)
+  valorPago      Decimal      @default(0) @db.Decimal(12, 2)
+  dataLancamento DateTime     @default(now()) @db.Date
+  // Vencimento do título = vencimento da primeira parcela.
+  dataVencimento DateTime     @db.Date
+  numeroParcelas Int          @default(1)
+  observacoes    String?
+  status         StatusTitulo @default(PENDENTE)
+
+  categoriaId String?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
+  criadoPorId String
+  criadoPor   User   @relation("DespesaCriadaPor", fields: [criadoPorId], references: [id])
+
+  parcelas   DespesaParcela[]
+  pagamentos DespesaPagamento[]
+  historico  DespesaHistorico[]
+  mensagens  Message[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  @@index([status])
+  @@index([categoriaId])
+  @@map("despesa")
+}
+
+model DespesaParcela {
+  id             String       @id @default(uuid())
+  despesaId      String
+  despesa        Despesa      @relation(fields: [despesaId], references: [id])
+  numero         Int
+  valor          Decimal      @db.Decimal(12, 2)
+  valorPago      Decimal      @default(0) @db.Decimal(12, 2)
+  dataVencimento DateTime     @db.Date
+  status         StatusTitulo @default(PENDENTE)
+
+  @@unique([despesaId, numero])
+  @@map("despesa_parcela")
+}
+
+model DespesaPagamento {
+  id        String   @id @default(uuid())
+  despesaId String
+  despesa   Despesa  @relation(fields: [despesaId], references: [id])
+  valor     Decimal  @db.Decimal(12, 2)
+  pagoEm    DateTime @db.Timestamptz()
+
+  registradoPorId String
+  registradoPor   User   @relation(fields: [registradoPorId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("despesa_pagamento")
+}
+
+model DespesaHistorico {
+  id             String        @id @default(uuid())
+  despesaId      String
+  despesa        Despesa       @relation(fields: [despesaId], references: [id])
+  acao           String // CRIADO, ATUALIZADO, PAGAMENTO_REGISTRADO, CANCELADO
+  statusAnterior StatusTitulo?
+  statusNovo     StatusTitulo?
+  detalhes       String?
+
+  alteradoPorId String
+  alteradoPor   User   @relation(fields: [alteradoPorId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("despesa_historico")
+}
+
+// ---------- Contas a Receber (RF-FM-006 a RF-FM-010) ----------
+
+model Recebimento {
+  id             String       @id @default(uuid())
+  descricao      String
+  cliente        String
+  valor          Decimal      @db.Decimal(12, 2)
+  valorRecebido  Decimal      @default(0) @db.Decimal(12, 2)
+  dataLancamento DateTime     @default(now()) @db.Date
+  // Vencimento do título = vencimento da primeira parcela.
+  dataVencimento DateTime     @db.Date
+  numeroParcelas Int          @default(1)
+  observacoes    String?
+  status         StatusTitulo @default(PENDENTE)
+
+  categoriaId String?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
+  criadoPorId String
+  criadoPor   User   @relation("RecebimentoCriadoPor", fields: [criadoPorId], references: [id])
+
+  parcelas  RecebimentoParcela[]
+  baixas    RecebimentoBaixa[]
+  historico RecebimentoHistorico[]
+  mensagens Message[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  @@index([status])
+  @@index([categoriaId])
+  @@map("recebimento")
+}
+
+model RecebimentoParcela {
+  id             String       @id @default(uuid())
+  recebimentoId  String
+  recebimento    Recebimento  @relation(fields: [recebimentoId], references: [id])
+  numero         Int
+  valor          Decimal      @db.Decimal(12, 2)
+  valorRecebido  Decimal      @default(0) @db.Decimal(12, 2)
+  dataVencimento DateTime     @db.Date
+  status         StatusTitulo @default(PENDENTE)
+
+  @@unique([recebimentoId, numero])
+  @@map("recebimento_parcela")
+}
+
+model RecebimentoBaixa {
+  id            String      @id @default(uuid())
+  recebimentoId String
+  recebimento   Recebimento @relation(fields: [recebimentoId], references: [id])
+  valor         Decimal     @db.Decimal(12, 2)
+  recebidoEm    DateTime    @db.Timestamptz()
+
+  registradoPorId String
+  registradoPor   User   @relation(fields: [registradoPorId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("recebimento_baixa")
+}
+
+model RecebimentoHistorico {
+  id             String        @id @default(uuid())
+  recebimentoId  String
+  recebimento    Recebimento   @relation(fields: [recebimentoId], references: [id])
+  acao           String // CRIADO, ATUALIZADO, BAIXA_REGISTRADA, CANCELADO
+  statusAnterior StatusTitulo?
+  statusNovo     StatusTitulo?
+  detalhes       String?
+
+  alteradoPorId String
+  alteradoPor   User   @relation(fields: [alteradoPorId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("recebimento_historico")
+}
+
+// ===================== Chatbot (experiência conversacional) =====================
+// O Chatbot só guarda a conversa e a referência ao título criado pela API Financeira.
+// Não há tabelas financeiras próprias do Chatbot.
+
+enum MensagemPapel {
+  USUARIO
+  ASSISTENTE
+}
+
+enum MensagemStatus {
+  INFORMACAO_INSUFICIENTE // faltam dados (ex.: valor); o bot perguntou
+  PENDENTE_CONFIRMACAO // interpretada; aguardando o usuário confirmar
+  EXECUTADA // enviada à API Financeira com sucesso
+  CANCELADA // usuário desistiu
+  ERRO // API Financeira recusou (ex.: sem permissão)
+  INFORMATIVA // mensagem sem operação (resposta do assistente)
+}
+
+enum MensagemIntencao {
+  CRIAR_DESPESA
+  CRIAR_RECEBIMENTO
+  REGISTRAR_PAGAMENTO
+  REGISTRAR_BAIXA
+  CANCELAR_DESPESA
+  CANCELAR_RECEBIMENTO
+  DESCONHECIDA
+}
+
+model Chat {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  messages  Message[]
+  createdAt DateTime  @default(now()) @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @db.Timestamptz()
+
+  @@index([userId])
+  @@map("chat")
+}
+
+model Message {
+  id     String @id @default(uuid())
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  papel      MensagemPapel     @default(USUARIO)
+  content    String
+  intent     MensagemIntencao?
+  status     MensagemStatus    @default(INFORMATIVA)
+  parsedData Json?
+  resultado  Json?
+
+  // Referência ao registro financeiro criado/alterado pela API Financeira.
+  despesaId     String?
+  despesa       Despesa?     @relation(fields: [despesaId], references: [id])
+  recebimentoId String?
+  recebimento   Recebimento? @relation(fields: [recebimentoId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  @@index([chatId])
+  @@index([userId])
+  @@map("message")
+}

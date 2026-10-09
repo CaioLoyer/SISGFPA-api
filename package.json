@@ -1,0 +1,39 @@
+{
+  "name": "sisgfpa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SISGFPA - Sistema de Gerenciamento Financeiro para Papelarias (monorepo)",
+  "packageManager": "pnpm@10.14.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter api --filter chatbot dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:chatbot": "pnpm --filter chatbot dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r --if-present test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.json",
+    "db:generate": "pnpm --filter @sisgfpa/database db:generate",
+    "db:migrate": "pnpm --filter @sisgfpa/database db:migrate",
+    "db:deploy": "pnpm --filter @sisgfpa/database db:deploy",
+    "db:seed": "pnpm --filter @sisgfpa/database db:seed",
+    "db:seed:demo": "tsx scripts/seed-demo.ts",
+    "e2e": "tsx scripts/e2e.ts",
+    "verify:arch": "tsx scripts/verify-architecture.ts",
+    "verify:docs": "tsx scripts/docs-check.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "catalog:",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "catalog:"
+  }
+}

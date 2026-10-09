@@ -1,0 +1,33 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "API REST do SISGFPA - Sistema de Gerenciamento Financeiro para Papelarias (Módulo Financeiro)",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx --watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sisgfpa/auth": "workspace:*",
+    "@sisgfpa/database": "workspace:*",
+    "@sisgfpa/http": "workspace:*",
+    "@sisgfpa/types": "workspace:*",
+    "@sisgfpa/validation": "workspace:*",
+    "dayjs": "catalog:",
+    "dotenv": "catalog:",
+    "fastify": "catalog:",
+    "fastify-type-provider-zod": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
