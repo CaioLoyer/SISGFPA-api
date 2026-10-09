@@ -10,16 +10,21 @@ import { toCsv } from './csv.js'
 const somaCentavos = (valores: Prisma.Decimal[]): number =>
   valores.reduce((acc, v) => acc + toCents(v.toNumber()), 0)
 
+const filtroRelatorioAtivo = (q: RelatorioQuery) => ({
+  status: { not: 'CANCELADO' as const },
+  dataVencimento: periodoVencimento(q.dataInicio, q.dataFim),
+})
+
 const buscarDespesas = (q: RelatorioQuery) =>
   prisma.despesa.findMany({
-    where: { dataVencimento: periodoVencimento(q.dataInicio, q.dataFim) },
+    where: filtroRelatorioAtivo(q),
     include: { categoria: true },
     orderBy: { dataVencimento: 'asc' },
   })
 
 const buscarRecebimentos = (q: RelatorioQuery) =>
   prisma.recebimento.findMany({
-    where: { dataVencimento: periodoVencimento(q.dataInicio, q.dataFim) },
+    where: filtroRelatorioAtivo(q),
     include: { categoria: true },
     orderBy: { dataVencimento: 'asc' },
   })
