@@ -1,6 +1,6 @@
 /**
- * Teste ponta a ponta do SISGFPA: sobe a API Financeira e o Chatbot, cria usuários reais
- * (FUNCIONARIO e ADMIN) e percorre os cenários obrigatórios via HTTP.
+ * Teste ponta a ponta do SISGFPA: sobe a API Financeira e o Chatbot, cria um ADMIN
+ * pelo mecanismo interno Better Auth e um FUNCIONARIO pela rota administrativa HTTP.
  *
  * Requer: Postgres com migrations aplicadas + seed (pnpm db:deploy && pnpm db:seed),
  * DATABASE_URL e BETTER_AUTH_SECRET definidos, e `pnpm build` executado.
@@ -28,29 +28,36 @@ const ABC = `ABC${suf}`,
 const JOAO = `João${suf}`,
   MARIA = `Maria${suf}`
 
-interface SessionComId extends Session {
-  id: string
-}
-
-async function signUp(name: string): Promise<SessionComId> {
-  const res = await fetch(`${API}/api/auth/sign-up/email`, {
+async function signIn(email: string): Promise<Session> {
+  const res = await fetch(`${API}/api/auth/sign-in/email`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: API },
-    body: JSON.stringify({ name, email: `${name.toLowerCase()}-${run}@e2e.test`, password: 'senha12345' }),
+    body: JSON.stringify({ email, password: 'senha12345' }),
   })
-  assert.equal(res.status, 200, `sign-up ${name}`)
-  const cookie = cookieDe(res.headers.getSetCookie())
-  const body = (await res.json()) as Json
-  return { cookie, id: body.user.id }
+  const body = await res.text()
+  assert.equal(res.status, 200, `sign-in ${email}: ${body}`)
+  return { cookie: cookieDe(res.headers.getSetCookie()) }
 }
 
 async function main() {
   const { prisma } = await import('../packages/database/dist/index.js')
+  const { auth } = await import('../packages/auth/dist/index.js')
   await startServers()
 
-  const func = await signUp('Funcionario')
-  const admin = await signUp('Administrador')
-  await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } })
+  const adminEmail = `admin-${run}@e2e.test`
+  await auth.api.createUser({
+    body: { name: 'Administrador E2E', email: adminEmail, password: 'senha12345', role: 'ADMIN' },
+  })
+  const admin = await signIn(adminEmail)
+  const funcionarioEmail = `funcionario-${run}@e2e.test`
+  const createdFuncionario = await http(API, admin, 'POST', '/usuarios/funcionarios', {
+    name: 'Funcionario E2E',
+    email: funcionarioEmail,
+    password: 'senha12345',
+  })
+  assert.equal(createdFuncionario.status, 201, JSON.stringify(createdFuncionario.body))
+  assert.equal(createdFuncionario.body.role, 'FUNCIONARIO')
+  const func = await signIn(funcionarioEmail)
 
   const chatF = (await http(BOT, func, 'POST', '/chats', {})).body.id as string
   const chatA = (await http(BOT, admin, 'POST', '/chats', {})).body.id as string
@@ -195,6 +202,18 @@ async function main() {
   })
 
   console.log('\nAutorização (decidida pela API Financeira)')
+  await step('FUNCIONARIO não pode cadastrar contas (403)', async () => {
+    assert.equal(
+      (
+        await http(API, func, 'POST', '/usuarios/funcionarios', {
+          name: 'Conta Indevida',
+          email: `indevida-${run}@e2e.test`,
+          password: 'senha12345',
+        })
+      ).status,
+      403
+    )
+  })
   await step('FUNCIONARIO tenta cancelar pelo Chatbot: recusado pela API (403), título intacto', async () => {
     const { sent, done } = await dizer(func, chatF, `Cancele a despesa do fornecedor ${KALUNGA}`)
     assert.match(sent.confirmacao.resumo, /Vou cancelar/)

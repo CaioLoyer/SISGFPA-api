@@ -5,6 +5,8 @@ import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { fromNodeHeaders } from 'better-auth/node'
 import { openAPI } from 'better-auth/plugins'
 
+import { createSisgfpaAdminPlugin, emailAndPasswordOptions } from './account-config.js'
+
 if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error(
     'BETTER_AUTH_SECRET não definida. Use a MESMA string longa e aleatória na API e no Chatbot.'
@@ -21,22 +23,9 @@ const trustedOrigins = [
 // (mesmo banco e mesmo BETTER_AUTH_SECRET).
 export const auth = betterAuth({
   trustedOrigins,
-  emailAndPassword: {
-    enabled: true,
-  },
-  // Perfil de acesso. Todo cadastro entra como FUNCIONARIO; promover para ADMIN é feito
-  // diretamente no banco (ou por endpoint administrativo futuro), nunca pelo próprio cadastro.
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        defaultValue: 'FUNCIONARIO',
-        input: false,
-      },
-    },
-  },
+  emailAndPassword: emailAndPasswordOptions,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
-  plugins: [openAPI()],
+  plugins: [createSisgfpaAdminPlugin(), openAPI()],
 })
 
 type NodeHeaders = Parameters<typeof fromNodeHeaders>[0]

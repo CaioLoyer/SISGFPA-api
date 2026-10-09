@@ -79,10 +79,10 @@ class Doc {
 
 // ------------------------------------------------------------------ endpoints esperados
 const ESPERADOS_API = [
-  'POST /api/auth/sign-up/email',
   'POST /api/auth/sign-in/email',
   'POST /api/auth/sign-out',
   'GET /api/auth/get-session',
+  'POST /usuarios/funcionarios',
   'GET /categorias/',
   'POST /despesas/',
   'GET /despesas/',
@@ -178,24 +178,55 @@ async function main() {
   console.log('\nAutenticação (exemplos do Scalar)')
   let admin!: Session
   let func!: Session
-  await step('Cadastro: exemplo do body (200, ou usuário já existente se repetido)', async () => {
-    const r = await http(
-      API,
-      null,
-      'POST',
-      '/api/auth/sign-up/email',
-      api.body('POST', '/api/auth/sign-up/email')
-    )
-    assert.ok(r.status === 200 || /already exists|USER_ALREADY_EXISTS/i.test(r.text), `${r.status} ${r.text}`)
-  })
   await step('Login: exemplo do body (ADMIN de demonstração)', async () => {
     admin = await login()
     const s = await http(API, admin, 'GET', '/api/auth/get-session')
     assert.equal(s.body.user.email, EXEMPLOS.admin.email)
     assert.equal(s.body.user.role, 'ADMIN')
   })
-  await step('Login do FUNCIONARIO de demonstração', async () => {
-    func = await login({ email: EXEMPLOS.funcionario.email, password: EXEMPLOS.funcionario.password })
+  let funcionarioEmail = ''
+  await step('Cadastro público recusado e rotas genéricas de ADMIN inacessíveis', async () => {
+    const cadastroPublico = await http(API, null, 'POST', '/api/auth/sign-up/email', {
+      name: 'Cadastro Público',
+      email: `publico-${Date.now()}@docs-check.test`,
+      password: 'senha12345',
+    })
+    assert.ok(cadastroPublico.status >= 400, `${cadastroPublico.status} ${cadastroPublico.text}`)
+
+    const rotaAdminGenerica = await http(API, admin, 'POST', '/api/auth/admin/create-user', {
+      name: 'Admin Indevido',
+      email: `admin-indevido-${Date.now()}@docs-check.test`,
+      password: 'senha12345',
+      role: 'ADMIN',
+    })
+    assert.equal(rotaAdminGenerica.status, 404)
+  })
+  await step('ADMIN cadastra funcionário pelo exemplo documentado; sessão permanece ativa', async () => {
+    const body = api.body('POST', '/usuarios/funcionarios')
+    funcionarioEmail = `funcionario-${Date.now()}@docs-check.test`
+    const r = await http(API, admin, 'POST', '/usuarios/funcionarios', { ...body, email: funcionarioEmail })
+    assert.equal(r.status, 201, r.text)
+    assert.equal(r.body.role, 'FUNCIONARIO')
+    assert.equal(r.setCookie.length, 0, 'criar funcionário não deve emitir sessão nova')
+
+    const s = await http(API, admin, 'GET', '/api/auth/get-session')
+    assert.equal(s.body.user.email, EXEMPLOS.admin.email)
+    assert.equal(s.body.user.role, 'ADMIN')
+  })
+  await step('Funcionário criado entra como FUNCIONARIO e não pode cadastrar contas', async () => {
+    func = await login({ email: funcionarioEmail, password: 'senha12345' })
+    const session = await http(API, func, 'GET', '/api/auth/get-session')
+    assert.equal(session.body.user.email, funcionarioEmail)
+    assert.equal(session.body.user.role, 'FUNCIONARIO')
+    const forbidden = await http(API, func, 'POST', '/usuarios/funcionarios', {
+      name: 'Outro funcionário',
+      email: `outro-${Date.now()}@docs-check.test`,
+      password: 'senha12345',
+    })
+    assert.equal(forbidden.status, 403)
+  })
+  await step('Login do FUNCIONARIO de demonstração continua funcionando', async () => {
+    await login({ email: EXEMPLOS.funcionario.email, password: EXEMPLOS.funcionario.password })
   })
   await step('Login com senha errada é recusado', async () => {
     const r = await http(API, null, 'POST', '/api/auth/sign-in/email', {

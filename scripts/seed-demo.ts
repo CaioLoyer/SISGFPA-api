@@ -49,8 +49,10 @@ export async function seedDemo() {
   async function garantirUsuario(u: Usuario, role: 'ADMIN' | 'FUNCIONARIO') {
     let user = await prisma.user.findUnique({ where: { email: u.email } })
     if (!user) {
-      await auth.api.signUpEmail({ body: { name: u.name, email: u.email, password: u.password } })
-      user = await prisma.user.findUniqueOrThrow({ where: { email: u.email } })
+      const created = await auth.api.createUser({
+        body: { name: u.name, email: u.email, password: u.password, role },
+      })
+      user = await prisma.user.findUniqueOrThrow({ where: { id: created.user.id } })
     }
     if (user.role !== role) user = await prisma.user.update({ where: { id: user.id }, data: { role } })
     return user

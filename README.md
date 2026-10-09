@@ -32,6 +32,7 @@ O Chatbot só grava `Chat` e `Message` (com referência ao título criado). Parc
 
 Requisitos: Node 22+, pnpm 10, PostgreSQL.
 git
+
 ```bash
 pnpm install
 # copie .env.example para apps/api/.env, apps/chatbot/.env e packages/database/.env
@@ -40,11 +41,19 @@ cp .env.example apps/api/.env && cp .env.example apps/chatbot/.env && cp .env.ex
 pnpm build            # gera o client Prisma e compila os pacotes
 pnpm db:deploy        # aplica as migrations
 pnpm db:seed          # categorias da papelaria
+# em banco sem ADMIN, injete INITIAL_ADMIN_NAME/EMAIL/PASSWORD e execute uma vez:
+pnpm db:create-admin
 pnpm dev              # API (8080) e Chatbot (3001) juntos — ou: pnpm dev:api / pnpm dev:chatbot
                       # documentação (Scalar): http://localhost:8080/docs e http://localhost:3001/docs
 ```
 
-Login e cadastro são feitos **na API** (`/api/auth/*`). O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API. Todo cadastro entra como `FUNCIONARIO`; para promover: `UPDATE "user" SET role = 'ADMIN' WHERE email = '...';`.
+Login e recuperação de acesso são feitos **na API** (`/api/auth/*`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API.
+
+O primeiro administrador de cada banco é criado uma única vez por um operador confiável, depois das migrations, com `pnpm db:create-admin` e as variáveis `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` injetadas no ambiente (use o gerenciador de segredos da implantação; não versione a senha). O comando recusa executar se já existir um `ADMIN` e cria a credencial pelo Better Auth. Não há endpoint público de bootstrap.
+
+Somente um `ADMIN` autenticado pode usar `POST /usuarios/funcionarios` para criar conta com nome, e-mail e senha inicial. Essa operação sempre cria `FUNCIONARIO`; o servidor define o papel e rejeita campos extras como `role`. O registro usa o fluxo de criação e hash de senha do Better Auth e não cria uma sessão para o funcionário. As contas existentes, o login e a recuperação de acesso são preservados; as permissões financeiras atuais de `FUNCIONARIO` não mudam.
+
+Na operação de cadastro considerada no escopo de RF001/RF012, o tipo criado é sempre `FUNCIONARIO`, definido pelo servidor. A decisão de permitir que somente `ADMIN` execute a operação diverge do diagrama de casos de uso do PDF, que associa “Manter Funcionários” ao ator Funcionário.
 
 Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm format:check`), mais:
 
@@ -57,7 +66,7 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 ## Documentação interativa (Scalar)
 
 - API: http://localhost:8080/docs — Chatbot: http://localhost:3001/docs
-- Rode `pnpm db:seed:demo` (depois de `db:deploy` e `db:seed`): cria os usuários `admin@sisgfpa.dev` (ADMIN) e `funcionario@sisgfpa.dev`, senha `senha12345`, e registros com **ids fixos** usados nos exemplos (despesa, recebimento, categorias, conversa com duas mensagens pendentes). Cada execução restaura esses registros; não roda em produção.
+- Rode `pnpm db:seed:demo` (depois de `db:deploy` e `db:seed`): cria os usuários `admin@sisgfpa.dev` (ADMIN) e `funcionario@sisgfpa.dev`, senha `senha12345`, e registros com **ids fixos** usados nos exemplos (despesa, recebimento, categorias, conversa com duas mensagens pendentes). Cada execução restaura esses registros; use apenas em ambientes não produtivos.
 - Fluxo no Scalar: `Autenticação → Login` (body já preenchido) → qualquer endpoint com `Execute`. O cookie de sessão vale para API e Chatbot (mesmo host). Para o Chatbot, faça o login na documentação da API.
 - Os exemplos dos ids (`/despesas/{id}`, `/chats/{chatId}/...`) apontam para os registros de demonstração; `confirm`/`cancel` de mensagem só funcionam uma vez por `db:seed:demo` (depois retornam 409, como esperado).
 
@@ -68,6 +77,7 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 | Despesas           | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)             |
 | Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN) |
 | Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                         |
+| Usuários (ADMIN)   | `POST /usuarios/funcionarios` (papel `FUNCIONARIO` atribuído pelo servidor)                                                         |
 | Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                              |
 
 Novidades desta unificação: `Categoria`, `Parcela` (despesa e recebimento), `observacoes`, `dataLancamento`, filtros de listagem (fornecedor/cliente, categoria, período) e `liquidarNoAto` (cria o título e registra o pagamento/baixa na **mesma transação**, para fatos já ocorridos como "Pagamos R$ 800 de energia").

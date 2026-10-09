@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "better-auth": "1.6.2",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

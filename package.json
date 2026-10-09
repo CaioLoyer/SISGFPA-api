@@ -19,6 +19,7 @@
     "db:migrate": "pnpm --filter @sisgfpa/database db:migrate",
     "db:deploy": "pnpm --filter @sisgfpa/database db:deploy",
     "db:seed": "pnpm --filter @sisgfpa/database db:seed",
+    "db:create-admin": "pnpm build && tsx scripts/create-admin.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "e2e": "tsx scripts/e2e.ts",
     "verify:arch": "tsx scripts/verify-architecture.ts",

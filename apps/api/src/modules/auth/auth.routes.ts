@@ -1,6 +1,6 @@
 import { auth, fromNodeHeaders } from '@sisgfpa/auth'
 import { responses } from '@sisgfpa/http'
-import { SignInBodySchema, SignUpBodySchema } from '@sisgfpa/validation'
+import { SignInBodySchema } from '@sisgfpa/validation'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import z from 'zod'
@@ -8,6 +8,18 @@ import z from 'zod'
 /** Repassa a requisição ao Better Auth (Fetch API) e devolve a resposta dele, incluindo Set-Cookie. */
 async function encaminharParaAuth(request: FastifyRequest, reply: FastifyReply) {
   const url = new URL(request.url, `http://${request.headers.host}`)
+  // O plugin admin habilita métodos internos usados pela API e pelo bootstrap CLI.
+  // Suas rotas HTTP genéricas permitem criar ADMIN/alterar papéis, então nunca as exponha no curinga.
+  let normalizedPath: string
+  try {
+    normalizedPath = decodeURIComponent(url.pathname).toLowerCase()
+  } catch {
+    return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
+  }
+  if (normalizedPath === '/api/auth/admin' || normalizedPath.startsWith('/api/auth/admin/')) {
+    return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
+  }
+
   const req = new Request(url.toString(), {
     method: request.method,
     headers: fromNodeHeaders(request.headers),
@@ -33,25 +45,10 @@ const SessionSchema = z.any().meta({
 })
 
 /**
- * Rotas de autenticação documentadas (Scalar). O restante de /api/auth/* continua
- * coberto pela rota curinga no final deste plugin. A API é o único ponto de login do sistema.
+ * Rotas de autenticação documentadas (Scalar). As rotas restantes de /api/auth/* passam
+ * pela rota curinga, exceto pelas rotas administrativas internas do Better Auth. A API é o único ponto de login.
  */
 export const authRoutes: FastifyPluginAsyncZod = async (app) => {
-  app.post(
-    '/api/auth/sign-up/email',
-    {
-      schema: {
-        tags: ['Autenticação'],
-        summary: 'Cadastro (entra como FUNCIONARIO)',
-        description:
-          'Cria o usuário e já abre a sessão (cookie). Reexecutar o mesmo e-mail retorna erro de usuário já existente.',
-        body: SignUpBodySchema,
-        response: { ...responses({ 200: z.any() }), 400: z.any(), 422: z.any() },
-      },
-    },
-    encaminharParaAuth
-  )
-
   app.post(
     '/api/auth/sign-in/email',
     {

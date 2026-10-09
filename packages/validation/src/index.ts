@@ -13,15 +13,24 @@ export const ErrorSchema = z
 
 // ===================== Autenticação (Better Auth, exposta pela API) =====================
 
-export const SignUpBodySchema = z
-  .object({
-    name: z.string().min(1).meta({ example: 'Maria Souza' }),
+export const CreateFuncionarioBodySchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).meta({ example: 'Maria Souza' }),
     email: z.email().meta({ example: 'maria.souza@papelariaexemplo.com' }),
-    password: z.string().min(8).meta({ example: 'senha12345' }),
+    password: z.string().min(8).max(128).meta({ example: 'senha12345' }),
   })
   .meta({
+    description:
+      'Cria uma conta FUNCIONARIO. O papel é definido pelo servidor e não pode ser informado pelo cliente.',
     example: { name: 'Maria Souza', email: 'maria.souza@papelariaexemplo.com', password: 'senha12345' },
   })
+
+export const CreateFuncionarioResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.email(),
+  role: z.literal('FUNCIONARIO'),
+})
 
 export const SignInBodySchema = z
   .object({
