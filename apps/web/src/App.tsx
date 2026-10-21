@@ -12,7 +12,8 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 
-import { decideProtectedRoute, safeReturnPath } from './auth/protected-route'
+import { canAccessAdmin, decideProtectedRoute, safeReturnPath } from './auth/protected-route'
+import { createFuncionario } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 
 function BrandMark({ small = false }: { small?: boolean }) {
@@ -188,6 +189,17 @@ function ProtectedLayout() {
             </span>
             Visão geral
           </NavLink>
+          {canAccessAdmin(user.role) && (
+            <NavLink
+              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+              to="/admin"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                ＋
+              </span>
+              Administração
+            </NavLink>
+          )}
         </nav>
 
         <p className="sidebar-note">Os módulos financeiros serão integrados por etapas.</p>
@@ -296,12 +308,125 @@ function NotFoundPage() {
   )
 }
 
+function AdminPage() {
+  const { user } = useSession()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [created, setCreated] = useState<{ name: string; email: string } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  if (!canAccessAdmin(user?.role)) {
+    return (
+      <section className="welcome-page" role="alert">
+        <p className="eyebrow">ACESSO RESTRITO</p>
+        <h1>Área exclusiva para ADMIN</h1>
+        <p>Seu perfil não pode cadastrar funcionários.</p>
+        <Link className="text-link" to="/">
+          Voltar para a visão geral
+        </Link>
+      </section>
+    )
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setCreated(null)
+    setSubmitting(true)
+
+    try {
+      const funcionario = await createFuncionario({ name: name.trim(), email: email.trim(), password })
+      setCreated({ name: funcionario.name, email: funcionario.email })
+      setName('')
+      setEmail('')
+      setPassword('')
+    } catch (caught) {
+      const apiError = caught instanceof Error ? caught.message : 'Não foi possível cadastrar o funcionário.'
+      setError(apiError)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section className="welcome-page admin-page">
+      <div className="welcome-heading">
+        <div>
+          <p className="eyebrow">ADMINISTRAÇÃO</p>
+          <h1>Cadastrar funcionário</h1>
+          <p>Crie uma conta para acesso à plataforma. O papel FUNCIONARIO é atribuído pelo servidor.</p>
+        </div>
+      </div>
+
+      <section className="admin-card" aria-labelledby="employee-form-title">
+        <h2 id="employee-form-title">Dados da conta</h2>
+        <p className="admin-card-description">A senha inicial deve ter de 8 a 128 caracteres.</p>
+        <form className="admin-form" onSubmit={handleSubmit}>
+          <label className="field-label" htmlFor="employee-name">
+            Nome
+            <input
+              autoComplete="name"
+              id="employee-name"
+              maxLength={120}
+              onChange={(event) => setName(event.target.value)}
+              required
+              value={name}
+            />
+          </label>
+          <label className="field-label" htmlFor="employee-email">
+            E-mail
+            <input
+              autoComplete="email"
+              id="employee-email"
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
+          </label>
+          <label className="field-label" htmlFor="employee-password">
+            Senha inicial
+            <input
+              autoComplete="new-password"
+              id="employee-password"
+              maxLength={128}
+              minLength={8}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+          </label>
+
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          {created && (
+            <p className="form-success" role="status">
+              Funcionário {created.name} ({created.email}) cadastrado com sucesso.
+            </p>
+          )}
+
+          <button className="button button-primary" disabled={submitting} type="submit">
+            {submitting ? 'Cadastrando…' : 'Cadastrar funcionário'}
+          </button>
+        </form>
+      </section>
+    </section>
+  )
+}
+
 function ProtectedRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

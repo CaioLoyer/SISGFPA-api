@@ -9,6 +9,13 @@ export interface AuthenticatedUser {
   role: Role
 }
 
+export interface CreatedFuncionario {
+  id: string
+  name: string
+  email: string
+  role: 'FUNCIONARIO'
+}
+
 export class AuthApiError extends Error {
   constructor(
     message: string,
@@ -24,10 +31,14 @@ function readMessage(body: unknown): string | undefined {
   return typeof body.message === 'string' ? body.message : undefined
 }
 
-async function request(path: string, init?: RequestInit): Promise<unknown> {
+async function request(
+  url: string,
+  init?: RequestInit,
+  options: { invalidCredentials?: boolean } = {}
+): Promise<unknown> {
   let response: Response
   try {
-    response = await fetch(`${apiBaseUrl}/api/auth${path}`, {
+    response = await fetch(url, {
       ...init,
       credentials: 'include',
       headers: {
@@ -52,7 +63,9 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
   if (!response.ok) {
     const message =
       response.status === 401
-        ? 'E-mail ou senha inválidos.'
+        ? options.invalidCredentials
+          ? 'E-mail ou senha inválidos.'
+          : 'Sua sessão expirou. Entre novamente.'
         : response.status === 429
           ? 'Muitas tentativas. Aguarde um pouco e tente novamente.'
           : readMessage(body) || 'Não foi possível concluir a operação de autenticação.'
@@ -75,14 +88,18 @@ function isAuthenticatedUser(value: unknown): value is AuthenticatedUser {
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  await request('/sign-in/email', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
+  await request(
+    `${apiBaseUrl}/api/auth/sign-in/email`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    },
+    { invalidCredentials: true }
+  )
 }
 
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
-  const body = await request('/get-session')
+  const body = await request(`${apiBaseUrl}/api/auth/get-session`)
   if (body === null) return null
 
   if (typeof body === 'object' && body !== null && 'user' in body) {
@@ -94,5 +111,30 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 }
 
 export async function signOut(): Promise<void> {
-  await request('/sign-out', { method: 'POST' })
+  await request(`${apiBaseUrl}/api/auth/sign-out`, { method: 'POST' })
+}
+
+export async function createFuncionario(input: {
+  name: string
+  email: string
+  password: string
+}): Promise<CreatedFuncionario> {
+  const body = await request(`${apiBaseUrl}/api/usuarios/funcionarios`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('id' in body && 'name' in body && 'email' in body && 'role' in body) ||
+    typeof body.id !== 'string' ||
+    typeof body.name !== 'string' ||
+    typeof body.email !== 'string' ||
+    body.role !== 'FUNCIONARIO'
+  ) {
+    throw new AuthApiError('A API Financeira retornou os dados do funcionário em formato inválido.')
+  }
+
+  return { id: body.id, name: body.name, email: body.email, role: body.role }
 }

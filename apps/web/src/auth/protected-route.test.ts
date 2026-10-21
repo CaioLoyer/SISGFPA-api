@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideProtectedRoute, safeReturnPath } from './protected-route'
+import { canAccessAdmin, decideProtectedRoute, safeReturnPath } from './protected-route'
 
 describe('decisão de acesso às rotas protegidas', () => {
   it('aguarda a restauração antes de mostrar conteúdo privado', () => {
@@ -22,5 +22,11 @@ describe('decisão de acesso às rotas protegidas', () => {
     expect(safeReturnPath('//malicioso.example')).toBe('/')
     expect(safeReturnPath('https://malicioso.example')).toBe('/')
     expect(safeReturnPath('/financeiro')).toBe('/financeiro')
+  })
+
+  it('autoriza a interface administrativa somente ao papel ADMIN', () => {
+    expect(canAccessAdmin('ADMIN')).toBe(true)
+    expect(canAccessAdmin('FUNCIONARIO')).toBe(false)
+    expect(canAccessAdmin(undefined)).toBe(false)
   })
 })

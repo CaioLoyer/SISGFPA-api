@@ -548,6 +548,44 @@ a {
   color: #8c9890;
   font-size: 11px;
 }
+.admin-page .welcome-heading {
+  margin-bottom: 28px;
+}
+.admin-card {
+  max-width: 680px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 8px 28px #12321c07;
+}
+.admin-card h2 {
+  margin: 0;
+  color: var(--green-dark);
+  font:
+    700 16px Inter,
+    system-ui,
+    sans-serif;
+}
+.admin-card-description {
+  margin: 7px 0 22px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.admin-form {
+  display: grid;
+  max-width: 440px;
+  gap: 17px;
+}
+.form-success {
+  margin: -5px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #c9e3d0;
+  border-radius: 7px;
+  color: #21643b;
+  background: #eff8f1;
+  font-size: 12px;
+}
 .text-link {
   color: var(--green);
   font-size: 13px;
@@ -589,6 +627,9 @@ a {
   }
   .welcome-page {
     padding: 32px 20px;
+  }
+  .admin-card {
+    padding: 20px;
   }
   .welcome-heading {
     align-items: flex-start;

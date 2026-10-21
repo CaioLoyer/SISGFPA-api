@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AuthApiError, getCurrentUser, signIn, signOut } from './auth-api'
+import { AuthApiError, createFuncionario, getCurrentUser, signIn, signOut } from './auth-api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -62,5 +62,43 @@ describe('cliente de autenticação da API Financeira', () => {
       'http://localhost:8080/api/auth/sign-out',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     )
+  })
+
+  it('cadastra funcionário na rota administrativa sem enviar papel e preserva cookies', async () => {
+    const created = { id: 'u2', name: 'Nova funcionária', email: 'nova@example.com', role: 'FUNCIONARIO' }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(created), { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      createFuncionario({ name: 'Nova funcionária', email: 'nova@example.com', password: 'senha-segura' })
+    ).resolves.toEqual(created)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/api/usuarios/funcionarios',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({
+          name: 'Nova funcionária',
+          email: 'nova@example.com',
+          password: 'senha-segura',
+        }),
+      })
+    )
+  })
+
+  it('apresenta erro de conflito retornado ao cadastrar e-mail já utilizado', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ message: 'Já existe uma conta com este e-mail' }), { status: 409 })
+        )
+    )
+
+    await expect(
+      createFuncionario({ name: 'Funcionário', email: 'existente@example.com', password: 'senha-segura' })
+    ).rejects.toMatchObject({ message: 'Já existe uma conta com este e-mail', status: 409 })
   })
 })

@@ -1,3 +1,5 @@
+import type { Role } from '@sisgfpa/types'
+
 export type SessionStatus = 'loading' | 'unavailable' | 'anonymous' | 'authenticated'
 
 export type ProtectedRouteDecision =
@@ -16,4 +18,8 @@ export function decideProtectedRoute(status: SessionStatus, currentPath: string)
   if (status === 'authenticated') return { kind: 'allow' }
 
   return { kind: 'redirect', to: `/login?returnTo=${encodeURIComponent(currentPath)}` }
+}
+
+export function canAccessAdmin(role: Role | undefined): boolean {
+  return role === 'ADMIN'
 }
