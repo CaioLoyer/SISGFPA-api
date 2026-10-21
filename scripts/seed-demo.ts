@@ -87,6 +87,30 @@ export async function seedDemo() {
     },
   })
 
+  await prisma.contato.upsert({
+    where: { id: EXEMPLOS.clienteContatoId },
+    update: {
+      nome: 'Maria da Silva',
+      documento: '12345678909',
+      tipoPessoa: 'FISICA',
+      papeis: ['CLIENTE'],
+      telefone: '(67) 99999-0000',
+      cidade: 'Campo Grande',
+      uf: 'MS',
+      ativo: true,
+    },
+    create: {
+      id: EXEMPLOS.clienteContatoId,
+      nome: 'Maria da Silva',
+      documento: '12345678909',
+      tipoPessoa: 'FISICA',
+      papeis: ['CLIENTE'],
+      telefone: '(67) 99999-0000',
+      cidade: 'Campo Grande',
+      uf: 'MS',
+    },
+  })
+
   // Restaura os registros de demonstração (apenas os de ID fixo).
   await prisma.chat.deleteMany({ where: { id: EXEMPLOS.chatId } }) // mensagens caem em cascata
   await prisma.despesaPagamento.deleteMany({ where: { despesaId: EXEMPLOS.despesaId } })
@@ -130,6 +154,7 @@ export async function seedDemo() {
       id: EXEMPLOS.recebimentoId,
       descricao: 'Venda de material escolar',
       cliente: 'Maria da Silva',
+      clienteContatoId: EXEMPLOS.clienteContatoId,
       valor: 350,
       dataLancamento: new Date('2026-09-30'),
       dataVencimento: new Date('2026-10-15'),

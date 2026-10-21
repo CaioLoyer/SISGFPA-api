@@ -434,7 +434,7 @@ export const CreateRecebimentoBodySchema = z
     example: {
       descricao: 'Venda de material escolar',
       cliente: 'Maria da Silva',
-      clienteContatoId: '7c49697a-836c-4d09-b30e-903b33cd152e',
+      clienteContatoId: EXEMPLOS.clienteContatoId,
       valor: 350,
       dataLancamento: '2026-09-30',
       dataVencimento: '2026-10-15',
