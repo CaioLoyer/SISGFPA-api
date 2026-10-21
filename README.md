@@ -6,6 +6,7 @@ Monorepo pnpm com dois aplicativos que compartilham **um único domínio finance
 sisgfpa/
 ├── apps/
 │   ├── api/        Módulo Financeiro (Fastify) — autoridade do domínio: regras, validação, autorização
+│   ├── web/        Aplicativo web (React/Vite) — interface do usuário
 │   └── chatbot/    Interface conversacional (pt-BR): interpreta a mensagem e chama a API por HTTP
 ├── packages/
 │   ├── http/       Base Fastify comum: createApp, erros, hooks de autenticação, env
@@ -37,17 +38,20 @@ git
 pnpm install
 # copie .env.example para apps/api/.env, apps/chatbot/.env e packages/database/.env
 cp .env.example apps/api/.env && cp .env.example apps/chatbot/.env && cp .env.example packages/database/.env
+# configure a URL da API para o frontend
+cp apps/web/.env.example apps/web/.env
 # e edite DATABASE_URL e BETTER_AUTH_SECRET (o segredo deve ser o MESMO nos três)
 pnpm build            # gera o client Prisma e compila os pacotes
 pnpm db:deploy        # aplica as migrations
 pnpm db:seed          # categorias da papelaria
 # em banco sem ADMIN, injete INITIAL_ADMIN_NAME/EMAIL/PASSWORD e execute uma vez:
 pnpm db:create-admin
-pnpm dev              # API (8080) e Chatbot (3001) juntos — ou: pnpm dev:api / pnpm dev:chatbot
-                      # documentação (Scalar): http://localhost:8080/docs e http://localhost:3001/docs
+pnpm dev              # API (8080) e frontend (3000), sem iniciar o Chatbot
+                      # alternativamente: pnpm dev:api / pnpm dev:web / pnpm dev:chatbot
+                      # interface: http://localhost:3000; documentação (Scalar): http://localhost:8080/docs
 ```
 
-Login e recuperação de acesso são feitos **na API** (`/api/auth/*`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API.
+O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão usando os endpoints Better Auth da API (`/api/auth/*`), com cookies e a origem local já permitida em `TRUSTED_ORIGINS`. A URL da API pode ser ajustada em `apps/web/.env` (`VITE_API_URL`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API. A recuperação por código ainda será integrada em uma etapa posterior.
 
 O primeiro administrador de cada banco é criado uma única vez por um operador confiável, depois das migrations, com `pnpm db:create-admin` e as variáveis `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` injetadas no ambiente (use o gerenciador de segredos da implantação; não versione a senha). O comando recusa executar se já existir um `ADMIN` e cria a credencial pelo Better Auth. Não há endpoint público de bootstrap.
 
