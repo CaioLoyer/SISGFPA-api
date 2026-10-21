@@ -19,10 +19,12 @@
     "@sisgfpa/database": "workspace:*",
     "@sisgfpa/types": "workspace:*",
     "better-auth": "1.6.2",
+    "nodemailer": "^10.2.0",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "@types/nodemailer": "^8.0.2",
+    "typescript": "catalog:"
   }
 }

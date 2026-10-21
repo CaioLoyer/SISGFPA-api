@@ -13,7 +13,13 @@ import {
 } from 'react-router-dom'
 
 import { canAccessAdmin, decideProtectedRoute, safeReturnPath } from './auth/protected-route'
-import { createFuncionario, listFuncionarios, updateFuncionarioPermissoes } from './auth/auth-api'
+import {
+  createFuncionario,
+  listFuncionarios,
+  requestPasswordRecoveryCode,
+  resetPasswordWithCode,
+  updateFuncionarioPermissoes,
+} from './auth/auth-api'
 import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 
@@ -141,11 +147,189 @@ function LoginPage() {
           </form>
 
           <p className="auth-help">
-            Precisa redefinir sua senha? Peça ao administrador enquanto a recuperação por código é
-            configurada.
+            <Link className="text-link" to="/recuperar-senha">
+              Esqueceu sua senha?
+            </Link>
           </p>
         </div>
         <footer className="auth-footer">Acesso restrito a usuários cadastrados pela administração</footer>
+      </section>
+    </main>
+  )
+}
+
+function PasswordRecoveryPage() {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [codeRequested, setCodeRequested] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function sendCode(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    setError('')
+    setMessage('')
+    setSubmitting(true)
+    try {
+      await requestPasswordRecoveryCode(email.trim())
+      setCodeRequested(true)
+      setMessage('Se o e-mail estiver cadastrado, enviaremos um código válido por cinco minutos.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Não foi possível solicitar o código.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    if (password !== passwordConfirmation) {
+      setError('As senhas não coincidem.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await resetPasswordWithCode({ email: email.trim(), otp: otp.trim(), password })
+      setMessage('Senha redefinida. Entre com sua nova senha.')
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Não foi possível redefinir a senha.'
+      setError(message === 'Invalid OTP' ? 'Código inválido ou expirado.' : message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <div className="auth-decoration auth-decoration-one" aria-hidden="true" />
+      <div className="auth-decoration auth-decoration-two" aria-hidden="true" />
+      <section className="auth-card" aria-labelledby="recovery-title">
+        <div className="auth-accent" />
+        <div className="auth-content">
+          <BrandMark />
+          <p className="eyebrow">MIL FOLHAS PAPELARIA</p>
+          <h1 id="recovery-title">Recuperar acesso</h1>
+          <p className="auth-intro">
+            {message.startsWith('Senha redefinida')
+              ? message
+              : 'Informe seu e-mail para receber um código de recuperação.'}
+          </p>
+
+          {!message.startsWith('Senha redefinida') && !codeRequested && (
+            <form className="login-form" onSubmit={(event) => void sendCode(event)}>
+              <label className="field-label" htmlFor="recovery-email">
+                E-mail
+                <input
+                  autoComplete="email"
+                  autoFocus
+                  id="recovery-email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  type="email"
+                  value={email}
+                />
+              </label>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <button className="button button-primary login-submit" disabled={submitting} type="submit">
+                {submitting ? 'Enviando…' : 'Enviar código'}
+              </button>
+            </form>
+          )}
+
+          {!message.startsWith('Senha redefinida') && codeRequested && (
+            <form className="login-form" onSubmit={(event) => void handleReset(event)}>
+              <label className="field-label" htmlFor="recovery-code">
+                Código de seis dígitos
+                <input
+                  autoComplete="one-time-code"
+                  autoFocus
+                  id="recovery-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  pattern="[0-9]{6}"
+                  required
+                  value={otp}
+                />
+              </label>
+              <label className="field-label" htmlFor="recovery-password">
+                Nova senha
+                <input
+                  autoComplete="new-password"
+                  id="recovery-password"
+                  maxLength={128}
+                  minLength={8}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type="password"
+                  value={password}
+                />
+              </label>
+              <label className="field-label" htmlFor="recovery-password-confirmation">
+                Confirme a nova senha
+                <input
+                  autoComplete="new-password"
+                  id="recovery-password-confirmation"
+                  maxLength={128}
+                  minLength={8}
+                  onChange={(event) => setPasswordConfirmation(event.target.value)}
+                  required
+                  type="password"
+                  value={passwordConfirmation}
+                />
+              </label>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              {message && (
+                <p className="form-success" role="status">
+                  {message}
+                </p>
+              )}
+              <button className="button button-primary login-submit" disabled={submitting} type="submit">
+                {submitting ? 'Redefinindo…' : 'Redefinir senha'}
+              </button>
+              <button
+                className="text-button"
+                disabled={submitting}
+                onClick={() => void sendCode()}
+                type="button"
+              >
+                Enviar outro código
+              </button>
+            </form>
+          )}
+
+          {message.startsWith('Senha redefinida') ? (
+            <button
+              className="button button-primary login-submit"
+              onClick={() => navigate('/login')}
+              type="button"
+            >
+              Voltar para o login
+            </button>
+          ) : null}
+
+          <p className="auth-help">
+            <Link className="text-link" to="/login">
+              Voltar para o login
+            </Link>
+          </p>
+        </div>
+        <footer className="auth-footer">O código é de uso único e expira em cinco minutos</footer>
       </section>
     </main>
   )
@@ -570,6 +754,7 @@ function ProtectedRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/recuperar-senha" element={<PasswordRecoveryPage />} />
       <Route element={<ProtectedLayout />}>
         <Route index element={<HomePage />} />
         <Route path="admin" element={<AdminPage />} />

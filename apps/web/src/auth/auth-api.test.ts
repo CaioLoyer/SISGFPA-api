@@ -5,6 +5,8 @@ import {
   createFuncionario,
   getCurrentUser,
   listFuncionarios,
+  requestPasswordRecoveryCode,
+  resetPasswordWithCode,
   signIn,
   signOut,
   updateFuncionarioPermissoes,
@@ -70,6 +72,62 @@ describe('cliente de autenticação da API Financeira', () => {
       'http://localhost:8080/api/auth/sign-out',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     )
+  })
+
+  it('solicita e valida o código de recuperação pelas rotas Better Auth', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(requestPasswordRecoveryCode('maria@example.com')).resolves.toBeUndefined()
+    await expect(
+      resetPasswordWithCode({
+        email: 'maria@example.com',
+        otp: '123456',
+        password: 'nova-senha-123',
+      })
+    ).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/api/auth/email-otp/request-password-reset',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ email: 'maria@example.com' }),
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/api/auth/email-otp/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ email: 'maria@example.com', otp: '123456', password: 'nova-senha-123' }),
+      })
+    )
+  })
+
+  it('traduz indisponibilidade uniforme do serviço de recuperação', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: 'Recuperação de senha indisponível no momento.',
+            code: 'EMAIL_RECOVERY_UNAVAILABLE',
+          }),
+          { status: 503 }
+        )
+      )
+    )
+
+    await expect(requestPasswordRecoveryCode('maria@example.com')).rejects.toMatchObject({
+      message: 'Recuperação de senha indisponível no momento.',
+      status: 503,
+    })
   })
 
   it('cadastra funcionário na rota administrativa sem enviar papel e preserva cookies', async () => {

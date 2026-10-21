@@ -216,6 +216,20 @@ a {
   font-size: 11px;
   line-height: 1.55;
 }
+.text-button {
+  padding: 4px;
+  border: 0;
+  color: var(--green);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.text-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .auth-footer {
   padding: 13px 18px;
   color: #738177;

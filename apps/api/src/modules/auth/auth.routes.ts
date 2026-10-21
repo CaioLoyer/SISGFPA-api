@@ -1,9 +1,27 @@
-import { auth, fromNodeHeaders } from '@sisgfpa/auth'
+import { auth, fromNodeHeaders, isEmailRecoveryConfigured } from '@sisgfpa/auth'
 import { responses } from '@sisgfpa/http'
 import { SignInBodySchema } from '@sisgfpa/validation'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import z from 'zod'
+
+const RequestPasswordRecoveryBodySchema = z
+  .object({ email: z.email().trim().toLowerCase() })
+  .meta({ example: { email: 'admin@sisgfpa.dev' } })
+const ResetPasswordWithCodeBodySchema = z
+  .object({
+    email: z.email().trim().toLowerCase(),
+    otp: z.string().length(6).meta({ example: '123456' }),
+    password: z.string().min(8).max(128).meta({ example: 'nova-senha-123' }),
+  })
+  .meta({ example: { email: 'admin@sisgfpa.dev', otp: '123456', password: 'nova-senha-123' } })
+const RecoveryRequestedSchema = z.object({ success: z.boolean() }).meta({ example: { success: true } })
+const PasswordResetSchema = z.object({ success: z.boolean() }).meta({ example: { success: true } })
+const emailOtpPrefix = '/api/auth/email-otp/'
+const allowedEmailOtpPaths = new Set([
+  '/api/auth/email-otp/request-password-reset',
+  '/api/auth/email-otp/reset-password',
+])
 
 /** Repassa a requisição ao Better Auth (Fetch API) e devolve a resposta dele, incluindo Set-Cookie. */
 async function encaminharParaAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -18,6 +36,28 @@ async function encaminharParaAuth(request: FastifyRequest, reply: FastifyReply) 
   }
   if (normalizedPath === '/api/auth/admin' || normalizedPath.startsWith('/api/auth/admin/')) {
     return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
+  }
+
+  if (normalizedPath.startsWith(emailOtpPrefix) && !allowedEmailOtpPaths.has(normalizedPath)) {
+    return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
+  }
+  if (
+    normalizedPath === '/api/auth/forget-password/email-otp' ||
+    normalizedPath === '/api/auth/request-password-reset' ||
+    normalizedPath === '/api/auth/reset-password' ||
+    normalizedPath.startsWith('/api/auth/reset-password/')
+  ) {
+    return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
+  }
+  if (
+    normalizedPath === '/api/auth/email-otp/request-password-reset' &&
+    request.method === 'POST' &&
+    !isEmailRecoveryConfigured()
+  ) {
+    return reply.code(503).send({
+      error: 'Recuperação de senha indisponível no momento.',
+      code: 'EMAIL_RECOVERY_UNAVAILABLE',
+    })
   }
 
   const req = new Request(url.toString(), {
@@ -77,6 +117,41 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['Autenticação'],
         summary: 'Sessão atual (null se não autenticado)',
         response: responses({ 200: SessionSchema }),
+      },
+    },
+    encaminharParaAuth
+  )
+
+  app.post(
+    '/api/auth/email-otp/request-password-reset',
+    {
+      schema: {
+        tags: ['Autenticação'],
+        summary: 'Solicitar código de recuperação de senha',
+        description:
+          'Responde da mesma forma para contas existentes e inexistentes. O código tem seis dígitos, expira em cinco minutos e pode ser solicitado novamente até três vezes por minuto.',
+        body: RequestPasswordRecoveryBodySchema,
+        response: {
+          200: RecoveryRequestedSchema,
+          400: z.any(),
+          429: z.any(),
+          503: z.any(),
+        },
+      },
+    },
+    encaminharParaAuth
+  )
+
+  app.post(
+    '/api/auth/email-otp/reset-password',
+    {
+      schema: {
+        tags: ['Autenticação'],
+        summary: 'Redefinir senha com código',
+        description:
+          'Valida um código de uso único enviado por e-mail e redefine a senha pelo Better Auth. A redefinição encerra as sessões existentes da conta.',
+        body: ResetPasswordWithCodeBodySchema,
+        response: { 200: PasswordResetSchema, 400: z.any(), 403: z.any(), 429: z.any() },
       },
     },
     encaminharParaAuth

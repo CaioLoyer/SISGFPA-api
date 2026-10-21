@@ -82,6 +82,8 @@ const ESPERADOS_API = [
   'POST /api/auth/sign-in/email',
   'POST /api/auth/sign-out',
   'GET /api/auth/get-session',
+  'POST /api/auth/email-otp/request-password-reset',
+  'POST /api/auth/email-otp/reset-password',
   'GET /usuarios/funcionarios',
   'POST /usuarios/funcionarios',
   'PATCH /usuarios/funcionarios/{id}/permissoes',
@@ -202,6 +204,12 @@ async function main() {
       role: 'ADMIN',
     })
     assert.equal(rotaAdminGenerica.status, 404)
+
+    const auxiliarOTP = await http(API, null, 'POST', '/api/auth/email-otp/create-verification-otp', {
+      email: EXEMPLOS.admin.email,
+      type: 'forget-password',
+    })
+    assert.equal(auxiliarOTP.status, 404)
   })
   await step('ADMIN cadastra funcionário pelo exemplo documentado; sessão permanece ativa', async () => {
     const body = api.body('POST', '/usuarios/funcionarios')

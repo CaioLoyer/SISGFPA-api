@@ -51,7 +51,9 @@ pnpm dev              # API (8080) e frontend (3000), sem iniciar o Chatbot
                       # interface: http://localhost:3000; documentação (Scalar): http://localhost:8080/docs
 ```
 
-O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão usando os endpoints Better Auth da API (`/api/auth/*`), com cookies e a origem local já permitida em `TRUSTED_ORIGINS`. A URL da API pode ser ajustada em `apps/web/.env` (`VITE_API_URL`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API. A recuperação por código ainda será integrada em uma etapa posterior.
+O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão usando os endpoints Better Auth da API (`/api/auth/*`), com cookies e a origem local já permitida em `TRUSTED_ORIGINS`. A URL da API pode ser ajustada em `apps/web/.env` (`VITE_API_URL`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API.
+
+A recuperação de senha usa um código de seis dígitos enviado por SMTP, válido por cinco minutos e com até três tentativas. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` e, quando o servidor exigir autenticação, `SMTP_USER`/`SMTP_PASSWORD` no ambiente da API. `SMTP_SECURE=true` é usado para SMTPS; deixe `false` para STARTTLS. A aplicação continua iniciando sem SMTP configurado, mas responde indisponível de forma uniforme para qualquer e-mail ao solicitar um código. E-mails existentes e inexistentes recebem a mesma confirmação quando o serviço está habilitado. O código é armazenado como HMAC protegido por `BETTER_AUTH_SECRET`, é de uso único e a redefinição encerra as sessões existentes da conta.
 
 O primeiro administrador de cada banco é criado uma única vez por um operador confiável, depois das migrations, com `pnpm db:create-admin` e as variáveis `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` injetadas no ambiente (use o gerenciador de segredos da implantação; não versione a senha). O comando recusa executar se já existir um `ADMIN` e cria a credencial pelo Better Auth. Não há endpoint público de bootstrap.
 
@@ -82,6 +84,7 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 | Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN) |
 | Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                         |
 | Usuários (ADMIN)   | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)      |
+| Autenticação       | `POST /api/auth/email-otp/request-password-reset`, `POST /api/auth/email-otp/reset-password` (código enviado por e-mail)            |
 | Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                              |
 
 Novidades desta unificação: `Categoria`, `Parcela` (despesa e recebimento), `observacoes`, `dataLancamento`, filtros de listagem (fornecedor/cliente, categoria, período) e `liquidarNoAto` (cria o título e registra o pagamento/baixa na **mesma transação**, para fatos já ocorridos como "Pagamos R$ 800 de energia").

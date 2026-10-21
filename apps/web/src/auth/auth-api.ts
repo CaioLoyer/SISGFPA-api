@@ -129,6 +129,30 @@ export async function signOut(): Promise<void> {
   await request(`${apiBaseUrl}/api/auth/sign-out`, { method: 'POST' })
 }
 
+export async function requestPasswordRecoveryCode(email: string): Promise<void> {
+  const body = await request(`${apiBaseUrl}/api/auth/email-otp/request-password-reset`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+  if (typeof body !== 'object' || body === null || !('success' in body) || body.success !== true) {
+    throw new AuthApiError('Não foi possível solicitar o código de recuperação.')
+  }
+}
+
+export async function resetPasswordWithCode(input: {
+  email: string
+  otp: string
+  password: string
+}): Promise<void> {
+  const body = await request(`${apiBaseUrl}/api/auth/email-otp/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  if (typeof body !== 'object' || body === null || !('success' in body) || body.success !== true) {
+    throw new AuthApiError('Não foi possível redefinir a senha. Confira o código e tente novamente.')
+  }
+}
+
 export async function createFuncionario(input: {
   name: string
   email: string

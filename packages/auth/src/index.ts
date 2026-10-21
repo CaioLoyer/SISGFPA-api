@@ -5,7 +5,12 @@ import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { fromNodeHeaders } from 'better-auth/node'
 import { openAPI } from 'better-auth/plugins'
 
-import { createSisgfpaAdminPlugin, emailAndPasswordOptions } from './account-config.js'
+import {
+  createSisgfpaAdminPlugin,
+  createSisgfpaEmailOTPPlugin,
+  emailAndPasswordOptions,
+} from './account-config.js'
+import { isEmailRecoveryConfigured } from './email-delivery.js'
 
 if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error(
@@ -25,7 +30,7 @@ export const auth = betterAuth({
   trustedOrigins,
   emailAndPassword: emailAndPasswordOptions,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
-  plugins: [createSisgfpaAdminPlugin(), openAPI()],
+  plugins: [createSisgfpaAdminPlugin(), createSisgfpaEmailOTPPlugin(), openAPI()],
 })
 
 type NodeHeaders = Parameters<typeof fromNodeHeaders>[0]
@@ -47,3 +52,4 @@ export async function getAuthenticatedUser(headers: NodeHeaders): Promise<Authen
 }
 
 export { fromNodeHeaders }
+export { isEmailRecoveryConfigured }
