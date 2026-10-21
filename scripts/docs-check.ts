@@ -88,6 +88,13 @@ const ESPERADOS_API = [
   'POST /usuarios/funcionarios',
   'PATCH /usuarios/funcionarios/{id}/permissoes',
   'GET /categorias/',
+  'GET /contatos/',
+  'POST /contatos/',
+  'GET /contatos/vinculos-pendentes',
+  'GET /contatos/sugestoes',
+  'POST /contatos/vinculos',
+  'PATCH /contatos/{id}',
+  'PATCH /contatos/{id}/situacao',
   'POST /despesas/',
   'GET /despesas/',
   'GET /despesas/{id}',
@@ -223,6 +230,57 @@ async function main() {
     assert.equal(s.body.user.email, EXEMPLOS.admin.email)
     assert.equal(s.body.user.role, 'ADMIN')
   })
+
+  await step(
+    'Cadastro Comercial: localizar contato, sugerir correspondência e associar título antigo',
+    async () => {
+      const contacts = await http(API, admin, 'GET', `/contatos/${api.query('GET', '/contatos/')}`)
+      assert.equal(contacts.status, 200, contacts.text)
+      assert.ok(contacts.body.items.some((item: Json) => item.id === EXEMPLOS.contatoId))
+
+      const suggestions = await http(
+        API,
+        admin,
+        'GET',
+        `/contatos/sugestoes${api.query('GET', '/contatos/sugestoes')}`
+      )
+      assert.equal(suggestions.status, 200, suggestions.text)
+      assert.ok(suggestions.body.items.some((item: Json) => item.id === EXEMPLOS.contatoId))
+
+      const pending = await http(
+        API,
+        admin,
+        'GET',
+        `/contatos/vinculos-pendentes${api.query('GET', '/contatos/vinculos-pendentes')}`
+      )
+      assert.equal(pending.status, 200, pending.text)
+      assert.ok(pending.body.items.some((item: Json) => item.id === EXEMPLOS.despesaId))
+
+      const linked = await http(
+        API,
+        admin,
+        'POST',
+        '/contatos/vinculos',
+        api.body('POST', '/contatos/vinculos')
+      )
+      assert.equal(linked.status, 200, linked.text)
+      assert.equal(linked.body.vinculados, 1)
+      const expense = await http(API, admin, 'GET', `/despesas/${EXEMPLOS.despesaId}`)
+      assert.equal(expense.body.fornecedorContatoId, EXEMPLOS.contatoId)
+      assert.equal(expense.body.fornecedor, 'Distribuidora Escolar ABC')
+
+      const inactive = await http(API, admin, 'PATCH', `/contatos/${EXEMPLOS.contatoId}/situacao`, {
+        ativo: false,
+      })
+      assert.equal(inactive.status, 200, inactive.text)
+      assert.equal(inactive.body.ativo, false)
+      const reactivated = await http(API, admin, 'PATCH', `/contatos/${EXEMPLOS.contatoId}/situacao`, {
+        ativo: true,
+      })
+      assert.equal(reactivated.status, 200, reactivated.text)
+      assert.equal(reactivated.body.ativo, true)
+    }
+  )
   await step('Funcionário criado entra como FUNCIONARIO e não pode cadastrar contas', async () => {
     func = await login({ email: funcionarioEmail, password: 'senha12345' })
     const session = await http(API, func, 'GET', '/api/auth/get-session')

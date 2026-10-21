@@ -3,6 +3,7 @@ import { ForbiddenError, UnauthorizedError } from '@sisgfpa/http'
 import type { FastifyRequest } from 'fastify'
 
 export type FinancialModulePermission = 'despesas' | 'recebimentos'
+export type ContatoPapelPermitido = 'CLIENTE' | 'FORNECEDOR'
 
 async function funcionarioPode(
   request: FastifyRequest,
@@ -20,6 +21,29 @@ async function funcionarioPode(
   // Ausência de configuração preserva o acesso atual dos FUNCIONARIO.
   const verifica = (permissao: FinancialModulePermission) => configuracao?.[permissao] ?? true
   return exigirTodas ? permissoes.every(verifica) : permissoes.some(verifica)
+}
+
+export async function papeisContatoPermitidos(request: FastifyRequest): Promise<ContatoPapelPermitido[]> {
+  if (!request.user) throw new UnauthorizedError()
+  if (request.user.role === 'ADMIN') return ['CLIENTE', 'FORNECEDOR']
+
+  const configuracao = await prisma.funcionarioPermissao.findUnique({
+    where: { funcionarioId: request.user.id },
+    select: { despesas: true, recebimentos: true },
+  })
+  const despesas = configuracao?.despesas ?? true
+  const recebimentos = configuracao?.recebimentos ?? true
+  const papeis: ContatoPapelPermitido[] = []
+  if (recebimentos) papeis.push('CLIENTE')
+  if (despesas) papeis.push('FORNECEDOR')
+  return papeis
+}
+
+export async function exigirPapeisContato(request: FastifyRequest, papeis: ContatoPapelPermitido[]) {
+  const permitidos = await papeisContatoPermitidos(request)
+  if (!papeis.every((papel) => permitidos.includes(papel))) {
+    throw new ForbiddenError('Seu usuário não tem permissão para acessar este tipo de contato')
+  }
 }
 
 export function requireFinancialPermission(permissao: FinancialModulePermission) {

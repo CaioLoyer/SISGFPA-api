@@ -1,6 +1,6 @@
 import z from 'zod'
 
-import { EXEMPLOS, STATUS_TITULO, TIPOS_CATEGORIA } from '@sisgfpa/types'
+import { EXEMPLOS, PAPEIS_CONTATO, STATUS_TITULO, TIPOS_CATEGORIA, TIPOS_PESSOA } from '@sisgfpa/types'
 
 // ===================== Comuns =====================
 
@@ -85,6 +85,164 @@ export const SignInBodySchema = z
 
 export const StatusTituloSchema = z.enum(STATUS_TITULO)
 export const TipoCategoriaSchema = z.enum(TIPOS_CATEGORIA)
+export const PapelContatoSchema = z.enum(PAPEIS_CONTATO)
+export const TipoPessoaContatoSchema = z.enum(TIPOS_PESSOA)
+
+// ===================== Contatos comerciais =====================
+
+const DocumentoContatoSchema = z
+  .string()
+  .trim()
+  .min(11)
+  .max(20)
+  .transform((value) => value.replace(/\D/g, ''))
+  .refine((value) => value.length === 11 || value.length === 14, {
+    message: 'Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos',
+  })
+
+const ContatoFieldsSchema = {
+  nome: z.string().trim().min(1).max(160),
+  documento: DocumentoContatoSchema,
+  tipoPessoa: TipoPessoaContatoSchema,
+  papeis: z.array(PapelContatoSchema).min(1).max(2),
+  telefone: z.string().trim().min(8).max(24),
+  cidade: z.string().trim().max(100).nullable().optional(),
+  uf: z.string().trim().length(2).toUpperCase().nullable().optional(),
+}
+
+export const ContatoParamsSchema = z.object({ id: z.uuid().meta({ example: EXEMPLOS.contatoId }) })
+
+export const ContatoSchema = z.object({
+  id: z.uuid(),
+  codigo: z.number().int(),
+  nome: z.string(),
+  documento: z.string(),
+  tipoPessoa: TipoPessoaContatoSchema,
+  papeis: z.array(PapelContatoSchema),
+  telefone: z.string(),
+  cidade: z.string().nullable(),
+  uf: z.string().nullable(),
+  ativo: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+})
+
+export const CreateContatoBodySchema = z
+  .strictObject(ContatoFieldsSchema)
+  .superRefine((contato, context) => {
+    if (new Set(contato.papeis).size !== contato.papeis.length) {
+      context.addIssue({ code: 'custom', path: ['papeis'], message: 'Os papéis não podem se repetir' })
+    }
+    const tamanhoEsperado = contato.tipoPessoa === 'FISICA' ? 11 : 14
+    if (contato.documento.length !== tamanhoEsperado) {
+      context.addIssue({
+        code: 'custom',
+        path: ['documento'],
+        message: contato.tipoPessoa === 'FISICA' ? 'CPF deve ter 11 dígitos' : 'CNPJ deve ter 14 dígitos',
+      })
+    }
+  })
+  .meta({
+    example: {
+      nome: 'Distribuidora Escolar ABC',
+      documento: '12345678000199',
+      tipoPessoa: 'JURIDICA',
+      papeis: ['CLIENTE', 'FORNECEDOR'],
+      telefone: '(67) 3333-4444',
+      cidade: 'Campo Grande',
+      uf: 'MS',
+    },
+  })
+
+export const UpdateContatoBodySchema = z
+  .strictObject({
+    nome: ContatoFieldsSchema.nome.optional(),
+    documento: ContatoFieldsSchema.documento.optional(),
+    tipoPessoa: ContatoFieldsSchema.tipoPessoa.optional(),
+    papeis: ContatoFieldsSchema.papeis.optional(),
+    telefone: ContatoFieldsSchema.telefone.optional(),
+    cidade: ContatoFieldsSchema.cidade,
+    uf: ContatoFieldsSchema.uf,
+  })
+  .refine((contato) => Object.keys(contato).length > 0, 'Informe ao menos um campo para atualizar')
+  .meta({ example: { nome: 'Distribuidora Escolar ABC Ltda' } })
+
+export const UpdateContatoStatusBodySchema = z
+  .strictObject({ ativo: z.boolean().meta({ example: false }) })
+  .meta({ example: { ativo: false } })
+
+export const ListContatosQuerySchema = z.object({
+  papel: PapelContatoSchema.optional().meta({ example: 'FORNECEDOR' }),
+  busca: z.string().trim().min(1).max(160).optional().meta({ example: 'Distribuidora' }),
+  situacao: z.enum(['ATIVOS', 'INATIVOS', 'TODOS']).default('ATIVOS').meta({ example: 'ATIVOS' }),
+  page: z.coerce.number().int().min(1).default(1).meta({ example: 1 }),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20).meta({ example: 20 }),
+})
+
+export const ListContatosResponseSchema = z.object({
+  items: z.array(ContatoSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  papeisPermitidos: z.array(PapelContatoSchema),
+})
+
+export const ContatoSugestoesQuerySchema = z.object({
+  papel: PapelContatoSchema.meta({ example: 'FORNECEDOR' }),
+  nome: z.string().trim().min(1).max(160).meta({ example: 'Distribuidora Escolar ABC' }),
+})
+
+export const ContatoSugestoesResponseSchema = z.object({ items: z.array(ContatoSchema) })
+
+export const ListVinculosPendentesQuerySchema = z.object({
+  tipo: z.enum(['DESPESA', 'RECEBIMENTO']).meta({ example: 'DESPESA' }),
+  busca: z.string().trim().min(1).max(160).optional().meta({ example: 'Distribuidora' }),
+  page: z.coerce.number().int().min(1).default(1).meta({ example: 1 }),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20).meta({ example: 20 }),
+})
+
+export const VinculoContatoItemSchema = z
+  .strictObject({
+    tituloId: z.uuid().meta({ example: EXEMPLOS.despesaId }),
+    contatoId: z.uuid().meta({ example: EXEMPLOS.contatoId }),
+  })
+  .meta({ example: { tituloId: EXEMPLOS.despesaId, contatoId: EXEMPLOS.contatoId } })
+
+export const VincularContatosBodySchema = z
+  .strictObject({
+    tipo: z.enum(['DESPESA', 'RECEBIMENTO']),
+    itens: z.array(VinculoContatoItemSchema).min(1).max(100),
+  })
+  .superRefine((input, context) => {
+    const ids = input.itens.map((item) => item.tituloId)
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: 'custom', path: ['itens'], message: 'O mesmo título não pode ser repetido' })
+    }
+  })
+  .meta({
+    example: {
+      tipo: 'DESPESA',
+      itens: [{ tituloId: EXEMPLOS.despesaId, contatoId: EXEMPLOS.contatoId }],
+    },
+  })
+
+export const VinculosPendentesResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.uuid(),
+      descricao: z.string(),
+      nomeOriginal: z.string(),
+      valor: z.number(),
+      dataVencimento: z.iso.date(),
+      status: StatusTituloSchema,
+    })
+  ),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+})
+
+export const VincularContatosResponseSchema = z.object({ vinculados: z.number() })
 
 const MAX_PARCELAS = 120
 
@@ -127,6 +285,7 @@ export const CreateDespesaBodySchema = z
   .object({
     descricao: z.string().min(1).meta({ example: 'Compra de cadernos' }),
     fornecedor: z.string().min(1).meta({ example: 'Distribuidora Escolar ABC' }),
+    fornecedorContatoId: z.uuid().optional(),
     valor: z.number().positive().meta({ example: 2500 }),
     dataVencimento: z.iso.date().meta({ example: '2026-10-30', description: 'Vencimento da 1ª parcela' }),
     dataLancamento: z.iso.date().optional().meta({ example: '2026-09-30' }),
@@ -146,6 +305,7 @@ export const CreateDespesaBodySchema = z
     example: {
       descricao: 'Compra de cadernos',
       fornecedor: 'Distribuidora Escolar ABC',
+      fornecedorContatoId: EXEMPLOS.contatoId,
       valor: 2500,
       dataLancamento: '2026-09-30',
       dataVencimento: '2026-10-30',
@@ -160,6 +320,7 @@ export const UpdateDespesaBodySchema = z
   .object({
     descricao: z.string().min(1).optional().meta({ example: 'Compra de cadernos e canetas' }),
     fornecedor: z.string().min(1).optional().meta({ example: 'Distribuidora Escolar ABC' }),
+    fornecedorContatoId: z.uuid().nullable().optional(),
     valor: z.number().positive().optional().meta({ description: 'Não pode mudar após pagamento registrado' }),
     dataVencimento: z.iso.date().optional().meta({ description: 'Não pode mudar após pagamento registrado' }),
     categoriaId: z.uuid().nullable().optional(),
@@ -197,6 +358,7 @@ export const DespesaSchema = z.object({
   id: z.uuid(),
   descricao: z.string(),
   fornecedor: z.string(),
+  fornecedorContatoId: z.uuid().nullable(),
   valor: z.number(),
   valorPago: z.number(),
   dataLancamento: z.iso.date(),
@@ -255,6 +417,7 @@ export const CreateRecebimentoBodySchema = z
   .object({
     descricao: z.string().min(1).meta({ example: 'Venda de material escolar' }),
     cliente: z.string().min(1).meta({ example: 'Maria da Silva' }),
+    clienteContatoId: z.uuid().optional(),
     valor: z.number().positive().meta({ example: 350 }),
     dataVencimento: z.iso.date().meta({ example: '2026-10-15', description: 'Vencimento da 1ª parcela' }),
     dataLancamento: z.iso.date().optional().meta({ example: '2026-09-30' }),
@@ -271,6 +434,7 @@ export const CreateRecebimentoBodySchema = z
     example: {
       descricao: 'Venda de material escolar',
       cliente: 'Maria da Silva',
+      clienteContatoId: '7c49697a-836c-4d09-b30e-903b33cd152e',
       valor: 350,
       dataLancamento: '2026-09-30',
       dataVencimento: '2026-10-15',
@@ -285,6 +449,7 @@ export const UpdateRecebimentoBodySchema = z
   .object({
     descricao: z.string().min(1).optional().meta({ example: 'Venda de material escolar (kit completo)' }),
     cliente: z.string().min(1).optional().meta({ example: 'Maria da Silva' }),
+    clienteContatoId: z.uuid().nullable().optional(),
     valor: z.number().positive().optional().meta({ description: 'Não pode mudar após baixa registrada' }),
     dataVencimento: z.iso.date().optional().meta({ description: 'Não pode mudar após baixa registrada' }),
     categoriaId: z.uuid().nullable().optional(),
@@ -322,6 +487,7 @@ export const RecebimentoSchema = z.object({
   id: z.uuid(),
   descricao: z.string(),
   cliente: z.string(),
+  clienteContatoId: z.uuid().nullable(),
   valor: z.number(),
   valorRecebido: z.number(),
   dataLancamento: z.iso.date(),
@@ -393,6 +559,13 @@ export type CreateRecebimentoInput = z.output<typeof CreateRecebimentoBodySchema
 export type UpdateRecebimentoInput = z.output<typeof UpdateRecebimentoBodySchema>
 export type RegistrarBaixaInput = z.output<typeof RegistrarBaixaRecebimentoBodySchema>
 export type ListRecebimentosQuery = z.output<typeof ListRecebimentosQuerySchema>
+export type CreateContatoInput = z.output<typeof CreateContatoBodySchema>
+export type UpdateContatoInput = z.output<typeof UpdateContatoBodySchema>
+export type ListContatosQuery = z.output<typeof ListContatosQuerySchema>
+export type ContatoDto = z.infer<typeof ContatoSchema>
+export type ContatoSugestoesQuery = z.output<typeof ContatoSugestoesQuerySchema>
+export type ListVinculosPendentesQuery = z.output<typeof ListVinculosPendentesQuerySchema>
+export type VincularContatosInput = z.output<typeof VincularContatosBodySchema>
 export type RelatorioQuery = z.output<typeof RelatorioQuerySchema>
 export type StatusTituloDto = z.infer<typeof StatusTituloSchema>
 export type DespesaDto = z.infer<typeof DespesaSchema>

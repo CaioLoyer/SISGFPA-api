@@ -10,7 +10,12 @@ vi.mock('@sisgfpa/database', () => ({
   prisma: { funcionarioPermissao: { findUnique: database.findUnique } },
 }))
 
-import { requireAnyFinancialPermission, requireFinancialPermission } from './financial-permissions.js'
+import {
+  exigirPapeisContato,
+  papeisContatoPermitidos,
+  requireAnyFinancialPermission,
+  requireFinancialPermission,
+} from './financial-permissions.js'
 
 const funcionario: AuthenticatedUser = {
   id: 'f1',
@@ -63,5 +68,21 @@ describe('permissões individuais nos módulos financeiros', () => {
     await expect(requireAnyFinancialPermission(request(funcionario))).rejects.toMatchObject({
       statusCode: 403,
     })
+  })
+
+  it('mapeia permissões financeiras para fornecedores e clientes', async () => {
+    database.findUnique.mockResolvedValue({ despesas: true, recebimentos: false })
+
+    await expect(papeisContatoPermitidos(request(funcionario))).resolves.toEqual(['FORNECEDOR'])
+    await expect(exigirPapeisContato(request(funcionario), ['FORNECEDOR'])).resolves.toBeUndefined()
+    await expect(exigirPapeisContato(request(funcionario), ['CLIENTE'])).rejects.toMatchObject({
+      statusCode: 403,
+    })
+  })
+
+  it('permite ao ADMIN gerenciar os dois papéis sem consultar configuração', async () => {
+    await expect(papeisContatoPermitidos(request(admin))).resolves.toEqual(['CLIENTE', 'FORNECEDOR'])
+    await expect(exigirPapeisContato(request(admin), ['CLIENTE', 'FORNECEDOR'])).resolves.toBeUndefined()
+    expect(database.findUnique).not.toHaveBeenCalled()
   })
 })

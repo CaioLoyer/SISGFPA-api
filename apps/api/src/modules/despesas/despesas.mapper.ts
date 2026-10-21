@@ -9,6 +9,7 @@ export const toDespesaDto = (d: DespesaComCategoria): DespesaDto => ({
   id: d.id,
   descricao: d.descricao,
   fornecedor: d.fornecedor,
+  fornecedorContatoId: d.fornecedorContatoId,
   valor: Number(d.valor),
   valorPago: Number(d.valorPago),
   dataLancamento: toDay(d.dataLancamento),

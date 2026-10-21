@@ -63,6 +63,30 @@ export async function seedDemo() {
   // A conta demo volta ao perfil inicial (acesso financeiro atual) a cada restauração.
   await prisma.funcionarioPermissao.deleteMany({ where: { funcionarioId: funcionario.id } })
 
+  await prisma.contato.upsert({
+    where: { id: EXEMPLOS.contatoId },
+    update: {
+      nome: 'Distribuidora Escolar ABC',
+      documento: '12345678000199',
+      tipoPessoa: 'JURIDICA',
+      papeis: ['FORNECEDOR'],
+      telefone: '(67) 3333-4444',
+      cidade: 'Campo Grande',
+      uf: 'MS',
+      ativo: true,
+    },
+    create: {
+      id: EXEMPLOS.contatoId,
+      nome: 'Distribuidora Escolar ABC',
+      documento: '12345678000199',
+      tipoPessoa: 'JURIDICA',
+      papeis: ['FORNECEDOR'],
+      telefone: '(67) 3333-4444',
+      cidade: 'Campo Grande',
+      uf: 'MS',
+    },
+  })
+
   // Restaura os registros de demonstração (apenas os de ID fixo).
   await prisma.chat.deleteMany({ where: { id: EXEMPLOS.chatId } }) // mensagens caem em cascata
   await prisma.despesaPagamento.deleteMany({ where: { despesaId: EXEMPLOS.despesaId } })

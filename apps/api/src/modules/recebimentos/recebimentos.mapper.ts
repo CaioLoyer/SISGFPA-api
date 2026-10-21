@@ -9,6 +9,7 @@ export const toRecebimentoDto = (d: RecebimentoComCategoria): RecebimentoDto => 
   id: d.id,
   descricao: d.descricao,
   cliente: d.cliente,
+  clienteContatoId: d.clienteContatoId,
   valor: Number(d.valor),
   valorRecebido: Number(d.valorRecebido),
   dataLancamento: toDay(d.dataLancamento),

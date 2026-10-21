@@ -10,6 +10,7 @@ import type {
 import { assertCategoria } from '../../domain/categoria.js'
 import { toHistoricoDto } from '../../domain/dto.js'
 import { aplicarBaixaRecebimento } from '../../domain/liquidacao.js'
+import { buscarContatoAtivo } from '../../domain/contato.js'
 import { gerarParcelas, toCents } from '../../domain/parcelas.js'
 import { paginacao, periodoVencimento } from '../../domain/periodo.js'
 import { TituloCanceladoError, TituloComPagamentoError, TituloJaLiquidadoError } from '../../errors.js'
@@ -17,6 +18,9 @@ import { toRecebimentoComParcelasDto, toRecebimentoDto } from './recebimentos.ma
 
 export async function criarRecebimento(input: CreateRecebimentoInput & { criadoPorId: string }) {
   await assertCategoria(input.categoriaId, 'RECEBIMENTO')
+  const clienteContato = input.clienteContatoId
+    ? await buscarContatoAtivo(input.clienteContatoId, 'CLIENTE')
+    : null
 
   const parcelas = gerarParcelas(input.valor, input.parcelas, input.dataVencimento)
 
@@ -24,7 +28,8 @@ export async function criarRecebimento(input: CreateRecebimentoInput & { criadoP
     const criada = await tx.recebimento.create({
       data: {
         descricao: input.descricao,
-        cliente: input.cliente,
+        cliente: clienteContato?.nome ?? input.cliente,
+        clienteContatoId: clienteContato?.id,
         valor: input.valor,
         dataVencimento: new Date(input.dataVencimento),
         dataLancamento: input.dataLancamento ? new Date(input.dataLancamento) : undefined,
@@ -123,6 +128,13 @@ export async function atualizarRecebimento(id: string, input: UpdateRecebimentoI
   }
   await assertCategoria(input.categoriaId, 'RECEBIMENTO')
 
+  const clienteContato = input.clienteContatoId
+    ? await buscarContatoAtivo(input.clienteContatoId, 'CLIENTE')
+    : null
+  const mudouCliente = input.cliente !== undefined && input.cliente !== recebimento.cliente
+  const clienteContatoId =
+    input.clienteContatoId !== undefined ? input.clienteContatoId : mudouCliente ? null : undefined
+
   const vencimentoAtual = recebimento.dataVencimento.toISOString().slice(0, 10)
   const mudouValor = input.valor !== undefined && toCents(input.valor) !== toCents(Number(recebimento.valor))
   const mudouVencimento = input.dataVencimento !== undefined && input.dataVencimento !== vencimentoAtual
@@ -155,7 +167,8 @@ export async function atualizarRecebimento(id: string, input: UpdateRecebimentoI
       where: { id },
       data: {
         descricao: input.descricao,
-        cliente: input.cliente,
+        cliente: clienteContato?.nome ?? input.cliente,
+        clienteContatoId,
         valor: input.valor,
         dataVencimento: input.dataVencimento ? new Date(input.dataVencimento) : undefined,
         categoriaId: input.categoriaId,

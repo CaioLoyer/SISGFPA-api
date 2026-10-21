@@ -143,6 +143,39 @@ enum TipoCategoria {
   RECEBIMENTO
 }
 
+enum PapelContato {
+  CLIENTE
+  FORNECEDOR
+}
+
+enum TipoPessoaContato {
+  FISICA
+  JURIDICA
+}
+
+model Contato {
+  id         String            @id @default(uuid())
+  codigo     Int               @unique @default(autoincrement())
+  nome       String
+  documento  String            @unique
+  tipoPessoa TipoPessoaContato
+  papeis     PapelContato[]
+  telefone   String
+  cidade     String?
+  uf         String?           @db.Char(2)
+  ativo      Boolean           @default(true)
+
+  despesas     Despesa[]     @relation("FornecedorContato")
+  recebimentos Recebimento[] @relation("ClienteContato")
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  @@index([nome])
+  @@index([ativo])
+  @@map("contato")
+}
+
 // Categoria de títulos (ex.: Mercadorias, Despesas Operacionais, Vendas).
 // O mesmo nome pode existir para tipos diferentes (ex.: "Outros").
 model Categoria {
@@ -176,6 +209,9 @@ model Despesa {
   categoriaId String?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
 
+  fornecedorContatoId String?
+  fornecedorContato   Contato? @relation("FornecedorContato", fields: [fornecedorContatoId], references: [id], onDelete: SetNull)
+
   criadoPorId String
   criadoPor   User   @relation("DespesaCriadaPor", fields: [criadoPorId], references: [id])
 
@@ -189,6 +225,7 @@ model Despesa {
 
   @@index([status])
   @@index([categoriaId])
+  @@index([fornecedorContatoId])
   @@map("despesa")
 }
 
@@ -256,6 +293,9 @@ model Recebimento {
   categoriaId String?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
 
+  clienteContatoId String?
+  clienteContato   Contato? @relation("ClienteContato", fields: [clienteContatoId], references: [id], onDelete: SetNull)
+
   criadoPorId String
   criadoPor   User   @relation("RecebimentoCriadoPor", fields: [criadoPorId], references: [id])
 
@@ -269,6 +309,7 @@ model Recebimento {
 
   @@index([status])
   @@index([categoriaId])
+  @@index([clienteContatoId])
   @@map("recebimento")
 }
 

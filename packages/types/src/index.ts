@@ -10,6 +10,12 @@ export type StatusTitulo = (typeof STATUS_TITULO)[number]
 export const TIPOS_CATEGORIA = ['DESPESA', 'RECEBIMENTO'] as const
 export type TipoCategoria = (typeof TIPOS_CATEGORIA)[number]
 
+export const PAPEIS_CONTATO = ['CLIENTE', 'FORNECEDOR'] as const
+export type PapelContato = (typeof PAPEIS_CONTATO)[number]
+
+export const TIPOS_PESSOA = ['FISICA', 'JURIDICA'] as const
+export type TipoPessoa = (typeof TIPOS_PESSOA)[number]
+
 // Categorias do contexto da papelaria (fonte única; usadas no seed e no classificador do Chatbot).
 export const CATEGORIAS_DESPESA = [
   'Mercadorias',
@@ -43,6 +49,7 @@ export const EXEMPLOS = {
   categoriaRecebimentoId: 'c0000000-0000-4000-8000-000000000002', // Vendas
   despesaId: 'd0000000-0000-4000-8000-000000000001',
   recebimentoId: 'd0000000-0000-4000-8000-000000000002',
+  contatoId: 'c0000000-0000-4000-8000-000000000003',
   chatId: 'd0000000-0000-4000-8000-000000000003',
   mensagemConfirmarId: 'd0000000-0000-4000-8000-0000000000a1',
   mensagemDescartarId: 'd0000000-0000-4000-8000-0000000000a2',

@@ -17,15 +17,15 @@ encontrado, o que mudou, o que foi **deliberadamente mantido** e o que ficou com
                   PostgreSQL (Prisma)
 ```
 
-| Pacote                | Responsabilidade                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `apps/api`            | Domínio financeiro: despesas, recebimentos, parcelas, pagamentos/baixas, cancelamento, relatórios, permissões |
-| `apps/chatbot`        | Conversas: interpreta a mensagem, pede confirmação, chama a API; guarda só `Chat` e `Message`                 |
-| `packages/http`       | Base Fastify comum: `createApp`, erros (`AppError`), hooks `requireAuth`/`requireAdmin`, env                  |
-| `packages/auth`       | Instância única do Better Auth + `getAuthenticatedUser`                                                       |
-| `packages/database`   | Schema Prisma único, migrations, seed, `PrismaClient` único                                                   |
-| `packages/validation` | Schemas Zod (contratos da API) com exemplos do Scalar                                                         |
-| `packages/types`      | Constantes/tipos sem dependências (status, categorias, ids de exemplo)                                        |
+| Pacote                | Responsabilidade                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api`            | Domínio financeiro e comercial: contatos, despesas, recebimentos, parcelas, pagamentos/baixas, cancelamento, relatórios e permissões |
+| `apps/chatbot`        | Conversas: interpreta a mensagem, pede confirmação, chama a API; guarda só `Chat` e `Message`                                        |
+| `packages/http`       | Base Fastify comum: `createApp`, erros (`AppError`), hooks `requireAuth`/`requireAdmin`, env                                         |
+| `packages/auth`       | Instância única do Better Auth + `getAuthenticatedUser`                                                                              |
+| `packages/database`   | Schema Prisma único, migrations, seed, `PrismaClient` único                                                                          |
+| `packages/validation` | Schemas Zod (contratos da API) com exemplos do Scalar                                                                                |
+| `packages/types`      | Constantes/tipos sem dependências (status, categorias, papéis de contato e ids de exemplo)                                           |
 
 ## 2. Estrutura final
 
@@ -40,7 +40,7 @@ apps/api/src/
 │   ├── categoria.ts · periodo.ts · dto.ts
 ├── authorization/              # permissões individuais para módulos financeiros
 └── modules/                    # um diretório por recurso
-    ├── auth/ · categorias/ · despesas/ · recebimentos/ · relatorios/
+    ├── auth/ · categorias/ · contatos/ · despesas/ · recebimentos/ · relatorios/
     └── <recurso>.routes.ts · <recurso>.service.ts · (<recurso>.mapper.ts)
 
 apps/chatbot/src/
@@ -104,7 +104,7 @@ Esta revisão é estrutural. Os pontos abaixo merecem decisão do autor do TCC:
 5. **Alterar valor/vencimento** (sem pagamentos) apaga e recria as parcelas do título.
 6. **Chatbot: "pagou/pagamos" + fornecedor/cliente com título em aberto** vira pagamento/baixa nesse título
    (heurística; sempre passa por confirmação, com resumo explícito).
-7. **Fornecedor e cliente são texto livre** no título (sem cadastro): grafias diferentes não se unificam.
+7. **Contatos comerciais:** uma pessoa/empresa pode atuar como cliente, fornecedor ou ambos. Títulos mantêm o nome histórico em texto e têm vínculo opcional; os registros antigos só são associados por ação manual, com sugestões de nome e confirmação por seleção. Contatos são inativados, não apagados.
 8. **Permissões de funcionários:** sem configuração individual, os acessos atuais a despesas e recebimentos são
    mantidos. O ADMIN pode remover ou restabelecer o acesso por módulo; a API consulta a permissão no banco em cada
    requisição, inclusive nas chamadas originadas pelo Chatbot. Cancelamentos, relatórios e gestão de contas seguem

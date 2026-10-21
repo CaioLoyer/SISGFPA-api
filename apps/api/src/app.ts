@@ -3,6 +3,7 @@ import { createApp } from '@sisgfpa/http'
 import { env } from './config/env.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
 import { categoriasRoutes } from './modules/categorias/categorias.routes.js'
+import { contatosRoutes } from './modules/contatos/contatos.routes.js'
 import { despesasRoutes } from './modules/despesas/despesas.routes.js'
 import { recebimentosRoutes } from './modules/recebimentos/recebimentos.routes.js'
 import { relatoriosRoutes } from './modules/relatorios/relatorios.routes.js'
@@ -25,6 +26,7 @@ export async function buildApp() {
   await app.register(recebimentosRoutes, { prefix: '/recebimentos' })
   await app.register(relatoriosRoutes, { prefix: '/relatorios' })
   await app.register(categoriasRoutes, { prefix: '/categorias' })
+  await app.register(contatosRoutes, { prefix: '/contatos' })
   await app.register(usuariosRoutes, { prefix: '/usuarios' })
 
   return app

@@ -10,6 +10,7 @@ import type {
 import { assertCategoria } from '../../domain/categoria.js'
 import { toHistoricoDto } from '../../domain/dto.js'
 import { aplicarPagamentoDespesa } from '../../domain/liquidacao.js'
+import { buscarContatoAtivo } from '../../domain/contato.js'
 import { gerarParcelas, toCents } from '../../domain/parcelas.js'
 import { paginacao, periodoVencimento } from '../../domain/periodo.js'
 import { TituloCanceladoError, TituloComPagamentoError, TituloJaLiquidadoError } from '../../errors.js'
@@ -17,6 +18,9 @@ import { toDespesaComParcelasDto, toDespesaDto } from './despesas.mapper.js'
 
 export async function criarDespesa(input: CreateDespesaInput & { criadoPorId: string }) {
   await assertCategoria(input.categoriaId, 'DESPESA')
+  const fornecedorContato = input.fornecedorContatoId
+    ? await buscarContatoAtivo(input.fornecedorContatoId, 'FORNECEDOR')
+    : null
 
   const parcelas = gerarParcelas(input.valor, input.parcelas, input.dataVencimento)
 
@@ -24,7 +28,8 @@ export async function criarDespesa(input: CreateDespesaInput & { criadoPorId: st
     const criada = await tx.despesa.create({
       data: {
         descricao: input.descricao,
-        fornecedor: input.fornecedor,
+        fornecedor: fornecedorContato?.nome ?? input.fornecedor,
+        fornecedorContatoId: fornecedorContato?.id,
         valor: input.valor,
         dataVencimento: new Date(input.dataVencimento),
         dataLancamento: input.dataLancamento ? new Date(input.dataLancamento) : undefined,
@@ -122,6 +127,13 @@ export async function atualizarDespesa(id: string, input: UpdateDespesaInput, us
   }
   await assertCategoria(input.categoriaId, 'DESPESA')
 
+  const fornecedorContato = input.fornecedorContatoId
+    ? await buscarContatoAtivo(input.fornecedorContatoId, 'FORNECEDOR')
+    : null
+  const mudouFornecedor = input.fornecedor !== undefined && input.fornecedor !== despesa.fornecedor
+  const fornecedorContatoId =
+    input.fornecedorContatoId !== undefined ? input.fornecedorContatoId : mudouFornecedor ? null : undefined
+
   const vencimentoAtual = despesa.dataVencimento.toISOString().slice(0, 10)
   const mudouValor = input.valor !== undefined && toCents(input.valor) !== toCents(Number(despesa.valor))
   const mudouVencimento = input.dataVencimento !== undefined && input.dataVencimento !== vencimentoAtual
@@ -154,7 +166,8 @@ export async function atualizarDespesa(id: string, input: UpdateDespesaInput, us
       where: { id },
       data: {
         descricao: input.descricao,
-        fornecedor: input.fornecedor,
+        fornecedor: fornecedorContato?.nome ?? input.fornecedor,
+        fornecedorContatoId,
         valor: input.valor,
         dataVencimento: input.dataVencimento ? new Date(input.dataVencimento) : undefined,
         categoriaId: input.categoriaId,

@@ -22,6 +22,7 @@ import {
 } from './auth/auth-api'
 import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
+import { ComercialPage } from './contatos/ComercialPage'
 
 function BrandMark({ small = false }: { small?: boolean }) {
   return (
@@ -374,6 +375,15 @@ function ProtectedLayout() {
             </span>
             Visão geral
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+            to="/comercial"
+          >
+            <span className="nav-icon" aria-hidden="true">
+              ◉
+            </span>
+            Comercial
+          </NavLink>
           {canAccessAdmin(user.role) && (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
@@ -387,7 +397,7 @@ function ProtectedLayout() {
           )}
         </nav>
 
-        <p className="sidebar-note">Os módulos financeiros serão integrados por etapas.</p>
+        <p className="sidebar-note">Acesso comercial respeita as permissões financeiras da sua conta.</p>
 
         <div className="sidebar-user">
           <div className="avatar" aria-hidden="true">
@@ -757,6 +767,7 @@ function ProtectedRoutes() {
       <Route path="/recuperar-senha" element={<PasswordRecoveryPage />} />
       <Route element={<ProtectedLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="comercial" element={<ComercialPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

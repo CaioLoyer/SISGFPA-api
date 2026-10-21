@@ -78,18 +78,21 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 
 ## Domínio financeiro (API)
 
-| Recurso            | Endpoints                                                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Despesas           | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)             |
-| Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN) |
-| Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                         |
-| Usuários (ADMIN)   | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)      |
-| Autenticação       | `POST /api/auth/email-otp/request-password-reset`, `POST /api/auth/email-otp/reset-password` (código enviado por e-mail)            |
-| Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                              |
+| Recurso            | Endpoints                                                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Despesas           | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)                                               |
+| Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN)                                   |
+| Comercial          | `GET/POST /contatos`, `PATCH /contatos/:id`, `PATCH /contatos/:id/situacao`, `GET /contatos/sugestoes`, `GET /contatos/vinculos-pendentes`, `POST /contatos/vinculos` |
+| Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                                                           |
+| Usuários (ADMIN)   | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)                                        |
+| Autenticação       | `POST /api/auth/email-otp/request-password-reset`, `POST /api/auth/email-otp/reset-password` (código enviado por e-mail)                                              |
+| Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                                                                |
 
 Novidades desta unificação: `Categoria`, `Parcela` (despesa e recebimento), `observacoes`, `dataLancamento`, filtros de listagem (fornecedor/cliente, categoria, período) e `liquidarNoAto` (cria o título e registra o pagamento/baixa na **mesma transação**, para fatos já ocorridos como "Pagamos R$ 800 de energia").
 
 Regras de parcelamento: valor dividido em centavos (a última parcela absorve o arredondamento), vencimentos mensais, pagamentos abatem da parcela mais antiga. Título com pagamento registrado só permite alterar descrição, fornecedor/cliente, categoria e observações. Cancelamento nunca apaga: muda o status do título e das parcelas em aberto.
+
+O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo de pessoa, telefone, cidade/UF e atuação como cliente, fornecedor ou ambos. Funcionários só consultam e mantêm os papéis liberados em suas permissões financeiras; um contato com dois papéis exige as permissões correspondentes para ser inativado. Inativar preserva o cadastro e seus vínculos. Títulos novos podem receber `fornecedorContatoId` ou `clienteContatoId`; o nome permanece como texto histórico. Títulos antigos ficam sem vínculo até um usuário associá-los manualmente na tela Comercial, escolhendo sugestões por nome e selecionando títulos individualmente ou em lote. A associação grava o usuário e a ação no histórico do título, sem substituir o nome original.
 
 ## Chatbot
 
@@ -104,7 +107,7 @@ Regras de parcelamento: valor dividido em centavos (a última parcela absorve o 
 
 ## Pendências conhecidas
 
-- O nome do fornecedor/cliente continua sendo texto no título (como no Módulo Financeiro original); não há cadastro de entidades.
+- O Chatbot ainda preenche o nome livre de fornecedor/cliente. Sua integração com os cadastros de contato será feita na etapa final do Chatbot; títulos já criados podem ser associados pela tela Comercial.
 - O parser é baseado em regras: frases muito fora dos padrões serão pedidas de novo em vez de adivinhadas.
 - Relatórios agrupam pelo vencimento do título (= 1ª parcela); ainda não filtram por parcela.
 - Exportação PDF/XLSX prevista no README original do Módulo Financeiro não existe (só CSV).
