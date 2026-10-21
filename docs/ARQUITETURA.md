@@ -38,6 +38,7 @@ apps/api/src/
 │   ├── parcelas.ts             #   divisão em centavos, vencimentos, abatimento
 │   ├── liquidacao.ts           #   pagamento/baixa transacional (usado por endpoint e por liquidarNoAto)
 │   ├── categoria.ts · periodo.ts · dto.ts
+├── authorization/              # permissões individuais para módulos financeiros
 └── modules/                    # um diretório por recurso
     ├── auth/ · categorias/ · despesas/ · recebimentos/ · relatorios/
     └── <recurso>.routes.ts · <recurso>.service.ts · (<recurso>.mapper.ts)
@@ -89,7 +90,7 @@ apps/chatbot/src/
 - **Sem camadas extras no Chatbot** (factory, adapter...): `FinancialApiClient` é a única abstração
   de integração, e tem testes.
 
-## 5. Regras de negócio observadas e **não alteradas**
+## 5. Regras de negócio existentes e decisões de autorização
 
 Esta revisão é estrutural. Os pontos abaixo merecem decisão do autor do TCC:
 
@@ -104,6 +105,10 @@ Esta revisão é estrutural. Os pontos abaixo merecem decisão do autor do TCC:
 6. **Chatbot: "pagou/pagamos" + fornecedor/cliente com título em aberto** vira pagamento/baixa nesse título
    (heurística; sempre passa por confirmação, com resumo explícito).
 7. **Fornecedor e cliente são texto livre** no título (sem cadastro): grafias diferentes não se unificam.
+8. **Permissões de funcionários:** sem configuração individual, os acessos atuais a despesas e recebimentos são
+   mantidos. O ADMIN pode remover ou restabelecer o acesso por módulo; a API consulta a permissão no banco em cada
+   requisição, inclusive nas chamadas originadas pelo Chatbot. Cancelamentos, relatórios e gestão de contas seguem
+   exclusivos de ADMIN. Cada mudança efetiva gera registro de auditoria com ator, alvo e valores anteriores/novos.
 
 ## 6. Performance
 
@@ -116,7 +121,7 @@ pagamento/baixa atualizam no máximo as parcelas afetadas, dentro de uma transa�
 
 | Onde                | O que cobre                                                                               |
 | ------------------- | ----------------------------------------------------------------------------------------- |
-| `apps/api`          | Regras de parcelamento e abatimento (centavos, fim de mês, ponto flutuante)               |
+| `apps/api`          | Parcelamento, permissões por módulo, auditoria e autorização nos endpoints financeiros    |
 | `apps/chatbot`      | Parser pt-BR, classificador, planner (criar × pagar × cancelar × perguntar), cliente HTTP |
 | `packages/http`     | Formato único de erros, validação, 401/403 por hook, sessão consultada uma vez            |
 | `packages/database` | Enums do Prisma = constantes de `@sisgfpa/types`                                          |

@@ -12,6 +12,7 @@ import {
 } from '@sisgfpa/validation'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 
+import { requireFinancialPermission } from '../../authorization/financial-permissions.js'
 import * as recebimentos from './recebimentos.service.js'
 
 export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -20,11 +21,12 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Recebimentos'],
         summary: 'Cadastrar título de recebimento (com parcelamento e baixa no ato opcionais)',
         body: CreateRecebimentoBodySchema,
-        response: responses({ 201: RecebimentoComParcelasSchema }, 400, 401),
+        response: responses({ 201: RecebimentoComParcelasSchema }, 400, 401, 403),
       },
     },
     async (request, reply) =>
@@ -36,11 +38,12 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Recebimentos'],
         summary: 'Listar títulos de recebimento (filtros: status, cliente, categoria, período)',
         querystring: ListRecebimentosQuerySchema,
-        response: responses({ 200: ListRecebimentosResponseSchema }, 401),
+        response: responses({ 200: ListRecebimentosResponseSchema }, 401, 403),
       },
     },
     async (request) => recebimentos.listarRecebimentos(request.query)
@@ -49,11 +52,12 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/:id',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Recebimentos'],
         summary: 'Buscar recebimento com parcelas, histórico e baixas',
         params: RecebimentoParamsSchema,
-        response: responses({ 200: RecebimentoComHistoricoSchema }, 401, 404),
+        response: responses({ 200: RecebimentoComHistoricoSchema }, 401, 403, 404),
       },
     },
     async (request) => recebimentos.buscarRecebimento(request.params.id)
@@ -62,12 +66,13 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/:id',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Recebimentos'],
         summary: 'Atualizar título de recebimento',
         params: RecebimentoParamsSchema,
         body: UpdateRecebimentoBodySchema,
-        response: responses({ 200: RecebimentoSchema }, 400, 401, 404),
+        response: responses({ 200: RecebimentoSchema }, 400, 401, 403, 404),
       },
     },
     async (request) => recebimentos.atualizarRecebimento(request.params.id, request.body, request.user.id)
@@ -90,12 +95,13 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/:id/baixas',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Recebimentos'],
         summary: 'Registrar pagamento total ou parcial de recebimento',
         params: RecebimentoParamsSchema,
         body: RegistrarBaixaRecebimentoBodySchema,
-        response: responses({ 200: RecebimentoSchema }, 400, 401, 404),
+        response: responses({ 200: RecebimentoSchema }, 400, 401, 403, 404),
       },
     },
     async (request) => recebimentos.registrarBaixa(request.params.id, request.body, request.user.id)

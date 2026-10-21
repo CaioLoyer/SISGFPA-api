@@ -12,6 +12,7 @@ import {
 } from '@sisgfpa/validation'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 
+import { requireFinancialPermission } from '../../authorization/financial-permissions.js'
 import * as despesas from './despesas.service.js'
 
 export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -20,11 +21,12 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Despesas'],
         summary: 'Cadastrar título de despesa (com parcelamento e liquidação no ato opcionais)',
         body: CreateDespesaBodySchema,
-        response: responses({ 201: DespesaComParcelasSchema }, 400, 401),
+        response: responses({ 201: DespesaComParcelasSchema }, 400, 401, 403),
       },
     },
     async (request, reply) =>
@@ -34,11 +36,12 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Despesas'],
         summary: 'Listar títulos de despesa (filtros: status, fornecedor, categoria, período)',
         querystring: ListDespesasQuerySchema,
-        response: responses({ 200: ListDespesasResponseSchema }, 401),
+        response: responses({ 200: ListDespesasResponseSchema }, 401, 403),
       },
     },
     async (request) => despesas.listarDespesas(request.query)
@@ -47,11 +50,12 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/:id',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Despesas'],
         summary: 'Buscar despesa com parcelas, histórico e pagamentos',
         params: DespesaParamsSchema,
-        response: responses({ 200: DespesaComHistoricoSchema }, 401, 404),
+        response: responses({ 200: DespesaComHistoricoSchema }, 401, 403, 404),
       },
     },
     async (request) => despesas.buscarDespesa(request.params.id)
@@ -60,12 +64,13 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/:id',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Despesas'],
         summary: 'Atualizar título de despesa',
         params: DespesaParamsSchema,
         body: UpdateDespesaBodySchema,
-        response: responses({ 200: DespesaSchema }, 400, 401, 404),
+        response: responses({ 200: DespesaSchema }, 400, 401, 403, 404),
       },
     },
     async (request) => despesas.atualizarDespesa(request.params.id, request.body, request.user.id)
@@ -88,12 +93,13 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/:id/pagamentos',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Despesas'],
         summary: 'Registrar pagamento total ou parcial de despesa',
         params: DespesaParamsSchema,
         body: RegistrarPagamentoDespesaBodySchema,
-        response: responses({ 200: DespesaSchema }, 400, 401, 404),
+        response: responses({ 200: DespesaSchema }, 400, 401, 403, 404),
       },
     },
     async (request) => despesas.registrarPagamento(request.params.id, request.body, request.user.id)

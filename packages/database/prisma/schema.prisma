@@ -31,6 +31,10 @@ model User {
   sessions Session[]
   accounts Account[]
 
+  permissoesFuncionario FuncionarioPermissao?
+  permissoesAlteradas   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAutor")
+  historicoPermissoes   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAlvo")
+
   // Conversas (Chatbot)
   chats    Chat[]
   messages Message[]
@@ -45,6 +49,33 @@ model User {
 
   @@unique([email])
   @@map("user")
+}
+
+// A ausência de configuração mantém os acessos atuais de FUNCIONARIO habilitados.
+// Cancelamentos, relatórios e administração de contas continuam exclusivos de ADMIN.
+model FuncionarioPermissao {
+  funcionarioId String   @id
+  funcionario   User     @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  despesas      Boolean  @default(true)
+  recebimentos  Boolean  @default(true)
+  updatedAt     DateTime @updatedAt @db.Timestamptz()
+
+  @@map("funcionario_permissao")
+}
+
+model FuncionarioPermissaoHistorico {
+  id                   String   @id @default(uuid())
+  funcionarioId        String
+  funcionario          User     @relation("FuncionarioPermissaoAlvo", fields: [funcionarioId], references: [id], onDelete: Restrict)
+  alteradoPorId        String
+  alteradoPor          User     @relation("FuncionarioPermissaoAutor", fields: [alteradoPorId], references: [id], onDelete: Restrict)
+  permissoesAnteriores Json
+  permissoesNovas      Json
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  @@index([funcionarioId, createdAt])
+  @@index([alteradoPorId, createdAt])
+  @@map("funcionario_permissao_historico")
 }
 
 model Session {

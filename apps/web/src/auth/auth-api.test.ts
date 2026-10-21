@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AuthApiError, createFuncionario, getCurrentUser, signIn, signOut } from './auth-api'
+import {
+  AuthApiError,
+  createFuncionario,
+  getCurrentUser,
+  listFuncionarios,
+  signIn,
+  signOut,
+  updateFuncionarioPermissoes,
+} from './auth-api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -90,15 +98,57 @@ describe('cliente de autenticação da API Financeira', () => {
   it('apresenta erro de conflito retornado ao cadastrar e-mail já utilizado', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ message: 'Já existe uma conta com este e-mail' }), { status: 409 })
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: 'Já existe uma conta com este e-mail', code: 'USER_ALREADY_EXISTS' }),
+          {
+            status: 409,
+          }
         )
+      )
     )
 
     await expect(
       createFuncionario({ name: 'Funcionário', email: 'existente@example.com', password: 'senha-segura' })
     ).rejects.toMatchObject({ message: 'Já existe uma conta com este e-mail', status: 409 })
+  })
+
+  it('carrega permissões de funcionários e salva as alterações no endpoint administrativo', async () => {
+    const item = {
+      id: 'func-1',
+      name: 'Funcionária',
+      email: 'func@example.com',
+      createdAt: '2026-10-21T12:00:00.000Z',
+      permissoes: { despesas: true, recebimentos: false },
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [item] }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ funcionarioId: item.id, permissoes: { despesas: false, recebimentos: false } }),
+          {
+            status: 200,
+          }
+        )
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listFuncionarios()).resolves.toEqual([item])
+    await expect(
+      updateFuncionarioPermissoes(item.id, { despesas: false, recebimentos: false })
+    ).resolves.toEqual({ despesas: false, recebimentos: false })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/api/usuarios/funcionarios')
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' })
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `http://localhost:8080/api/usuarios/funcionarios/${item.id}/permissoes`,
+      expect.objectContaining({
+        method: 'PATCH',
+        credentials: 'include',
+        body: JSON.stringify({ despesas: false, recebimentos: false }),
+      })
+    )
   })
 })

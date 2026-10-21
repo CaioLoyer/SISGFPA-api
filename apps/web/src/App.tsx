@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   Link,
@@ -13,7 +13,8 @@ import {
 } from 'react-router-dom'
 
 import { canAccessAdmin, decideProtectedRoute, safeReturnPath } from './auth/protected-route'
-import { createFuncionario } from './auth/auth-api'
+import { createFuncionario, listFuncionarios, updateFuncionarioPermissoes } from './auth/auth-api'
+import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 
 function BrandMark({ small = false }: { small?: boolean }) {
@@ -316,6 +317,7 @@ function AdminPage() {
   const [error, setError] = useState('')
   const [created, setCreated] = useState<{ name: string; email: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [refreshFuncionarios, setRefreshFuncionarios] = useState(0)
 
   if (!canAccessAdmin(user?.role)) {
     return (
@@ -342,6 +344,7 @@ function AdminPage() {
       setName('')
       setEmail('')
       setPassword('')
+      setRefreshFuncionarios((version) => version + 1)
     } catch (caught) {
       const apiError = caught instanceof Error ? caught.message : 'Não foi possível cadastrar o funcionário.'
       setError(apiError)
@@ -416,6 +419,149 @@ function AdminPage() {
           </button>
         </form>
       </section>
+
+      <EmployeePermissionsPanel refreshKey={refreshFuncionarios} />
+    </section>
+  )
+}
+
+function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
+  const [funcionarios, setFuncionarios] = useState<FuncionarioAdmin[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [savedId, setSavedId] = useState('')
+  const [savingId, setSavingId] = useState('')
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setLoadError('')
+    void listFuncionarios()
+      .then((items) => {
+        if (active) setFuncionarios(items)
+      })
+      .catch((caught: unknown) => {
+        if (active)
+          setLoadError(
+            caught instanceof Error ? caught.message : 'Não foi possível carregar os funcionários.'
+          )
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [refreshKey])
+
+  function changePermission(funcionarioId: string, key: keyof FuncionarioPermissoes, enabled: boolean) {
+    setFuncionarios((current) =>
+      current.map((funcionario) =>
+        funcionario.id === funcionarioId
+          ? { ...funcionario, permissoes: { ...funcionario.permissoes, [key]: enabled } }
+          : funcionario
+      )
+    )
+    setSavedId('')
+    setSaveError('')
+  }
+
+  async function savePermissions(funcionario: FuncionarioAdmin) {
+    setSavingId(funcionario.id)
+    setSaveError('')
+    setSavedId('')
+    try {
+      const permissoes = await updateFuncionarioPermissoes(funcionario.id, funcionario.permissoes)
+      setFuncionarios((current) =>
+        current.map((item) => (item.id === funcionario.id ? { ...item, permissoes } : item))
+      )
+      setSavedId(funcionario.id)
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Não foi possível salvar as permissões.')
+    } finally {
+      setSavingId('')
+    }
+  }
+
+  return (
+    <section className="admin-card permission-card" aria-labelledby="employee-permissions-title">
+      <h2 id="employee-permissions-title">Funcionários e permissões</h2>
+      <p className="admin-card-description">
+        Defina o acesso de cada funcionário às contas a pagar e a receber. Cancelamentos, relatórios e gestão
+        de contas continuam exclusivos de ADMIN.
+      </p>
+
+      {loading && (
+        <p className="permission-empty" role="status">
+          Carregando funcionários…
+        </p>
+      )}
+      {!loading && loadError && (
+        <p className="form-error" role="alert">
+          {loadError}
+        </p>
+      )}
+      {!loading && !loadError && funcionarios.length === 0 && (
+        <p className="permission-empty">Ainda não há funcionários cadastrados.</p>
+      )}
+      {saveError && (
+        <p className="form-error" role="alert">
+          {saveError}
+        </p>
+      )}
+
+      {!loading && !loadError && funcionarios.length > 0 && (
+        <ul className="employee-permission-list">
+          {funcionarios.map((funcionario) => (
+            <li className="employee-permission-item" key={funcionario.id}>
+              <div className="employee-permission-heading">
+                <div>
+                  <strong>{funcionario.name}</strong>
+                  <span>{funcionario.email}</span>
+                </div>
+                <span className="role-pill">FUNCIONARIO</span>
+              </div>
+              <div className="permission-controls">
+                <label className="permission-toggle">
+                  <input
+                    checked={funcionario.permissoes.despesas}
+                    disabled={savingId === funcionario.id}
+                    onChange={(event) => changePermission(funcionario.id, 'despesas', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>Contas a pagar</span>
+                </label>
+                <label className="permission-toggle">
+                  <input
+                    checked={funcionario.permissoes.recebimentos}
+                    disabled={savingId === funcionario.id}
+                    onChange={(event) =>
+                      changePermission(funcionario.id, 'recebimentos', event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <span>Contas a receber</span>
+                </label>
+                <button
+                  className="button button-primary permission-save"
+                  disabled={savingId === funcionario.id}
+                  onClick={() => void savePermissions(funcionario)}
+                  type="button"
+                >
+                  {savingId === funcionario.id ? 'Salvando…' : 'Salvar permissões'}
+                </button>
+                {savedId === funcionario.id && (
+                  <span className="permission-saved" role="status">
+                    Permissões salvas.
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

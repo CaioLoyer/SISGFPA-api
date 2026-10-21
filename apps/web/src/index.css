@@ -572,6 +572,9 @@ a {
   color: var(--text-muted);
   font-size: 12px;
 }
+.permission-card {
+  margin-top: 22px;
+}
 .admin-form {
   display: grid;
   max-width: 440px;
@@ -585,6 +588,78 @@ a {
   color: #21643b;
   background: #eff8f1;
   font-size: 12px;
+}
+.permission-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.employee-permission-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.employee-permission-item {
+  padding: 17px 0;
+  border-top: 1px solid var(--border);
+}
+.employee-permission-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.employee-permission-heading strong,
+.employee-permission-heading div > span {
+  display: block;
+}
+.employee-permission-heading > div {
+  min-width: 0;
+}
+.employee-permission-heading strong {
+  color: #31483a;
+  font-size: 13px;
+}
+.employee-permission-heading div > span {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.permission-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  margin-top: 16px;
+}
+.permission-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #31483a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.permission-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+.permission-toggle input:focus-visible {
+  outline: 3px solid #85c69c;
+  outline-offset: 2px;
+}
+.permission-save {
+  min-height: 38px;
+  padding: 0 14px;
+}
+.permission-saved {
+  color: #21643b;
+  font-size: 11px;
+  font-weight: 700;
 }
 .text-link {
   color: var(--green);
@@ -609,9 +684,19 @@ a {
     min-height: 68px;
   }
   .nav-caption,
-  .sidebar-nav,
   .sidebar-note {
     display: none;
+  }
+  .sidebar-nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 12px 10px;
+  }
+  .nav-item {
+    min-height: 40px;
+    flex: 0 0 auto;
+    padding: 0 10px;
   }
   .sidebar-user {
     min-height: 64px;
@@ -630,6 +715,12 @@ a {
   }
   .admin-card {
     padding: 20px;
+  }
+  .employee-permission-heading {
+    align-items: flex-start;
+  }
+  .employee-permission-heading .role-pill {
+    flex: 0 0 auto;
   }
   .welcome-heading {
     align-items: flex-start;

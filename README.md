@@ -55,7 +55,7 @@ O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão us
 
 O primeiro administrador de cada banco é criado uma única vez por um operador confiável, depois das migrations, com `pnpm db:create-admin` e as variáveis `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` injetadas no ambiente (use o gerenciador de segredos da implantação; não versione a senha). O comando recusa executar se já existir um `ADMIN` e cria a credencial pelo Better Auth. Não há endpoint público de bootstrap.
 
-Somente um `ADMIN` autenticado pode usar `POST /usuarios/funcionarios` para criar conta com nome, e-mail e senha inicial. Essa operação sempre cria `FUNCIONARIO`; o servidor define o papel e rejeita campos extras como `role`. O registro usa o fluxo de criação e hash de senha do Better Auth e não cria uma sessão para o funcionário. As contas existentes, o login e a recuperação de acesso são preservados; as permissões financeiras atuais de `FUNCIONARIO` não mudam.
+Somente um `ADMIN` autenticado pode usar `POST /usuarios/funcionarios` para criar conta com nome, e-mail e senha inicial. Essa operação sempre cria `FUNCIONARIO`; o servidor define o papel e rejeita campos extras como `role`. O registro usa o fluxo de criação e hash de senha do Better Auth e não cria uma sessão para o funcionário. O padrão preserva os acessos financeiros atuais. O ADMIN pode listar funcionários (`GET /usuarios/funcionarios`) e alterar individualmente o acesso aos módulos de despesas e recebimentos (`PATCH /usuarios/funcionarios/:id/permissoes`). As alterações são consultadas pela API em cada requisição e registradas em auditoria. Cancelamentos, relatórios e gestão de contas continuam exclusivos de ADMIN.
 
 Na operação de cadastro considerada no escopo de RF001/RF012, o tipo criado é sempre `FUNCIONARIO`, definido pelo servidor. A decisão de permitir que somente `ADMIN` execute a operação diverge do diagrama de casos de uso do PDF, que associa “Manter Funcionários” ao ator Funcionário.
 
@@ -81,7 +81,7 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 | Despesas           | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)             |
 | Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN) |
 | Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                         |
-| Usuários (ADMIN)   | `POST /usuarios/funcionarios` (papel `FUNCIONARIO` atribuído pelo servidor)                                                         |
+| Usuários (ADMIN)   | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)      |
 | Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                              |
 
 Novidades desta unificação: `Categoria`, `Parcela` (despesa e recebimento), `observacoes`, `dataLancamento`, filtros de listagem (fornecedor/cliente, categoria, período) e `liquidarNoAto` (cria o título e registra o pagamento/baixa na **mesma transação**, para fatos já ocorridos como "Pagamos R$ 800 de energia").

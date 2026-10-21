@@ -82,7 +82,9 @@ const ESPERADOS_API = [
   'POST /api/auth/sign-in/email',
   'POST /api/auth/sign-out',
   'GET /api/auth/get-session',
+  'GET /usuarios/funcionarios',
   'POST /usuarios/funcionarios',
+  'PATCH /usuarios/funcionarios/{id}/permissoes',
   'GET /categorias/',
   'POST /despesas/',
   'GET /despesas/',
@@ -224,6 +226,39 @@ async function main() {
       password: 'senha12345',
     })
     assert.equal(forbidden.status, 403)
+
+    const funcionarios = await http(API, admin, 'GET', '/usuarios/funcionarios')
+    assert.equal(funcionarios.status, 200)
+    const created = funcionarios.body.items.find((item: Json) => item.email === funcionarioEmail)
+    assert.ok(created, `funcionário ${funcionarioEmail} não apareceu na lista administrativa`)
+    assert.deepEqual(created.permissoes, { despesas: true, recebimentos: true })
+
+    const revokeDespesas = await http(
+      API,
+      admin,
+      'PATCH',
+      `/usuarios/funcionarios/${created.id}/permissoes`,
+      {
+        despesas: false,
+        recebimentos: true,
+      }
+    )
+    assert.equal(revokeDespesas.status, 200, revokeDespesas.text)
+    const deniedAfterPermissionChange = await http(API, func, 'GET', '/despesas')
+    assert.equal(deniedAfterPermissionChange.status, 403)
+    assert.equal((await http(API, func, 'GET', '/recebimentos')).status, 200)
+
+    const cancelPermissionGrant = await http(
+      API,
+      admin,
+      'PATCH',
+      `/usuarios/funcionarios/${created.id}/permissoes`,
+      {
+        despesas: true,
+        recebimentos: true,
+      }
+    )
+    assert.equal(cancelPermissionGrant.status, 200, cancelPermissionGrant.text)
   })
   await step('Login do FUNCIONARIO de demonstração continua funcionando', async () => {
     await login({ email: EXEMPLOS.funcionario.email, password: EXEMPLOS.funcionario.password })

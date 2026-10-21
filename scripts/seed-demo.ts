@@ -59,7 +59,9 @@ export async function seedDemo() {
   }
 
   const admin = await garantirUsuario(EXEMPLOS.admin, 'ADMIN')
-  await garantirUsuario(EXEMPLOS.funcionario, 'FUNCIONARIO')
+  const funcionario = await garantirUsuario(EXEMPLOS.funcionario, 'FUNCIONARIO')
+  // A conta demo volta ao perfil inicial (acesso financeiro atual) a cada restauração.
+  await prisma.funcionarioPermissao.deleteMany({ where: { funcionarioId: funcionario.id } })
 
   // Restaura os registros de demonstração (apenas os de ID fixo).
   await prisma.chat.deleteMany({ where: { id: EXEMPLOS.chatId } }) // mensagens caem em cascata

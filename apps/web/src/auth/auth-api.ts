@@ -16,6 +16,19 @@ export interface CreatedFuncionario {
   role: 'FUNCIONARIO'
 }
 
+export interface FuncionarioPermissoes {
+  despesas: boolean
+  recebimentos: boolean
+}
+
+export interface FuncionarioAdmin {
+  id: string
+  name: string
+  email: string
+  createdAt: string
+  permissoes: FuncionarioPermissoes
+}
+
 export class AuthApiError extends Error {
   constructor(
     message: string,
@@ -27,8 +40,10 @@ export class AuthApiError extends Error {
 }
 
 function readMessage(body: unknown): string | undefined {
-  if (typeof body !== 'object' || body === null || !('message' in body)) return undefined
-  return typeof body.message === 'string' ? body.message : undefined
+  if (typeof body !== 'object' || body === null) return undefined
+  if ('message' in body && typeof body.message === 'string') return body.message
+  if ('error' in body && typeof body.error === 'string') return body.error
+  return undefined
 }
 
 async function request(
@@ -137,4 +152,67 @@ export async function createFuncionario(input: {
   }
 
   return { id: body.id, name: body.name, email: body.email, role: body.role }
+}
+
+function isFuncionarioAdmin(value: unknown): value is FuncionarioAdmin {
+  if (typeof value !== 'object' || value === null) return false
+  if (!(
+    'id' in value &&
+    'name' in value &&
+    'email' in value &&
+    'createdAt' in value &&
+    'permissoes' in value
+  )) {
+    return false
+  }
+  if (typeof value.permissoes !== 'object' || value.permissoes === null) return false
+  if (!('despesas' in value.permissoes && 'recebimentos' in value.permissoes)) return false
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.email === 'string' &&
+    typeof value.createdAt === 'string' &&
+    typeof value.permissoes.despesas === 'boolean' &&
+    typeof value.permissoes.recebimentos === 'boolean'
+  )
+}
+
+export async function listFuncionarios(): Promise<FuncionarioAdmin[]> {
+  const body = await request(`${apiBaseUrl}/api/usuarios/funcionarios`)
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('items' in body) ||
+    !Array.isArray(body.items) ||
+    !body.items.every(isFuncionarioAdmin)
+  ) {
+    throw new AuthApiError('A API Financeira retornou a lista de funcionários em formato inválido.')
+  }
+  return body.items
+}
+
+export async function updateFuncionarioPermissoes(
+  funcionarioId: string,
+  permissoes: FuncionarioPermissoes
+): Promise<FuncionarioPermissoes> {
+  const body = await request(
+    `${apiBaseUrl}/api/usuarios/funcionarios/${encodeURIComponent(funcionarioId)}/permissoes`,
+    { method: 'PATCH', body: JSON.stringify(permissoes) }
+  )
+
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('permissoes' in body) ||
+    typeof body.permissoes !== 'object' ||
+    body.permissoes === null ||
+    !('despesas' in body.permissoes && 'recebimentos' in body.permissoes) ||
+    typeof body.permissoes.despesas !== 'boolean' ||
+    typeof body.permissoes.recebimentos !== 'boolean'
+  ) {
+    throw new AuthApiError('A API Financeira retornou as permissões em formato inválido.')
+  }
+
+  return { despesas: body.permissoes.despesas, recebimentos: body.permissoes.recebimentos }
 }

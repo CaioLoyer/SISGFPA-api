@@ -32,6 +32,50 @@ export const CreateFuncionarioResponseSchema = z.object({
   role: z.literal('FUNCIONARIO'),
 })
 
+export const FuncionarioPermissoesSchema = z
+  .strictObject({
+    despesas: z.boolean(),
+    recebimentos: z.boolean(),
+  })
+  .meta({ example: { despesas: true, recebimentos: true } })
+
+export const FuncionarioParamsSchema = z.object({
+  id: z.string().min(1).max(128).meta({ example: 'funcionario-id' }),
+})
+
+export const UpdateFuncionarioPermissoesBodySchema = FuncionarioPermissoesSchema
+
+export const FuncionarioAdminSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    email: z.email(),
+    createdAt: z.iso.datetime(),
+    permissoes: FuncionarioPermissoesSchema,
+  })
+  .meta({
+    example: {
+      id: 'funcionario-id',
+      name: 'Maria Souza',
+      email: 'maria.souza@papelariaexemplo.com',
+      createdAt: '2026-10-21T12:00:00.000Z',
+      permissoes: { despesas: true, recebimentos: true },
+    },
+  })
+
+export const ListFuncionariosResponseSchema = z
+  .object({
+    items: z.array(FuncionarioAdminSchema),
+  })
+  .meta({ example: { items: [] } })
+
+export const FuncionarioPermissoesResponseSchema = z
+  .object({
+    funcionarioId: z.string(),
+    permissoes: FuncionarioPermissoesSchema,
+  })
+  .meta({ example: { funcionarioId: 'funcionario-id', permissoes: { despesas: true, recebimentos: true } } })
+
 export const SignInBodySchema = z
   .object({
     email: z.email().meta({ example: EXEMPLOS.admin.email }),
