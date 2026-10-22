@@ -23,6 +23,7 @@ import {
 import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 import { ComercialPage } from './contatos/ComercialPage'
+import { TitulosPage } from './titulos/TitulosPage'
 
 function BrandMark({ small = false }: { small?: boolean }) {
   return (
@@ -384,6 +385,24 @@ function ProtectedLayout() {
             </span>
             Comercial
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+            to="/despesas"
+          >
+            <span className="nav-icon" aria-hidden="true">
+              −
+            </span>
+            Contas a pagar
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+            to="/recebimentos"
+          >
+            <span className="nav-icon" aria-hidden="true">
+              ＋
+            </span>
+            Contas a receber
+          </NavLink>
           {canAccessAdmin(user.role) && (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
@@ -397,7 +416,9 @@ function ProtectedLayout() {
           )}
         </nav>
 
-        <p className="sidebar-note">Acesso comercial respeita as permissões financeiras da sua conta.</p>
+        <p className="sidebar-note">
+          O acesso financeiro é validado pela API conforme as permissões da sua conta.
+        </p>
 
         <div className="sidebar-user">
           <div className="avatar" aria-hidden="true">
@@ -768,6 +789,8 @@ function ProtectedRoutes() {
       <Route element={<ProtectedLayout />}>
         <Route index element={<HomePage />} />
         <Route path="comercial" element={<ComercialPage />} />
+        <Route path="despesas" element={<TitulosPage tipo="DESPESA" />} />
+        <Route path="recebimentos" element={<TitulosPage tipo="RECEBIMENTO" />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
