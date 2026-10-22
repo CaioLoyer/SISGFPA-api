@@ -129,6 +129,31 @@ export async function signOut(): Promise<void> {
   await request(`${apiBaseUrl}/api/auth/sign-out`, { method: 'POST' })
 }
 
+export async function updateCurrentUserName(name: string): Promise<void> {
+  const body = await request(`${apiBaseUrl}/api/auth/update-user`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+
+  if (typeof body !== 'object' || body === null || !('status' in body) || body.status !== true) {
+    throw new AuthApiError('A API Financeira não confirmou a atualização do nome.')
+  }
+}
+
+export async function changeCurrentUserPassword(input: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  const body = await request(`${apiBaseUrl}/api/auth/change-password`, {
+    method: 'POST',
+    body: JSON.stringify({ ...input, revokeOtherSessions: true }),
+  })
+
+  if (typeof body !== 'object' || body === null || !('user' in body) || !isAuthenticatedUser(body.user)) {
+    throw new AuthApiError('A API Financeira retornou uma resposta inválida ao alterar a senha.')
+  }
+}
+
 export async function requestPasswordRecoveryCode(email: string): Promise<void> {
   const body = await request(`${apiBaseUrl}/api/auth/email-otp/request-password-reset`, {
     method: 'POST',

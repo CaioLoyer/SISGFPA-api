@@ -567,6 +567,40 @@ a {
 .admin-page .welcome-heading {
   margin-bottom: 28px;
 }
+.profile-page .welcome-heading {
+  margin-bottom: 28px;
+}
+.profile-card + .profile-card {
+  margin-top: 20px;
+}
+.profile-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.profile-readonly-grid > div {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8faf8;
+}
+.profile-readonly-grid span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.profile-readonly-grid strong {
+  overflow-wrap: anywhere;
+  color: #31483a;
+  font-size: 13px;
+}
+.profile-form {
+  max-width: 440px;
+}
 .admin-card {
   max-width: 680px;
   padding: 26px;
@@ -1785,6 +1819,9 @@ a {
   }
   .admin-card {
     padding: 20px;
+  }
+  .profile-readonly-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .employee-permission-heading {
     align-items: flex-start;

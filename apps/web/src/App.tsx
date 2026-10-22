@@ -25,6 +25,7 @@ import { useSession } from './auth/session-context'
 import { CaixaPage } from './caixa/CaixaPage'
 import { ComercialPage } from './contatos/ComercialPage'
 import { DashboardPage } from './dashboard/DashboardPage'
+import { ProfilePage } from './perfil/ProfilePage'
 import { RelatoriosPage } from './relatorios/RelatoriosPage'
 import { TitulosPage } from './titulos/TitulosPage'
 
@@ -439,6 +440,12 @@ function ProtectedLayout() {
               Administração
             </NavLink>
           )}
+          <NavLink className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`} to="/perfil">
+            <span className="nav-icon" aria-hidden="true">
+              ◉
+            </span>
+            Meu perfil
+          </NavLink>
         </nav>
 
         <p className="sidebar-note">
@@ -821,6 +828,7 @@ function ProtectedRoutes() {
         <Route path="caixa" element={<CaixaPage />} />
         <Route path="relatorios" element={<RelatoriosPage />} />
         <Route path="admin" element={<AdminPage />} />
+        <Route path="perfil" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

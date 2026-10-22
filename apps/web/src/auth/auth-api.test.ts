@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   AuthApiError,
+  changeCurrentUserPassword,
   createFuncionario,
   getCurrentUser,
   listFuncionarios,
@@ -9,6 +10,7 @@ import {
   resetPasswordWithCode,
   signIn,
   signOut,
+  updateCurrentUserName,
   updateFuncionarioPermissoes,
 } from './auth-api'
 
@@ -71,6 +73,47 @@ describe('cliente de autenticação da API Financeira', () => {
       2,
       'http://localhost:8080/api/auth/sign-out',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+  })
+
+  it('atualiza somente o nome próprio pelo endpoint Better Auth', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ status: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(updateCurrentUserName('Nome atualizado')).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/api/auth/update-user',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ name: 'Nome atualizado' }),
+      })
+    )
+  })
+
+  it('altera a senha própria e solicita revogação das outras sessões', async () => {
+    const user = { id: 'u1', name: 'Funcionária', email: 'func@example.com', role: 'FUNCIONARIO' }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ token: 'nova-sessao', user }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      changeCurrentUserPassword({ currentPassword: 'senha-atual', newPassword: 'senha-nova-123' })
+    ).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/api/auth/change-password',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: 'senha-atual',
+          newPassword: 'senha-nova-123',
+          revokeOtherSessions: true,
+        }),
+      })
     )
   })
 
