@@ -1,6 +1,6 @@
 # SISGFPA — Sistema de Gerenciamento Financeiro para Papelarias
 
-Monorepo pnpm com dois aplicativos que compartilham **um único domínio financeiro**, um banco e uma identidade de usuário.
+Monorepo pnpm com API Financeira, frontend web e Chatbot opcional, compartilhando **um único domínio financeiro**, banco e identidade de usuário.
 
 ```
 sisgfpa/
@@ -51,7 +51,9 @@ pnpm dev              # API (8080) e frontend (3000), sem iniciar o Chatbot
                       # interface: http://localhost:3000; documentação (Scalar): http://localhost:8080/docs
 ```
 
-O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão usando os endpoints Better Auth da API (`/api/auth/*`), com cookies e a origem local já permitida em `TRUSTED_ORIGINS`. A URL da API pode ser ajustada em `apps/web/.env` (`VITE_API_URL`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API.
+Para usar conversas e enviar mensagens pelo assistente, inicie também `pnpm dev:chatbot` em outro terminal. Os atalhos de tópicos continuam levando às telas dos módulos mesmo quando o serviço de Chatbot está parado.
+
+O frontend em `http://localhost:3000` faz login, restaura e encerra a sessão usando os endpoints Better Auth da API (`/api/auth/*`), com cookies e a origem local já permitida em `TRUSTED_ORIGINS`. As URLs dos serviços podem ser ajustadas em `apps/web/.env` (`VITE_API_URL` e `VITE_CHATBOT_API_URL`). O cadastro público do Better Auth está desabilitado; a rota curinga não encaminha as rotas administrativas genéricas do plugin. O Chatbot valida a mesma sessão (mesmo banco e segredo) e repassa o cookie do usuário à API.
 
 Na área autenticada, **Meu perfil** exibe nome, e-mail e tipo de usuário. Cada usuário pode alterar somente o próprio nome e a própria senha; e-mail e tipo são somente leitura. A troca de senha exige a senha atual, usa o Better Auth e encerra as outras sessões, mantendo a sessão atual ativa.
 
@@ -109,6 +111,7 @@ O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo
 - Interpretação por regras em pt-BR (sem IA generativa): intenção, valor, fornecedor/cliente, parcelas, vencimento, quantidade e categoria.
 - Faltou informação (ex.: "Comprei cadernos") → pergunta ("Qual foi o valor da compra?") e **não cria nada**; a resposta seguinte completa a operação.
 - **Toda** operação passa por confirmação antes de chamar a API.
+- A tela web oferece tópicos que encaminham aos módulos do sistema e conversas persistidas. As mensagens de operação continuam interpretadas por regras, sem IA generativa; o Chatbot é opcional para os demais módulos.
 - "Pagamos/Cliente X pagou" com título em aberto do mesmo fornecedor/cliente vira pagamento/baixa nesse título (se houver mais de um, o bot lista e pergunta); sem título, cria um título já liquidado.
 - Fornecedor/cliente ausentes ficam como "Não informado" (aparece no resumo de confirmação).
 - Permissões: o Chatbot não checa perfil; a API responde 403 e o bot repassa a recusa.

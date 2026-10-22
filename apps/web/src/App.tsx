@@ -23,6 +23,7 @@ import {
 import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 import { CaixaPage } from './caixa/CaixaPage'
+import { ChatbotPage } from './chatbot/ChatbotPage'
 import { ComercialPage } from './contatos/ComercialPage'
 import { DashboardPage } from './dashboard/DashboardPage'
 import { ProfilePage } from './perfil/ProfilePage'
@@ -440,6 +441,15 @@ function ProtectedLayout() {
               Administração
             </NavLink>
           )}
+          <NavLink
+            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+            to="/chatbot"
+          >
+            <span className="nav-icon" aria-hidden="true">
+              ◌
+            </span>
+            Assistente guiado
+          </NavLink>
           <NavLink className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`} to="/perfil">
             <span className="nav-icon" aria-hidden="true">
               ◉
@@ -828,6 +838,7 @@ function ProtectedRoutes() {
         <Route path="caixa" element={<CaixaPage />} />
         <Route path="relatorios" element={<RelatoriosPage />} />
         <Route path="admin" element={<AdminPage />} />
+        <Route path="chatbot" element={<ChatbotPage />} />
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
