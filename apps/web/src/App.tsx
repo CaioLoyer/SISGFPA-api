@@ -24,6 +24,8 @@ import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
 import { CaixaPage } from './caixa/CaixaPage'
 import { ComercialPage } from './contatos/ComercialPage'
+import { DashboardPage } from './dashboard/DashboardPage'
+import { RelatoriosPage } from './relatorios/RelatoriosPage'
 import { TitulosPage } from './titulos/TitulosPage'
 
 function BrandMark({ small = false }: { small?: boolean }) {
@@ -418,6 +420,17 @@ function ProtectedLayout() {
           {canAccessAdmin(user.role) && (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+              to="/relatorios"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                ▤
+              </span>
+              Relatórios
+            </NavLink>
+          )}
+          {canAccessAdmin(user.role) && (
+            <NavLink
+              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
               to="/admin"
             >
               <span className="nav-icon" aria-hidden="true">
@@ -489,13 +502,15 @@ function ProtectedLayout() {
 function HomePage() {
   const { user } = useSession()
 
+  if (canAccessAdmin(user?.role)) return <DashboardPage />
+
   return (
     <section className="welcome-page">
       <div className="welcome-heading">
         <div>
           <p className="eyebrow">VISÃO GERAL</p>
           <h1>Olá, {user?.name}</h1>
-          <p>Seu acesso está ativo. Esta área será preenchida conforme os módulos forem integrados.</p>
+          <p>Seu acesso está ativo. Use o menu para consultar os módulos liberados para sua conta.</p>
         </div>
         <div className="welcome-icon" aria-hidden="true">
           <BrandMark small />
@@ -509,14 +524,14 @@ function HomePage() {
         <div>
           <h2 id="next-title">Sessão conectada à API Financeira</h2>
           <p>
-            Você entrou como <strong>{roleLabel(user?.role)}</strong>. Os dados e operações financeiras
-            aparecerão aqui depois da integração dos módulos correspondentes.
+            Você entrou como <strong>{roleLabel(user?.role)}</strong>. As operações disponíveis respeitam as
+            permissões configuradas pela administração.
           </p>
         </div>
       </section>
 
       <p className="welcome-footnote">
-        Esta tela não exibe indicadores de demonstração nem altera dados financeiros.
+        Indicadores financeiros detalhados ficam disponíveis somente para ADMIN.
       </p>
     </section>
   )
@@ -804,6 +819,7 @@ function ProtectedRoutes() {
         <Route path="despesas" element={<TitulosPage tipo="DESPESA" />} />
         <Route path="recebimentos" element={<TitulosPage tipo="RECEBIMENTO" />} />
         <Route path="caixa" element={<CaixaPage />} />
+        <Route path="relatorios" element={<RelatoriosPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

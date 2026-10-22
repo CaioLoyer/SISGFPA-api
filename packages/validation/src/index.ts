@@ -546,6 +546,37 @@ export const RelatorioContasAReceberSchema = z.object({
   itens: z.array(RecebimentoSchema),
 })
 
+export const DashboardResumoQuerySchema = z
+  .strictObject({
+    dataInicio: z.iso.date().meta({ example: '2026-10-01' }),
+    dataFim: z.iso.date().meta({ example: '2026-10-31' }),
+  })
+  .refine((query) => query.dataInicio <= query.dataFim, {
+    path: ['dataFim'],
+    message: 'A data final deve ser igual ou posterior à data inicial',
+  })
+
+export const DashboardResumoSchema = z
+  .object({
+    periodo: z.object({ dataInicio: z.iso.date(), dataFim: z.iso.date() }),
+    contasAPagar: z.object({ total: z.number(), pago: z.number(), pendente: z.number() }),
+    contasAReceber: z.object({ total: z.number(), recebido: z.number(), pendente: z.number() }),
+    caixa: z.object({
+      configurado: z.boolean(),
+      entradas: z.number(),
+      saidas: z.number(),
+      saldoLiquido: z.number(),
+    }),
+  })
+  .meta({
+    example: {
+      periodo: { dataInicio: '2026-10-01', dataFim: '2026-10-31' },
+      contasAPagar: { total: 5200, pago: 1800, pendente: 3400 },
+      contasAReceber: { total: 7900, recebido: 3200, pendente: 4700 },
+      caixa: { configurado: true, entradas: 3200, saidas: 1800, saldoLiquido: 1400 },
+    },
+  })
+
 // ===================== Caixa =====================
 
 export const AbrirCaixaBodySchema = z
@@ -642,6 +673,7 @@ export type ContatoSugestoesQuery = z.output<typeof ContatoSugestoesQuerySchema>
 export type ListVinculosPendentesQuery = z.output<typeof ListVinculosPendentesQuerySchema>
 export type VincularContatosInput = z.output<typeof VincularContatosBodySchema>
 export type RelatorioQuery = z.output<typeof RelatorioQuerySchema>
+export type DashboardResumoQuery = z.output<typeof DashboardResumoQuerySchema>
 export type AbrirCaixaInput = z.output<typeof AbrirCaixaBodySchema>
 export type EstornarMovimentacaoInput = z.output<typeof EstornarMovimentacaoBodySchema>
 export type ListCaixaMovimentacoesQuery = z.output<typeof ListCaixaMovimentacoesQuerySchema>

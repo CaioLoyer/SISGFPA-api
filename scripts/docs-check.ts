@@ -99,6 +99,7 @@ const ESPERADOS_API = [
   'POST /caixa/abertura',
   'GET /caixa/movimentacoes',
   'POST /caixa/movimentacoes/{id}/estornos',
+  'GET /dashboard/resumo',
   'POST /despesas/',
   'GET /despesas/',
   'GET /despesas/{id}',
@@ -599,6 +600,20 @@ async function main() {
     assert.match(String(csv.headers.get('content-type')), /text\/csv/)
     assert.match(csv.text, /Cliente/)
     assert.equal((await http(API, func, 'GET', '/relatorios/contas-a-pagar')).status, 403)
+  })
+
+  console.log('\nDashboard (ADMIN)')
+  await step('resumo por vencimento e movimentação efetiva; FUNCIONARIO 403', async () => {
+    const resumo = await http(API, admin, 'GET', `/dashboard/resumo${api.query('GET', '/dashboard/resumo')}`)
+    assert.equal(resumo.status, 200, resumo.text)
+    assert.equal(typeof resumo.body.contasAPagar.pendente, 'number')
+    assert.equal(typeof resumo.body.contasAReceber.pendente, 'number')
+    assert.equal(typeof resumo.body.caixa.entradas, 'number')
+    assert.equal(typeof resumo.body.caixa.saidas, 'number')
+    assert.equal(
+      (await http(API, func, 'GET', '/dashboard/resumo?dataInicio=2026-10-01&dataFim=2026-10-31')).status,
+      403
+    )
   })
 
   console.log('\nChat (exemplos do Scalar do Chatbot)')

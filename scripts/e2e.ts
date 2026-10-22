@@ -259,6 +259,17 @@ async function main() {
     assert.equal((await http(API, admin, 'GET', '/relatorios/contas-a-pagar')).status, 200)
   })
 
+  await step('dashboard usa ADMIN e agrega o período selecionado', async () => {
+    const path = '/dashboard/resumo?dataInicio=2026-10-01&dataFim=2026-10-31'
+    assert.equal((await http(API, func, 'GET', path)).status, 403)
+    const resumo = await http(API, admin, 'GET', path)
+    assert.equal(resumo.status, 200)
+    assert.equal(resumo.body.periodo.dataInicio, '2026-10-01')
+    assert.equal(typeof resumo.body.contasAPagar.pendente, 'number')
+    assert.equal(typeof resumo.body.contasAReceber.pendente, 'number')
+    assert.equal(typeof resumo.body.caixa.saldoLiquido, 'number')
+  })
+
   await step('sem sessão: 401 no Chatbot e na API', async () => {
     assert.equal((await http(BOT, null, 'GET', '/chats')).status, 401)
     assert.equal((await http(API, null, 'GET', '/despesas')).status, 401)

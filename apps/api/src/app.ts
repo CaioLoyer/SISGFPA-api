@@ -5,6 +5,7 @@ import { authRoutes } from './modules/auth/auth.routes.js'
 import { caixaRoutes } from './modules/caixa/caixa.routes.js'
 import { categoriasRoutes } from './modules/categorias/categorias.routes.js'
 import { contatosRoutes } from './modules/contatos/contatos.routes.js'
+import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js'
 import { despesasRoutes } from './modules/despesas/despesas.routes.js'
 import { recebimentosRoutes } from './modules/recebimentos/recebimentos.routes.js'
 import { relatoriosRoutes } from './modules/relatorios/relatorios.routes.js'
@@ -29,6 +30,7 @@ export async function buildApp() {
   await app.register(relatoriosRoutes, { prefix: '/relatorios' })
   await app.register(categoriasRoutes, { prefix: '/categorias' })
   await app.register(contatosRoutes, { prefix: '/contatos' })
+  await app.register(dashboardRoutes, { prefix: '/dashboard' })
   await app.register(usuariosRoutes, { prefix: '/usuarios' })
 
   return app
