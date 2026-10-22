@@ -63,6 +63,13 @@ export async function seedDemo() {
   // A conta demo volta ao perfil inicial (acesso financeiro atual) a cada restauração.
   await prisma.funcionarioPermissao.deleteMany({ where: { funcionarioId: funcionario.id } })
 
+  // O seed pode abrir um caixa de demonstração vazio, sem atribuir a ele liquidações antigas.
+  await prisma.caixa.upsert({
+    where: { codigo: 'PRINCIPAL' },
+    update: {},
+    create: { codigo: 'PRINCIPAL', saldoInicial: 0 },
+  })
+
   await prisma.contato.upsert({
     where: { id: EXEMPLOS.contatoId },
     update: {
@@ -113,6 +120,21 @@ export async function seedDemo() {
 
   // Restaura os registros de demonstração (apenas os de ID fixo).
   await prisma.chat.deleteMany({ where: { id: EXEMPLOS.chatId } }) // mensagens caem em cascata
+  const movimentosDemo = await prisma.caixaMovimentacao.findMany({
+    where: {
+      origem: 'LIQUIDACAO',
+      OR: [
+        { despesaPagamento: { despesaId: EXEMPLOS.despesaId } },
+        { recebimentoBaixa: { recebimentoId: EXEMPLOS.recebimentoId } },
+      ],
+    },
+    select: { id: true },
+  })
+  const idsMovimentosDemo = movimentosDemo.map((movimento) => movimento.id)
+  if (idsMovimentosDemo.length > 0) {
+    await prisma.caixaMovimentacao.deleteMany({ where: { estornoDeId: { in: idsMovimentosDemo } } })
+    await prisma.caixaMovimentacao.deleteMany({ where: { id: { in: idsMovimentosDemo } } })
+  }
   await prisma.despesaPagamento.deleteMany({ where: { despesaId: EXEMPLOS.despesaId } })
   await prisma.despesaHistorico.deleteMany({ where: { despesaId: EXEMPLOS.despesaId } })
   await prisma.despesaParcela.deleteMany({ where: { despesaId: EXEMPLOS.despesaId } })

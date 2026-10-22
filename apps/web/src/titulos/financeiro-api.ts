@@ -78,6 +78,11 @@ export interface EntradaTituloFinanceiro {
   observacoes: string
 }
 
+export interface EntradaLiquidacaoFinanceira {
+  valor: number
+  data: string
+}
+
 export interface ListaTitulosFinanceiros {
   items: TituloFinanceiro[]
   total: number
@@ -384,6 +389,25 @@ export async function cancelarTitulo(tipo: FinanceiroTipo, id: string) {
   const endpoint = tipo === 'DESPESA' ? 'despesas' : 'recebimentos'
   return parseTitulo(
     await request(`${apiBaseUrl}/${endpoint}/${encodeURIComponent(id)}/cancelar`, { method: 'POST' }),
+    tipo
+  )
+}
+
+export async function registrarLiquidacao(
+  tipo: FinanceiroTipo,
+  id: string,
+  input: EntradaLiquidacaoFinanceira
+) {
+  const endpoint = tipo === 'DESPESA' ? 'despesas' : 'recebimentos'
+  const campoData = tipo === 'DESPESA' ? 'pagoEm' : 'recebidoEm'
+  return parseTitulo(
+    await request(
+      `${apiBaseUrl}/${endpoint}/${encodeURIComponent(id)}/${tipo === 'DESPESA' ? 'pagamentos' : 'baixas'}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ valor: input.valor, [campoData]: new Date(input.data).toISOString() }),
+      }
+    ),
     tipo
   )
 }

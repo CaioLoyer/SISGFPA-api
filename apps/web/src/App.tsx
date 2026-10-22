@@ -22,6 +22,7 @@ import {
 } from './auth/auth-api'
 import type { FuncionarioAdmin, FuncionarioPermissoes } from './auth/auth-api'
 import { useSession } from './auth/session-context'
+import { CaixaPage } from './caixa/CaixaPage'
 import { ComercialPage } from './contatos/ComercialPage'
 import { TitulosPage } from './titulos/TitulosPage'
 
@@ -403,6 +404,17 @@ function ProtectedLayout() {
             </span>
             Contas a receber
           </NavLink>
+          {canAccessAdmin(user.role) && (
+            <NavLink
+              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
+              to="/caixa"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                ◉
+              </span>
+              Caixa
+            </NavLink>
+          )}
           {canAccessAdmin(user.role) && (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
@@ -791,6 +803,7 @@ function ProtectedRoutes() {
         <Route path="comercial" element={<ComercialPage />} />
         <Route path="despesas" element={<TitulosPage tipo="DESPESA" />} />
         <Route path="recebimentos" element={<TitulosPage tipo="RECEBIMENTO" />} />
+        <Route path="caixa" element={<CaixaPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

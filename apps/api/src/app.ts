@@ -2,6 +2,7 @@ import { createApp } from '@sisgfpa/http'
 
 import { env } from './config/env.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
+import { caixaRoutes } from './modules/caixa/caixa.routes.js'
 import { categoriasRoutes } from './modules/categorias/categorias.routes.js'
 import { contatosRoutes } from './modules/contatos/contatos.routes.js'
 import { despesasRoutes } from './modules/despesas/despesas.routes.js'
@@ -22,6 +23,7 @@ export async function buildApp() {
   })
 
   await app.register(authRoutes)
+  await app.register(caixaRoutes, { prefix: '/caixa' })
   await app.register(despesasRoutes, { prefix: '/despesas' })
   await app.register(recebimentosRoutes, { prefix: '/recebimentos' })
   await app.register(relatoriosRoutes, { prefix: '/relatorios' })

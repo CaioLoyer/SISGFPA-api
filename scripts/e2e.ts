@@ -49,6 +49,12 @@ async function main() {
     body: { name: 'Administrador E2E', email: adminEmail, password: 'senha12345', role: 'ADMIN' },
   })
   const admin = await signIn(adminEmail)
+  const caixaAtual = await http(API, admin, 'GET', '/caixa')
+  assert.equal(caixaAtual.status, 200, JSON.stringify(caixaAtual.body))
+  if (!caixaAtual.body.caixa) {
+    const abertura = await http(API, admin, 'POST', '/caixa/abertura', { saldoInicial: 0 })
+    assert.equal(abertura.status, 200, JSON.stringify(abertura.body))
+  }
   const funcionarioEmail = `funcionario-${run}@e2e.test`
   const createdFuncionario = await http(API, admin, 'POST', '/usuarios/funcionarios', {
     name: 'Funcionario E2E',
@@ -58,6 +64,7 @@ async function main() {
   assert.equal(createdFuncionario.status, 201, JSON.stringify(createdFuncionario.body))
   assert.equal(createdFuncionario.body.role, 'FUNCIONARIO')
   const func = await signIn(funcionarioEmail)
+  assert.equal((await http(API, func, 'GET', '/caixa')).status, 403)
 
   const chatF = (await http(BOT, func, 'POST', '/chats', {})).body.id as string
   const chatA = (await http(BOT, admin, 'POST', '/chats', {})).body.id as string
@@ -230,6 +237,21 @@ async function main() {
     const d = await despesa(admin, done!.userMessage.despesaId)
     assert.equal(d.status, 'CANCELADO')
     assert.ok(d.historico.some((h: Json) => h.acao === 'CANCELADO'))
+    const movements = await http(API, admin, 'GET', '/caixa/movimentacoes?pageSize=100')
+    const payment = movements.body.items.find(
+      (item: Json) => item.titulo?.id === d.id && item.origem === 'LIQUIDACAO'
+    )
+    assert.ok(payment, 'cancelar título parcialmente pago deve preservar sua saída no Caixa')
+    assert.equal(payment.tipo, 'SAIDA')
+    assert.equal(payment.titulo.status, 'CANCELADO')
+    const saldoAntesDevolucao = (await http(API, admin, 'GET', '/caixa')).body.caixa.saldoAtual
+    const estorno = await http(API, admin, 'POST', `/caixa/movimentacoes/${payment.id}/estornos`, {
+      valor: 300,
+    })
+    assert.equal(estorno.status, 200, JSON.stringify(estorno.body))
+    assert.equal(estorno.body.tipo, 'ENTRADA')
+    assert.equal(estorno.body.estornoDeId, payment.id)
+    assert.equal((await http(API, admin, 'GET', '/caixa')).body.caixa.saldoAtual, saldoAntesDevolucao + 300)
   })
 
   await step('relatório continua restrito a ADMIN', async () => {

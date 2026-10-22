@@ -13,6 +13,7 @@ import {
   FinanceiroApiError,
   listarCategorias,
   listarTitulos,
+  registrarLiquidacao,
 } from './financeiro-api'
 import type {
   CategoriaFinanceira,
@@ -56,6 +57,12 @@ function dataHoje() {
   const hoje = new Date()
   const local = new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 10)
+}
+
+function dataHoraAgora() {
+  const agora = new Date()
+  const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
 function formularioInicial(): FormularioTitulo {
@@ -158,6 +165,7 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
   const [erroFormulario, setErroFormulario] = useState('')
   const [erroAcao, setErroAcao] = useState('')
   const [cancelandoId, setCancelandoId] = useState<string | null>(null)
+  const [liquidandoId, setLiquidandoId] = useState<string | null>(null)
   const [mensagem, setMensagem] = useState('')
   const [contatosSugeridos, setContatosSugeridos] = useState<Contato[]>([])
   const [erroBuscaContato, setErroBuscaContato] = useState('')
@@ -433,6 +441,24 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
     }
   }
 
+  async function liquidarTitulo(id: string, valor: number, data: string) {
+    setErroAcao('')
+    setMensagem('')
+    setLiquidandoId(id)
+    try {
+      await registrarLiquidacao(tipo, id, { valor, data })
+      setMensagem(
+        `Liquidação registrada. O movimento correspondente foi atualizado automaticamente no Caixa Principal.`
+      )
+      setRecarregarLista((version) => version + 1)
+      setRecarregarDetalhe((version) => version + 1)
+    } catch (error) {
+      setErroAcao(normalizarErro(error, `Não foi possível registrar o ${rotuloTipo(tipo)}.`))
+    } finally {
+      setLiquidandoId(null)
+    }
+  }
+
   if (erroLista?.status === 403) {
     return (
       <section className="welcome-page finance-page" aria-labelledby="finance-denied-title">
@@ -677,6 +703,8 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
           erro={erroDetalhe}
           carregando={carregandoDetalhe}
           onClose={() => setTituloSelecionadoId(null)}
+          onLiquidar={liquidarTitulo}
+          liquidando={liquidandoId === tituloSelecionadoId}
           tipo={tipo}
         />
       )}
@@ -899,20 +927,43 @@ function DetalheTitulo({
   erro,
   carregando,
   onClose,
+  onLiquidar,
+  liquidando,
   tipo,
 }: {
   detalhe: DetalheTituloFinanceiro | null
   erro: string
   carregando: boolean
   onClose: () => void
+  onLiquidar: (id: string, valor: number, data: string) => Promise<void>
+  liquidando: boolean
   tipo: FinanceiroTipo
 }) {
+  const [valorLiquidacao, setValorLiquidacao] = useState('')
+  const [dataLiquidacao, setDataLiquidacao] = useState(dataHoraAgora)
   const liquidacaoNome = tipo === 'DESPESA' ? 'Pagamentos' : 'Recebimentos'
   const valorEmAberto = detalhe
     ? detalhe.status === 'PAGO' || detalhe.status === 'CANCELADO'
       ? 0
       : Math.max(0, detalhe.valor - detalhe.valorLiquidado)
     : 0
+
+  useEffect(() => {
+    if (detalhe) {
+      const saldo = Math.max(0, detalhe.valor - detalhe.valorLiquidado)
+      setValorLiquidacao(saldo.toFixed(2))
+      setDataLiquidacao(dataHoraAgora())
+    }
+  }, [detalhe?.id, detalhe?.valor, detalhe?.valorLiquidado])
+
+  function enviarLiquidacao(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!detalhe) return
+    const valor = Number(valorLiquidacao)
+    if (!Number.isFinite(valor) || valor <= 0 || valor > valorEmAberto) return
+    void onLiquidar(detalhe.id, valor, dataLiquidacao)
+  }
+
   return (
     <section className="finance-card finance-detail-card" aria-labelledby="finance-detail-title">
       <div className="finance-section-heading">
@@ -977,6 +1028,45 @@ function DetalheTitulo({
               </div>
             )}
           </div>
+
+          {detalhe.status !== 'PAGO' && detalhe.status !== 'CANCELADO' && (
+            <form className="finance-settlement-form" onSubmit={enviarLiquidacao}>
+              <div>
+                <h3>{tipo === 'DESPESA' ? 'Registrar pagamento' : 'Registrar recebimento'}</h3>
+                <p>A liquidação e a movimentação do Caixa Principal serão gravadas juntas.</p>
+              </div>
+              <label className="field-label" htmlFor="finance-settlement-value">
+                Valor (R$)
+                <input
+                  id="finance-settlement-value"
+                  max={valorEmAberto}
+                  min="0.01"
+                  onChange={(event) => setValorLiquidacao(event.target.value)}
+                  required
+                  step="0.01"
+                  type="number"
+                  value={valorLiquidacao}
+                />
+              </label>
+              <label className="field-label" htmlFor="finance-settlement-date">
+                Data e hora efetiva
+                <input
+                  id="finance-settlement-date"
+                  onChange={(event) => setDataLiquidacao(event.target.value)}
+                  required
+                  type="datetime-local"
+                  value={dataLiquidacao}
+                />
+              </label>
+              <button className="button button-primary" disabled={liquidando} type="submit">
+                {liquidando
+                  ? 'Registrando…'
+                  : tipo === 'DESPESA'
+                    ? 'Registrar pagamento'
+                    : 'Registrar recebimento'}
+              </button>
+            </form>
+          )}
 
           <div className="finance-detail-grid">
             <section>

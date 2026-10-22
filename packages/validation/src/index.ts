@@ -546,6 +546,81 @@ export const RelatorioContasAReceberSchema = z.object({
   itens: z.array(RecebimentoSchema),
 })
 
+// ===================== Caixa =====================
+
+export const AbrirCaixaBodySchema = z
+  .strictObject({
+    saldoInicial: z.number().min(0).meta({ example: 1250.5 }),
+  })
+  .meta({
+    description: 'Informa o saldo atual do Caixa Principal. Liquidações anteriores não são importadas.',
+    example: { saldoInicial: 1250.5 },
+  })
+
+export const EstornarMovimentacaoBodySchema = z
+  .strictObject({
+    valor: z.number().positive().meta({ example: 80 }),
+  })
+  .meta({
+    description: 'Registra uma devolução real, vinculada à liquidação original de um título cancelado.',
+    example: { valor: 80 },
+  })
+
+export const CaixaMovimentacaoParamsSchema = z.object({
+  id: z.uuid().meta({ example: EXEMPLOS.despesaId }),
+})
+
+export const ListCaixaMovimentacoesQuerySchema = z.object({
+  tipo: z.enum(['ENTRADA', 'SAIDA']).optional().meta({ example: 'SAIDA' }),
+  dataInicio: z.iso.date().optional().meta({ example: '2026-10-01' }),
+  dataFim: z.iso.date().optional().meta({ example: '2026-10-31' }),
+  page: z.coerce.number().int().min(1).default(1).meta({ example: 1 }),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20).meta({ example: 20 }),
+})
+
+const CaixaTituloSchema = z.object({
+  id: z.uuid(),
+  descricao: z.string(),
+  pessoa: z.string(),
+  status: StatusTituloSchema,
+})
+
+export const CaixaResumoSchema = z.object({
+  caixa: z
+    .object({
+      id: z.uuid(),
+      codigo: z.literal('PRINCIPAL'),
+      saldoInicial: z.number(),
+      iniciadoEm: z.iso.datetime(),
+      totalEntradas: z.number(),
+      totalSaidas: z.number(),
+      quantidadeMovimentacoes: z.number().int(),
+      saldoAtual: z.number(),
+    })
+    .nullable(),
+})
+
+export const CaixaMovimentacaoSchema = z.object({
+  id: z.uuid(),
+  tipo: z.enum(['ENTRADA', 'SAIDA']),
+  origem: z.enum(['LIQUIDACAO', 'ESTORNO']),
+  valor: z.number(),
+  data: z.iso.datetime(),
+  descricao: z.string(),
+  titulo: CaixaTituloSchema.nullable(),
+  estornoDeId: z.uuid().nullable(),
+  valorEstornado: z.number(),
+  saldoEstornavel: z.number(),
+  podeEstornar: z.boolean(),
+})
+
+export const ListCaixaMovimentacoesResponseSchema = z.object({
+  items: z.array(CaixaMovimentacaoSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+})
+
 // ===================== Tipos inferidos =====================
 // `*Body` = o que o cliente envia (defaults opcionais); `*Input` = o que o service recebe (defaults aplicados).
 
@@ -567,6 +642,9 @@ export type ContatoSugestoesQuery = z.output<typeof ContatoSugestoesQuerySchema>
 export type ListVinculosPendentesQuery = z.output<typeof ListVinculosPendentesQuerySchema>
 export type VincularContatosInput = z.output<typeof VincularContatosBodySchema>
 export type RelatorioQuery = z.output<typeof RelatorioQuerySchema>
+export type AbrirCaixaInput = z.output<typeof AbrirCaixaBodySchema>
+export type EstornarMovimentacaoInput = z.output<typeof EstornarMovimentacaoBodySchema>
+export type ListCaixaMovimentacoesQuery = z.output<typeof ListCaixaMovimentacoesQuerySchema>
 export type StatusTituloDto = z.infer<typeof StatusTituloSchema>
 export type DespesaDto = z.infer<typeof DespesaSchema>
 export type DespesaComParcelasDto = z.infer<typeof DespesaComParcelasSchema>

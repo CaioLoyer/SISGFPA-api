@@ -1,7 +1,12 @@
 import type { Prisma } from '@sisgfpa/database'
 import { NotFoundError } from '@sisgfpa/http'
 
-import { TituloCanceladoError, TituloJaLiquidadoError, ValorPagamentoInvalidoError } from '../errors.js'
+import {
+  CaixaNaoConfiguradoError,
+  TituloCanceladoError,
+  TituloJaLiquidadoError,
+  ValorPagamentoInvalidoError,
+} from '../errors.js'
 import { distribuirNasParcelas, fromCents, statusPorValor, toCents } from './parcelas.js'
 
 export type Tx = Prisma.TransactionClient
@@ -41,12 +46,29 @@ export async function aplicarPagamentoDespesa(
   }
 
   const novoStatus = statusPorValor(novoPagoCents, totalCents)
+  await tx.$queryRaw`SELECT id FROM caixa WHERE codigo = 'PRINCIPAL' FOR UPDATE`
+  const caixa = await tx.caixa.findUnique({ where: { codigo: 'PRINCIPAL' }, select: { id: true } })
+  if (!caixa) throw new CaixaNaoConfiguradoError()
+  const pagoEm = input.pagoEm ?? new Date()
 
-  await tx.despesaPagamento.create({
+  const pagamento = await tx.despesaPagamento.create({
     data: {
       despesaId: despesa.id,
       valor: input.valor,
-      pagoEm: input.pagoEm ?? new Date(),
+      pagoEm,
+      registradoPorId: input.usuarioId,
+    },
+  })
+
+  await tx.caixaMovimentacao.create({
+    data: {
+      caixaId: caixa.id,
+      tipo: 'SAIDA',
+      origem: 'LIQUIDACAO',
+      valor: input.valor,
+      data: pagoEm,
+      descricao: `Pagamento: ${despesa.descricao}`,
+      despesaPagamentoId: pagamento.id,
       registradoPorId: input.usuarioId,
     },
   })
@@ -116,12 +138,29 @@ export async function aplicarBaixaRecebimento(
   }
 
   const novoStatus = statusPorValor(novoRecebidoCents, totalCents)
+  await tx.$queryRaw`SELECT id FROM caixa WHERE codigo = 'PRINCIPAL' FOR UPDATE`
+  const caixa = await tx.caixa.findUnique({ where: { codigo: 'PRINCIPAL' }, select: { id: true } })
+  if (!caixa) throw new CaixaNaoConfiguradoError()
+  const recebidoEm = input.recebidoEm ?? new Date()
 
-  await tx.recebimentoBaixa.create({
+  const baixa = await tx.recebimentoBaixa.create({
     data: {
       recebimentoId: recebimento.id,
       valor: input.valor,
-      recebidoEm: input.recebidoEm ?? new Date(),
+      recebidoEm,
+      registradoPorId: input.usuarioId,
+    },
+  })
+
+  await tx.caixaMovimentacao.create({
+    data: {
+      caixaId: caixa.id,
+      tipo: 'ENTRADA',
+      origem: 'LIQUIDACAO',
+      valor: input.valor,
+      data: recebidoEm,
+      descricao: `Recebimento: ${recebimento.descricao}`,
+      recebimentoBaixaId: baixa.id,
       registradoPorId: input.usuarioId,
     },
   })

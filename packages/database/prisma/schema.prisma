@@ -46,6 +46,7 @@ model User {
   recebimentosCriados   Recebimento[]          @relation("RecebimentoCriadoPor")
   recebimentosBaixas    RecebimentoBaixa[]
   recebimentosHistorico RecebimentoHistorico[]
+  movimentacoesCaixa    CaixaMovimentacao[]
 
   @@unique([email])
   @@map("user")
@@ -141,6 +142,16 @@ enum StatusTitulo {
 enum TipoCategoria {
   DESPESA
   RECEBIMENTO
+}
+
+enum TipoMovimentacaoCaixa {
+  ENTRADA
+  SAIDA
+}
+
+enum OrigemMovimentacaoCaixa {
+  LIQUIDACAO
+  ESTORNO
 }
 
 enum PapelContato {
@@ -253,6 +264,8 @@ model DespesaPagamento {
   registradoPorId String
   registradoPor   User   @relation(fields: [registradoPorId], references: [id])
 
+  movimentacaoCaixa CaixaMovimentacao?
+
   createdAt DateTime @default(now()) @db.Timestamptz()
 
   @@map("despesa_pagamento")
@@ -337,6 +350,8 @@ model RecebimentoBaixa {
   registradoPorId String
   registradoPor   User   @relation(fields: [registradoPorId], references: [id])
 
+  movimentacaoCaixa CaixaMovimentacao?
+
   createdAt DateTime @default(now()) @db.Timestamptz()
 
   @@map("recebimento_baixa")
@@ -357,6 +372,49 @@ model RecebimentoHistorico {
   createdAt DateTime @default(now()) @db.Timestamptz()
 
   @@map("recebimento_historico")
+}
+
+// ---------- Caixa automático ----------
+
+model Caixa {
+  id            String              @id @default(uuid())
+  codigo        String              @unique @default("PRINCIPAL")
+  saldoInicial  Decimal             @db.Decimal(12, 2)
+  iniciadoEm    DateTime            @default(now()) @db.Timestamptz()
+  movimentacoes CaixaMovimentacao[]
+  createdAt     DateTime            @default(now()) @db.Timestamptz()
+  updatedAt     DateTime            @updatedAt @db.Timestamptz()
+
+  @@map("caixa")
+}
+
+model CaixaMovimentacao {
+  id        String                  @id @default(uuid())
+  caixaId   String
+  caixa     Caixa                   @relation(fields: [caixaId], references: [id], onDelete: Restrict)
+  tipo      TipoMovimentacaoCaixa
+  origem    OrigemMovimentacaoCaixa
+  valor     Decimal                 @db.Decimal(12, 2)
+  data      DateTime                @db.Timestamptz()
+  descricao String
+
+  despesaPagamentoId String?           @unique
+  despesaPagamento   DespesaPagamento? @relation(fields: [despesaPagamentoId], references: [id], onDelete: Restrict)
+  recebimentoBaixaId String?           @unique
+  recebimentoBaixa   RecebimentoBaixa? @relation(fields: [recebimentoBaixaId], references: [id], onDelete: Restrict)
+
+  estornoDeId String?
+  estornoDe   CaixaMovimentacao?  @relation("EstornosCaixa", fields: [estornoDeId], references: [id], onDelete: Restrict)
+  estornos    CaixaMovimentacao[] @relation("EstornosCaixa")
+
+  registradoPorId String
+  registradoPor   User   @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@index([caixaId, data])
+  @@index([estornoDeId])
+  @@map("caixa_movimentacao")
 }
 
 // ===================== Chatbot (experiência conversacional) =====================

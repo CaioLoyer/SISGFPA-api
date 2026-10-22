@@ -95,6 +95,10 @@ const ESPERADOS_API = [
   'POST /contatos/vinculos',
   'PATCH /contatos/{id}',
   'PATCH /contatos/{id}/situacao',
+  'GET /caixa/',
+  'POST /caixa/abertura',
+  'GET /caixa/movimentacoes',
+  'POST /caixa/movimentacoes/{id}/estornos',
   'POST /despesas/',
   'GET /despesas/',
   'GET /despesas/{id}',
@@ -195,6 +199,19 @@ async function main() {
     assert.equal(s.body.user.email, EXEMPLOS.admin.email)
     assert.equal(s.body.user.role, 'ADMIN')
   })
+  await step('Caixa: ADMIN consulta o saldo atual e as movimentações', async () => {
+    const summary = await http(API, admin, 'GET', '/caixa/')
+    assert.equal(summary.status, 200, summary.text)
+    assert.ok(summary.body.caixa, 'seed de demonstração deve preparar o Caixa Principal')
+    const movements = await http(
+      API,
+      admin,
+      'GET',
+      `/caixa/movimentacoes${api.query('GET', '/caixa/movimentacoes')}`
+    )
+    assert.equal(movements.status, 200, movements.text)
+    assert.ok(Array.isArray(movements.body.items))
+  })
   let funcionarioEmail = ''
   await step('Cadastro público recusado e rotas genéricas de ADMIN inacessíveis', async () => {
     const cadastroPublico = await http(API, null, 'POST', '/api/auth/sign-up/email', {
@@ -286,6 +303,7 @@ async function main() {
     const session = await http(API, func, 'GET', '/api/auth/get-session')
     assert.equal(session.body.user.email, funcionarioEmail)
     assert.equal(session.body.user.role, 'FUNCIONARIO')
+    assert.equal((await http(API, func, 'GET', '/caixa/')).status, 403)
     const forbidden = await http(API, func, 'POST', '/usuarios/funcionarios', {
       name: 'Outro funcionário',
       email: `outro-${Date.now()}@docs-check.test`,
@@ -424,6 +442,19 @@ async function main() {
     assert.equal(after.body.parcelas[0].status, 'PAGO')
     assert.equal(after.body.parcelas[1].status, 'PENDENTE')
     assert.equal(after.body.pagamentos.length, 1)
+    const movements = await http(
+      API,
+      admin,
+      'GET',
+      '/caixa/movimentacoes?dataInicio=2026-10-05&dataFim=2026-10-05&pageSize=100'
+    )
+    assert.equal(movements.status, 200, movements.text)
+    const cashMovement = movements.body.items.find(
+      (item: Json) => item.titulo?.id === despesaId && item.origem === 'LIQUIDACAO'
+    )
+    assert.ok(cashMovement, 'pagamento deve gerar uma saída no Caixa')
+    assert.equal(cashMovement.tipo, 'SAIDA')
+    assert.equal(cashMovement.valor, 500)
     const demo = await http(
       API,
       admin,
@@ -452,6 +483,29 @@ async function main() {
     const r = await http(API, admin, 'POST', path)
     assert.equal(r.status, 200, r.text)
     assert.equal(r.body.status, 'CANCELADO')
+    const movements = await http(
+      API,
+      admin,
+      'GET',
+      '/caixa/movimentacoes?dataInicio=2026-10-05&dataFim=2026-10-05&pageSize=100'
+    )
+    const original = movements.body.items.find(
+      (item: Json) => item.titulo?.id === despesaId && item.origem === 'LIQUIDACAO'
+    )
+    assert.ok(original, 'cancelar o título não deve apagar a saída já realizada')
+    assert.equal(original.titulo.status, 'CANCELADO')
+    const saldoAntesEstorno = (await http(API, admin, 'GET', '/caixa/')).body.caixa.saldoAtual
+    const refund = await http(
+      API,
+      admin,
+      'POST',
+      `/caixa/movimentacoes/${original.id}/estornos`,
+      api.body('POST', '/caixa/movimentacoes/{id}/estornos')
+    )
+    assert.equal(refund.status, 200, refund.text)
+    assert.equal(refund.body.tipo, 'ENTRADA')
+    assert.equal(refund.body.estornoDeId, original.id)
+    assert.equal((await http(API, admin, 'GET', '/caixa/')).body.caixa.saldoAtual, saldoAntesEstorno + 80)
     const again = await http(API, admin, 'POST', `/despesas/${despesaId}/pagamentos`, { valor: 10 })
     assert.equal(again.body.code, 'TITULO_CANCELADO')
     const demo = await http(API, admin, 'POST', api.url('POST', '/despesas/{id}/cancelar'))

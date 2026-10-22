@@ -1430,14 +1430,161 @@ a {
   color: var(--text-muted);
   font-size: 13px;
 }
+.cash-opening-card,
+.cash-movement-card {
+  margin-top: 18px;
+}
+.cash-opening-form {
+  display: grid;
+  max-width: 620px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+.cash-opening-form .field-label input,
+.cash-refund-form .field-label input {
+  height: 42px;
+}
+.cash-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 22px;
+}
+.cash-summary-card {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.cash-summary-card span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.cash-summary-card strong {
+  overflow-wrap: anywhere;
+  color: var(--green-dark);
+  font-size: 21px;
+}
+.cash-summary-card small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.cash-summary-current {
+  border-color: #b8d5c0;
+  background: #f3faf4;
+}
+.cash-filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+.cash-table {
+  min-width: 850px;
+}
+.cash-direction {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.cash-direction-entrada {
+  color: #1c6840;
+  background: #e6f2e9;
+}
+.cash-direction-saida {
+  color: #9d3028;
+  background: #fff0ee;
+}
+.cash-origin {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+.cash-amount-in {
+  color: #1c6840;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cash-amount-out {
+  color: #9d3028;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cash-refund-button {
+  color: #9d3028;
+  font-size: 10px;
+}
+.cash-refund-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.cash-refund-form {
+  display: grid;
+  min-width: 215px;
+  gap: 8px;
+}
+.cash-refund-form .button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+.finance-settlement-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr) minmax(210px, 1fr) auto;
+  align-items: end;
+  gap: 13px;
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid #d7e8da;
+  border-radius: 9px;
+  background: #f3faf4;
+}
+.finance-settlement-form h3 {
+  margin: 0 0 5px;
+  color: var(--green-dark);
+  font-size: 13px;
+}
+.finance-settlement-form p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.finance-settlement-form .field-label input {
+  height: 40px;
+}
+.finance-settlement-form > .button {
+  min-height: 40px;
+  font-size: 10px;
+}
 
 @media (max-width: 1050px) {
+  .cash-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-settlement-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .finance-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
+  .cash-summary-grid,
+  .cash-opening-form,
+  .cash-filters,
+  .finance-settlement-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .auth-content {
     padding: 30px 25px 25px;
   }

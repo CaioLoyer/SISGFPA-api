@@ -1,4 +1,4 @@
-import { BusinessRuleError } from '@sisgfpa/http'
+import { BusinessRuleError, ConflictError } from '@sisgfpa/http'
 
 // Erros das regras financeiras. Todos viram HTTP 400 `{ error, code }` pelo tratador central.
 
@@ -29,5 +29,20 @@ export class CategoriaInvalidaError extends BusinessRuleError {
 export class TituloComPagamentoError extends BusinessRuleError {
   constructor(message: string) {
     super('TITULO_COM_PAGAMENTO', message)
+  }
+}
+
+export class CaixaNaoConfiguradoError extends ConflictError {
+  constructor() {
+    super(
+      'CAIXA_NAO_CONFIGURADO',
+      'O ADMIN precisa informar o saldo inicial do Caixa Principal antes de liquidar títulos'
+    )
+  }
+}
+
+export class EstornoInvalidoError extends BusinessRuleError {
+  constructor(message: string) {
+    super('ESTORNO_INVALIDO', message)
   }
 }
