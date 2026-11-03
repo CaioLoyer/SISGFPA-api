@@ -38,12 +38,12 @@ As decisões em `docs/PLANO-INTEGRACAO-TELAS.md` continuam válidas: cadastro p�
 | 1       | Login                                         | Reproduzir a apresentação de `pages/Auth.tsx`, preservando login real por e-mail, validação, sessão, redirecionamento e tratamento de erros.                                                       |
 | 2       | Recuperação de acesso                         | Aplicar os estados de e-mail, código e nova senha do exemplo ao fluxo real. A API atual valida código e nova senha na mesma operação; não apresentar preenchimento como verificação pelo servidor. |
 | 3       | Estrutura autenticada e início do funcionário | Aplicar marca, navegação, cabeçalhos, identificação real e responsividade, mantendo rotas e permissões. Componentes comuns poderão ser reaproveitados nas próximas telas.                          |
-| 4       | Administração/cadastro de funcionário         | Reorganizar cadastro e permissões existentes na linguagem do exemplo. Não exibir presença, administradores adicionais ou auditoria global sem dados reais.                                         |
-| 5       | Clientes e fornecedores                       | Aplicar filtros, formulário em seções e tabela, preservando contatos com ambos os papéis, edição, inativação e associação de títulos antigos.                                                      |
-| 6       | Gerenciamento de títulos                      | Aplicar a apresentação de filtros, tabela, ações, status e paginação às listagens reais. Manter despesas e recebimentos acessíveis e suas permissões.                                              |
-| 7       | Lançamento/edição de títulos                  | Aplicar a composição do formulário aos campos suportados pela API. Não inventar número comercial, meta mensal ou alteração de status sem operação financeira.                                      |
-| 8       | Caixa                                         | Aplicar cores, campos e cartões aos saldos, abertura, movimentos e estornos existentes. Lançamentos avulsos e transferências do protótipo não fazem parte do fluxo aprovado.                       |
-| 9       | Dashboard                                     | Usar a composição visual com indicadores e valores reais disponíveis. Não rotular total de títulos como receita efetiva ou lucro; não preencher gráficos com números fixos.                        |
+| 4       | Dashboard                                     | Usar a composição visual com indicadores e valores reais disponíveis. Não rotular total de títulos como receita efetiva ou lucro; não preencher gráficos com números fixos.                        |
+| 5       | Administração/cadastro de funcionário         | Reorganizar cadastro e permissões existentes na linguagem do exemplo. Não exibir presença, administradores adicionais ou auditoria global sem dados reais.                                         |
+| 6       | Clientes e fornecedores                       | Aplicar filtros, formulário em seções e tabela, preservando contatos com ambos os papéis, edição, inativação e associação de títulos antigos.                                                      |
+| 7       | Gerenciamento de títulos                      | Aplicar a apresentação de filtros, tabela, ações, status e paginação às listagens reais. Manter despesas e recebimentos acessíveis e suas permissões.                                              |
+| 8       | Lançamento/edição de títulos                  | Aplicar a composição do formulário aos campos suportados pela API. Não inventar número comercial, meta mensal ou alteração de status sem operação financeira.                                      |
+| 9       | Caixa                                         | Aplicar cores, campos e cartões aos saldos, abertura, movimentos e estornos existentes. Lançamentos avulsos e transferências do protótipo não fazem parte do fluxo aprovado.                       |
 | 10      | Relatórios                                    | Aplicar abas, filtros, resumo e tabela aos relatórios existentes, mantendo download CSV real. Não habilitar PDF/XLSX ou novos relatórios sem implementação.                                        |
 | 11      | Perfil                                        | Aplicar identificação e seções de dados/segurança, preservando edição real do nome e troca de senha. Não simular telefone, CPF, 2FA ou exclusão de conta.                                          |
 | 12      | Chatbot e revisão final                       | Aplicar a apresentação de `pages/Chatbot.tsx` às conversas e confirmações reais. Harmonizar estados auxiliares e conferir todos os tamanhos de tela.                                               |
@@ -150,13 +150,26 @@ Capturas para revisão:
 
 Para repetir os testes opcionais, forneça `DASHBOARD_TEST_DATABASE_URL` apontando para um PostgreSQL **local, descartável, vazio e migrado**, com nome de banco `sisgfpa_dashboard_test` e fuso UTC. Execute `vitest run src/modules/dashboard/dashboard-overview.integration.test.ts` em `apps/api`. A suíte recusa bancos com outro nome/host e bancos já preenchidos, não usa automaticamente o `.env` do projeto e é ignorada quando essa variável não está definida. Use uma instância nova para repetir, pois os registros sintéticos permanecem nela após a execução.
 
-## Próxima etapa para revisão: administração e cadastro de funcionário
+## Quinta entrega: painel de Administração
 
-- **Objetivo:** aplicar a composição visual da administração e do cadastro do exemplo às operações reais de `/admin`.
-- **Telas/operações afetadas:** consulta de funcionários, cadastro administrativo e edição individual das permissões de despesas e recebimentos.
-- **Frontend:** organizar lista e controles em cartões, usar ícones e componentes compartilhados, adaptar o formulário ao padrão de campos e ações do exemplo e manter estados vazios, de carregamento, erro e confirmação. No celular, empilhar os painéis e preservar acesso aos controles.
-- **Backend:** nenhuma mudança prevista; reutilizar listagem/cadastro de funcionários e atualização das permissões atuais. Não mostrar presença online, último acesso, histórico global ou total de administradores sem dados disponíveis.
-- **Regras:** manter cadastro público fechado, contas criadas como FUNCIONARIO pelo servidor, senha mínima de oito caracteres e permissões por pessoa. Não converter os controles para permissões por cargo por causa da imagem de referência.
-- **Decisões pendentes:** revisão e autorização desta etapa. Se forem solicitados novos dados ou operações além do contrato atual, discutir antes de implementar o fluxo afetado.
-- **Verificações:** cadastro e erros, atualização das permissões, bloqueio de acesso por funcionário, respostas de indisponibilidade, teclado, desktop/celular, testes pertinentes, typecheck, lint, formatação e build. Distinguir cenários controlados de validação contra banco real.
-- **Entrega:** capturas, arquivos, limitações e commit local com mensagem simples em português; push somente após aprovação explícita dos commits apresentados.
+**Objetivo e resultado:** `/admin` preserva cadastro de funcionários e configuração individual de acesso financeiro, agora no padrão visual do restante do aplicativo e da referência de administração. A página mostra o formulário de nova conta e a lista real de funcionários, com controles para contas a pagar e a receber.
+
+**Comportamento:** o cadastro envia nome, e-mail e senha inicial ao endpoint existente; o papel `FUNCIONARIO` continua definido pelo servidor e a senha obedece à regra de 8 a 128 caracteres. A listagem e a gravação de permissões continuam usando `GET /usuarios/funcionarios` e `PATCH /usuarios/funcionarios/{id}/permissoes`, protegidos por ADMIN na API. Os estados de carregamento, lista vazia, erro, nova tentativa e confirmação usam respostas reais do cliente HTTP. Ajustes das permissões precisam ser salvos para persistirem. A tabela se reorganiza em cartões acessíveis em telas pequenas.
+
+A interface não exibe totais de usuários, administradores, presença online, acesso recente, exportações ou histórico de alterações: a API atual não oferece esses dados. O painel não altera o cadastro público, os papéis, as permissões existentes ou as regras de auditoria.
+
+**Arquivos principais:** `apps/web/src/admin/AdminPage.tsx` e `admin.css`, extração da página de `apps/web/src/App.tsx` e remoção dos estilos antigos de administração em `index.css`. Nenhuma mudança de backend ou de contrato foi necessária.
+
+**Verificações:** typecheck, lint, formatação e build do frontend. A conferência visual em Chromium utiliza respostas HTTP controladas somente para preencher a lista da captura; ela não envia cadastro nem atualiza permissões, portanto não confirma persistência. As capturas usam nomes de funcionários fictícios. Os clientes seguem apontando para os endpoints financeiros existentes. O código aplica autorização no frontend e o servidor mantém a autoridade ADMIN; não foi repetida nesta etapa uma operação autenticada contra a API e banco de desenvolvimento.
+
+As capturas de desktop e celular usam dados fictícios servidos apenas para conferência visual; foram mostradas ao autor durante a revisão desta etapa.
+
+## Próxima etapa para revisão: clientes e fornecedores
+
+- **Objetivo:** aplicar o padrão visual atual à gestão comercial em `/comercial`, conectada à API existente.
+- **Telas/operações afetadas:** listagem e filtros de contatos, criação e edição, situação ativa/inativa, papéis de cliente/fornecedor, vínculos pendentes e associações com títulos existentes.
+- **Frontend:** organizar filtros, formulário, tabela e estados vazios/erro na linguagem visual aprovada; preservar paginação, busca e controles existentes, ajustando a tabela para telas pequenas.
+- **Backend:** reutilizar as rotas e regras atuais de contatos. Só ampliar contratos se uma operação necessária à interface não existir; discutir previamente qualquer nova regra comercial.
+- **Regras e pontos de atenção:** um contato pode ter ambos os papéis; dados legados de contraparte devem continuar preservados. As opções e operações devem acompanhar a permissão financeira do funcionário. Não atribuir novo vínculo ou alterar títulos automaticamente sem confirmação das operações existentes.
+- **Verificações planejadas:** typecheck, lint, build e conferência visual em desktop/celular; inspecionar filtros, formulário e resposta de autorização. Não exibir resultado de persistência sem confirmação da API.
+- **Entrega:** commit local por etapa e capturas de revisão; push somente após aprovação explícita.
