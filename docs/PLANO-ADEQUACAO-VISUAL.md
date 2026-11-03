@@ -234,15 +234,19 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Limites:** não havia navegador conectado para renderizar a tela ou produzir captura. Os testes da rota usam configuração isolada de teste; não foi consultado banco operacional.
 
-## Próxima etapa para revisão: Chatbot e revisão final
+## Décima segunda entrega: Chatbot e revisão final
 
-- **Objetivo:** concluir a apresentação da última tela funcional conforme o exemplo visual e verificar o fluxo completo das conversas já integrado.
-- **Áreas afetadas:** lista e criação de conversas, histórico, envio de mensagens, tópicos/atalhos para módulos e confirmação ou descarte de operações financeiras pendentes.
-- **Frontend previsto:** alinhar cabeçalho, painel de conversas, transcrição, campos, estados vazios/de carregamento/erro e controles responsivos ao padrão visual das telas integradas; manter a apresentação como assistente guiado, sem sugerir IA.
-- **Backend e integração previstos:** revisar o cliente HTTP existente do serviço de Chatbot e a integração com a API Financeira. Preservar sessão, permissões aplicadas pela API, confirmação explícita antes de gravar e o comportamento de indisponibilidade. Não se prevê mudança de schema ou regra financeira; qualquer necessidade identificada será registrada antes de ampliar o escopo.
-- **Decisões pendentes:** nenhuma para a interface e os fluxos já suportados. Novas intenções financeiras, alteração nas permissões ou mudança no processo de confirmação dependem de decisão e implementação próprias.
-- **Verificações necessárias:** typecheck, lint, build, testes do cliente do Chatbot e dos fluxos API relevantes; conferir envio, resposta, confirmação, descarte, sessão expirada e falha de conexão, além das larguras desktop, tablet e celular. Confirmar que os demais módulos continuam iniciando sem o processo do Chatbot.
-- **Entrega:** aguardar a revisão e autorização do autor antes de iniciar esta etapa. Commit local com identidade Shishura; push segue aprovação separada.
+**Resultado:** a tela agora usa o cabeçalho compartilhado e cartões dedicados para o histórico, os atalhos de módulo e a conversa. O foco visual acompanha o fluxo de uso, e mensagens, carregamento, confirmação manual e erro de conexão têm estados próprios. Os atalhos continuam filtrados pelo papel da sessão.
+
+**Integração preservada:** o cliente HTTP continua carregando e criando conversas, buscando histórico, enviando mensagens e confirmando ou descartando operações. A API Financeira segue responsável pelas permissões e nenhuma operação é gravada antes da confirmação. A apresentação continua descrevendo o assistente como fluxo guiado, sem alegar uso de IA. Nenhum dado de demonstração foi adicionado.
+
+**Arquivos:** `apps/web/src/chatbot/ChatbotPage.tsx`, novo `apps/web/src/chatbot/chatbot.css`, `apps/web/src/chatbot/chatbot-api.test.ts` e remoção dos estilos antigos do Chatbot de `apps/web/src/index.css`. Backend, contratos, permissões e schema não mudaram. O comando raiz de desenvolvimento continua iniciando API e web sem iniciar o Chatbot; o serviço mantém seu comando separado.
+
+**Verificações:** typecheck e build de produção do frontend; lint da página e dos testes; Prettier e `git diff --check`; 60 testes do frontend, 47 testes do serviço de Chatbot e 6 testes de autorização financeira aprovados. Foram incluídos testes para sessão expirada e falha de conexão. O build mantém os avisos conhecidos de diretivas `use client` do React Router.
+
+**Limites:** não havia navegador ou Chromium conectado para validar a tela renderizada ou produzir captura. O serviço de Chatbot e o banco operacional não foram iniciados; a integração em execução real não foi exercitada nesta entrega. As larguras e estados foram avaliados por estilos responsivos e testes automatizados, sem inspeção visual em navegador.
+
+A sequência visual principal está concluída. Uma possível ampliação do Caixa permanece condicionada às decisões registradas a seguir.
 
 ## Decisões pendentes para uma futura ampliação do Caixa
 

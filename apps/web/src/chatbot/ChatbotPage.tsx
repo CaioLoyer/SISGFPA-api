@@ -14,6 +14,8 @@ import {
 } from './chatbot-api'
 import type { ChatMessage, ChatSummary } from './chatbot-api'
 import { getChatbotTopics } from './chatbot-topics'
+import { PageHeader } from '../shared/PageHeader'
+import './chatbot.css'
 
 function horaDaMensagem(createdAt: string) {
   const data = new Date(createdAt)
@@ -174,201 +176,213 @@ export function ChatbotPage() {
   const podeTrocarConversa = !enviando && !acaoPendenteId
 
   return (
-    <section className="welcome-page chatbot-page" aria-labelledby="chatbot-title">
-      <div className="welcome-heading chatbot-page-heading">
-        <div>
-          <p className="eyebrow">ASSISTENTE GUIADO</p>
-          <h1 id="chatbot-title">Como posso ajudar?</h1>
-          <p>Escolha um módulo para abrir ou descreva uma operação financeira em uma mensagem.</p>
-        </div>
-        <span className="chatbot-mode-pill">Fluxo por tópicos · sem IA</span>
-      </div>
+    <section className="chatbot-page" aria-label="Chatbot">
+      <PageHeader
+        title="Como posso ajudar?"
+        description="Acesse um módulo ou descreva uma operação para começar."
+      >
+        <span className="chatbot-mode-pill">Fluxo guiado · confirmação antes de gravar</span>
+      </PageHeader>
 
-      {erro && (
-        <div className="finance-error-block chatbot-error" role="alert">
-          <p>{erro}</p>
-          <button
-            className="button button-secondary"
-            onClick={() => setTentativa((valor) => valor + 1)}
-            type="button"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-      <div className="chatbot-layout">
-        <aside className="finance-card chatbot-sidebar" aria-label="Conversas e tópicos">
-          <div className="chatbot-sidebar-heading">
-            <h2>Conversas</h2>
+      <div className="chatbot-content">
+        {erro && (
+          <div className="chatbot-error" role="alert">
+            <p>{erro}</p>
             <button
-              className="button button-secondary chatbot-new-button"
-              disabled={carregandoLista || carregandoConversa || !podeTrocarConversa}
-              onClick={() => void iniciarConversa()}
+              className="button button-secondary"
+              onClick={() => setTentativa((valor) => valor + 1)}
               type="button"
             >
-              + Nova
+              Tentar novamente
             </button>
           </div>
-          {carregandoLista ? (
-            <p className="chatbot-muted" role="status">
-              Carregando conversas…
-            </p>
-          ) : conversas.length === 0 ? (
-            <p className="chatbot-muted">Suas conversas aparecerão aqui.</p>
-          ) : (
-            <ul className="chatbot-conversation-list">
-              {conversas.map((conversa) => (
-                <li key={conversa.id}>
-                  <button
-                    aria-current={conversa.id === conversaId ? 'page' : undefined}
-                    className={`chatbot-conversation-button${conversa.id === conversaId ? ' chatbot-conversation-active' : ''}`}
-                    disabled={!podeTrocarConversa || carregandoConversa}
-                    onClick={() => void abrirConversa(conversa.id)}
-                    type="button"
-                  >
-                    <strong>{conversa.title}</strong>
-                    <span>{new Date(conversa.updatedAt).toLocaleDateString('pt-BR')}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        )}
 
-          <div className="chatbot-topics-heading">
-            <h2>Tópicos</h2>
-            <p>Escolha para abrir um módulo.</p>
-          </div>
-          <nav className="chatbot-topic-list" aria-label="Abrir módulos">
-            {topics.map((topic) => (
-              <Link className="chatbot-topic-link" key={topic.id} to={topic.to}>
-                <span aria-hidden="true">{topic.icon}</span>
-                {topic.title}
-              </Link>
-            ))}
-          </nav>
-        </aside>
+        <div className="chatbot-layout">
+          <section className="chatbot-conversation" aria-label="Conversa com o assistente">
+            <header className="chatbot-conversation-heading">
+              <div>
+                <span className="chatbot-overline">CONVERSA ATUAL</span>
+                <h2>{conversaAtiva?.title ?? 'Nova conversa'}</h2>
+                <p>As operações só são enviadas à API depois da sua confirmação.</p>
+              </div>
+              <span className="chatbot-confirmation-badge">Revisão manual</span>
+            </header>
 
-        <section className="finance-card chatbot-conversation" aria-label="Conversa com o assistente">
-          <header className="chatbot-conversation-heading">
-            <div>
-              <h2>{conversaAtiva?.title ?? 'Nova conversa'}</h2>
-              <p>As operações só são enviadas à API depois da sua confirmação.</p>
-            </div>
-            <span className="chatbot-online-indicator">Atendimento guiado</span>
-          </header>
-
-          <div className="chatbot-transcript" aria-live="polite" aria-relevant="additions text">
-            {carregandoConversa ? (
-              <p className="chatbot-muted" role="status">
-                Carregando mensagens…
-              </p>
-            ) : mensagens.length === 0 ? (
-              <div className="chatbot-welcome-message">
-                <div className="chatbot-message-bubble chatbot-assistant-bubble">
-                  <p>
-                    Olá, {user?.name}. Posso encaminhar você para um módulo ou ajudar a preparar uma operação
-                    financeira.
-                  </p>
-                  <p>
-                    Escolha um tópico ou escreva uma mensagem. Antes de gravar, você poderá revisar e
-                    confirmar.
-                  </p>
-                </div>
-                <h3>Para onde deseja ir?</h3>
-                <div className="chatbot-topic-grid">
-                  {topics.map((topic) => (
-                    <Link className="chatbot-topic-card" key={topic.id} to={topic.to}>
-                      <span aria-hidden="true">{topic.icon}</span>
-                      <strong>{topic.title}</strong>
-                      <small>{topic.description}</small>
-                      <span className="chatbot-topic-open">Abrir módulo →</span>
-                    </Link>
-                  ))}
-                </div>
-                <p className="chatbot-examples">
-                  Exemplos: “Compramos materiais do fornecedor ABC por R$ 250” ou “Cliente Maria pagou R$ 80”.
+            <div
+              aria-busy={carregandoConversa}
+              aria-live="polite"
+              aria-relevant="additions text"
+              className="chatbot-transcript"
+            >
+              {carregandoConversa ? (
+                <p className="chatbot-muted chatbot-loading" role="status">
+                  Carregando mensagens…
                 </p>
-              </div>
-            ) : (
-              <div className="chatbot-message-list">
-                {mensagens.map((mensagem, indice) => {
-                  const anterior = mensagens[indice - 1]
-                  const pendenciaAnterior =
-                    mensagem.papel === 'ASSISTENTE' &&
-                    anterior?.papel === 'USUARIO' &&
-                    anterior.status === 'PENDENTE_CONFIRMACAO'
-                      ? anterior
-                      : null
+              ) : mensagens.length === 0 ? (
+                <div className="chatbot-welcome-message">
+                  <div className="chatbot-message-bubble chatbot-assistant-bubble">
+                    <p>
+                      Olá, {user?.name}. Posso encaminhar você para um módulo ou ajudar a preparar uma
+                      operação financeira.
+                    </p>
+                    <p>
+                      Escolha um tópico ou escreva uma mensagem. Antes de gravar, você poderá revisar e
+                      confirmar.
+                    </p>
+                  </div>
+                  <h3>Para onde deseja ir?</h3>
+                  <div className="chatbot-topic-grid">
+                    {topics.map((topic) => (
+                      <Link className="chatbot-topic-card" key={topic.id} to={topic.to}>
+                        <span aria-hidden="true">{topic.icon}</span>
+                        <strong>{topic.title}</strong>
+                        <small>{topic.description}</small>
+                        <span className="chatbot-topic-open">Abrir módulo →</span>
+                      </Link>
+                    ))}
+                  </div>
+                  <p className="chatbot-examples">
+                    Exemplos: “Compramos materiais do fornecedor ABC por R$ 250” ou “Cliente Maria pagou R$
+                    80”.
+                  </p>
+                </div>
+              ) : (
+                <div className="chatbot-message-list">
+                  {mensagens.map((mensagem, indice) => {
+                    const anterior = mensagens[indice - 1]
+                    const pendenciaAnterior =
+                      mensagem.papel === 'ASSISTENTE' &&
+                      anterior?.papel === 'USUARIO' &&
+                      anterior.status === 'PENDENTE_CONFIRMACAO'
+                        ? anterior
+                        : null
 
-                  return (
-                    <div
-                      className={`chatbot-message-row chatbot-message-row-${mensagem.papel.toLowerCase()}`}
-                      key={mensagem.id}
-                    >
-                      <article
-                        className={`chatbot-message-bubble ${mensagem.papel === 'USUARIO' ? 'chatbot-user-bubble' : 'chatbot-assistant-bubble'}`}
+                    return (
+                      <div
+                        className={`chatbot-message-row chatbot-message-row-${mensagem.papel.toLowerCase()}`}
+                        key={mensagem.id}
                       >
-                        <p>{mensagem.content}</p>
-                        <time dateTime={mensagem.createdAt}>{horaDaMensagem(mensagem.createdAt)}</time>
-                      </article>
-                      {pendenciaAnterior && (
-                        <div className="chatbot-confirmation-controls">
-                          <p>Revise o resumo acima antes de enviar a operação.</p>
-                          <div>
-                            <button
-                              className="button button-primary"
-                              disabled={acaoPendenteId === pendenciaAnterior.id}
-                              onClick={() => void resolverOperacao(pendenciaAnterior.id, true)}
-                              type="button"
-                            >
-                              {acaoPendenteId === pendenciaAnterior.id
-                                ? 'Processando…'
-                                : 'Confirmar operação'}
-                            </button>
-                            <button
-                              className="button button-secondary"
-                              disabled={acaoPendenteId === pendenciaAnterior.id}
-                              onClick={() => void resolverOperacao(pendenciaAnterior.id, false)}
-                              type="button"
-                            >
-                              Descartar
-                            </button>
+                        <article
+                          className={`chatbot-message-bubble ${mensagem.papel === 'USUARIO' ? 'chatbot-user-bubble' : 'chatbot-assistant-bubble'}`}
+                        >
+                          <p>{mensagem.content}</p>
+                          <time dateTime={mensagem.createdAt}>{horaDaMensagem(mensagem.createdAt)}</time>
+                        </article>
+                        {pendenciaAnterior && (
+                          <div className="chatbot-confirmation-controls">
+                            <p>Revise o resumo acima antes de enviar a operação.</p>
+                            <div>
+                              <button
+                                className="button button-primary"
+                                disabled={acaoPendenteId === pendenciaAnterior.id}
+                                onClick={() => void resolverOperacao(pendenciaAnterior.id, true)}
+                                type="button"
+                              >
+                                {acaoPendenteId === pendenciaAnterior.id
+                                  ? 'Processando…'
+                                  : 'Confirmar operação'}
+                              </button>
+                              <button
+                                className="button button-secondary"
+                                disabled={acaoPendenteId === pendenciaAnterior.id}
+                                onClick={() => void resolverOperacao(pendenciaAnterior.id, false)}
+                                type="button"
+                              >
+                                Descartar
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                <div ref={fimDaConversa} />
-              </div>
-            )}
-          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <div ref={fimDaConversa} />
+                </div>
+              )}
+            </div>
 
-          <form className="chatbot-composer" onSubmit={(event) => void enviar(event)}>
-            <label className="field-label" htmlFor="chatbot-message">
-              Mensagem
-              <textarea
-                id="chatbot-message"
-                maxLength={1000}
-                onChange={(event) => setRascunho(event.target.value)}
-                placeholder="Escreva o que deseja fazer…"
-                rows={2}
-                value={rascunho}
-              />
-            </label>
-            <div className="chatbot-composer-footer">
-              <small>Até 1.000 caracteres. A API Financeira valida suas permissões.</small>
+            <form className="chatbot-composer" onSubmit={(event) => void enviar(event)}>
+              <label className="field-label" htmlFor="chatbot-message">
+                Mensagem
+                <textarea
+                  id="chatbot-message"
+                  maxLength={1000}
+                  onChange={(event) => setRascunho(event.target.value)}
+                  placeholder="Escreva o que deseja fazer…"
+                  rows={2}
+                  value={rascunho}
+                />
+              </label>
+              <div className="chatbot-composer-footer">
+                <small>Até 1.000 caracteres. A API Financeira valida suas permissões.</small>
+                <button
+                  className="button button-primary"
+                  disabled={!rascunho.trim() || enviando || Boolean(acaoPendenteId) || carregandoConversa}
+                  type="submit"
+                >
+                  {enviando ? 'Enviando…' : 'Enviar mensagem'}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside className="chatbot-sidebar" aria-label="Conversas e tópicos">
+            <div className="chatbot-sidebar-heading">
+              <div>
+                <span className="chatbot-overline">SEU HISTÓRICO</span>
+                <h2>Conversas</h2>
+              </div>
               <button
-                className="button button-primary"
-                disabled={!rascunho.trim() || enviando || Boolean(acaoPendenteId) || carregandoConversa}
-                type="submit"
+                className="button button-secondary chatbot-new-button"
+                disabled={carregandoLista || carregandoConversa || !podeTrocarConversa}
+                onClick={() => void iniciarConversa()}
+                type="button"
               >
-                {enviando ? 'Enviando…' : 'Enviar mensagem'}
+                <span aria-hidden="true">+</span> Nova
               </button>
             </div>
-          </form>
-        </section>
+            {carregandoLista ? (
+              <p className="chatbot-muted" role="status">
+                Carregando conversas…
+              </p>
+            ) : conversas.length === 0 ? (
+              <p className="chatbot-muted chatbot-empty-list">Suas conversas aparecerão aqui.</p>
+            ) : (
+              <ul className="chatbot-conversation-list">
+                {conversas.map((conversa) => (
+                  <li key={conversa.id}>
+                    <button
+                      aria-current={conversa.id === conversaId ? 'page' : undefined}
+                      aria-label={`Abrir conversa: ${conversa.title}`}
+                      className={`chatbot-conversation-button${conversa.id === conversaId ? ' chatbot-conversation-active' : ''}`}
+                      disabled={!podeTrocarConversa || carregandoConversa}
+                      onClick={() => void abrirConversa(conversa.id)}
+                      type="button"
+                    >
+                      <strong>{conversa.title}</strong>
+                      <span>{new Date(conversa.updatedAt).toLocaleDateString('pt-BR')}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="chatbot-topics-heading">
+              <span className="chatbot-overline">NAVEGAÇÃO RÁPIDA</span>
+              <h2>Módulos</h2>
+              <p>Abra uma área da plataforma.</p>
+            </div>
+            <nav className="chatbot-topic-list" aria-label="Abrir módulos">
+              {topics.map((topic) => (
+                <Link className="chatbot-topic-link" key={topic.id} to={topic.to}>
+                  <span aria-hidden="true">{topic.icon}</span>
+                  {topic.title}
+                </Link>
+              ))}
+            </nav>
+          </aside>
+        </div>
       </div>
     </section>
   )

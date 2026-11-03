@@ -113,4 +113,21 @@ describe('cliente HTTP do Chatbot', () => {
 
     await expect(listarConversas()).rejects.toMatchObject({ status: 403, message: 'Acesso negado' })
   })
+
+  it('orienta o usuário quando a sessão expira', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ error: 'Unauthorized' }, 401)))
+
+    await expect(listarConversas()).rejects.toMatchObject({
+      status: 401,
+      message: 'Sua sessão pode ter expirado. Entre novamente.',
+    })
+  })
+
+  it('mostra erro de conexão quando o serviço está indisponível', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')))
+
+    await expect(listarConversas()).rejects.toMatchObject({
+      message: 'Não foi possível conectar ao Chatbot.',
+    })
+  })
 })
