@@ -135,7 +135,7 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
         Ir para o conteúdo
       </a>
       <div className="workspace-mobile-bar" inert={drawerOpen}>
-        <Link className="workspace-mobile-brand" onClick={handleNavigation} to="/">
+        <Link className="workspace-mobile-brand" onClick={handleNavigation} to="/dashboard">
           <Icon name="user" />
           <span>Mil Folhas</span>
         </Link>
@@ -171,7 +171,12 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
         role={drawerOpen ? 'dialog' : undefined}
       >
         <div className="workspace-sidebar-heading">
-          <Link aria-label="Mil Folhas, início" className="workspace-brand" onClick={handleNavigation} to="/">
+          <Link
+            aria-label="Mil Folhas, início"
+            className="workspace-brand"
+            onClick={handleNavigation}
+            to="/dashboard"
+          >
             <span className="workspace-brand-mark">
               <Icon name="user" />
             </span>
@@ -193,7 +198,7 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
 
         <nav aria-label="Navegação principal" className="workspace-nav">
           <p className="workspace-nav-caption">Menu</p>
-          {navigationLink('/', 'home', admin ? 'Dashboard' : 'Início', true)}
+          {navigationLink('/dashboard', 'home', 'Dashboard', true)}
           {navigationLink('/comercial', 'mail', 'Comercial')}
           <button
             aria-controls="workspace-finance"

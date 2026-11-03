@@ -100,6 +100,7 @@ const ESPERADOS_API = [
   'GET /caixa/movimentacoes',
   'POST /caixa/movimentacoes/{id}/estornos',
   'GET /dashboard/resumo',
+  'GET /dashboard/visao-geral',
   'POST /despesas/',
   'GET /despesas/',
   'GET /despesas/{id}',

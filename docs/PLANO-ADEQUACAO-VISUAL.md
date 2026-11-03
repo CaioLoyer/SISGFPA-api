@@ -112,6 +112,44 @@ Capturas para revisão:
 - [Menu aberto no celular](validacao-visual/navegacao/menu-mobile.png).
 - [Estrutura de ADMIN no desktop](validacao-visual/navegacao/admin-desktop.png). O conteúdo interno do perfil permanece para sua própria etapa visual.
 
+## Quarta entrega: dashboard financeira (priorizada pelo autor)
+
+O autor antecipou a dashboard em relação à sequência original e enviou uma nova referência, preservada em [dashboard-atual.jpg](referencias/interfaces/dashboard-atual.jpg).
+
+**Decisões confirmadas pelo autor:**
+
+- ADMIN e funcionários acessam a dashboard conforme suas permissões financeiras. Despesas e recebimentos são reavaliados na API em cada consulta. Saldo consolidado, página do caixa e relatórios mantêm a restrição administrativa existente.
+- Os indicadores e a série mensal usam movimentações efetivas do Caixa Principal, incluindo estornos, pela data da movimentação. A diferença entre entradas e saídas é apresentada como **Resultado do caixa**.
+- O **ticket médio recebido** é a soma dos valores das baixas recebidas no mês dividida pela quantidade dessas baixas. Cada pagamento parcial conta como uma baixa; estornos não participam dessa fórmula. Uma baixa de título posteriormente cancelado continua representando dinheiro efetivamente recebido.
+- Sem baixas, o ticket é indisponível, não zero. Variações percentuais só aparecem quando existe base diferente de zero no mês anterior. Pendências continuam usando vencimento do título no mês, com cancelados excluídos.
+
+**Resultado visual e navegação:** `/dashboard` passa a ser a página inicial de todos os perfis e o primeiro item do menu; `/` redireciona para ela. O painel reproduz a composição da referência com quatro cartões, barras dos sete meses até o mês selecionado, rosca por categoria, cinco movimentações recentes e faixa verde de saldos/pendências. Mantém Inter, verdes, vermelho, cantos e estrutura do restante do frontend. O mês usa controle nativo; os gráficos também oferecem valores em texto/tabela. Categorias excedentes são agrupadas após as quatro principais. No celular, painéis são empilhados e a tabela tem rolagem própria.
+
+**Integração:** novo `GET /dashboard/visao-geral?mes=AAAA-MM`, com contrato em `packages/types` e schema/exemplo em `packages/validation`. As consultas são parametrizadas, agregadas no PostgreSQL e lidas na mesma transação. Limites e agrupamentos mensais usam UTC explicitamente. Estornos herdam o módulo e a categoria da movimentação original para aplicar a autorização corretamente. O endpoint anterior `/dashboard/resumo` permanece exclusivo de ADMIN.
+
+A interface destaca quando os dados representam somente contas a pagar ou somente contas a receber. Campos restritos retornam `null`; não são transformados em valores zero. Sem acesso financeiro, a dashboard mostra orientação e acesso ao perfil. Caixa não configurado, mês vazio, carregamento, erro e nova tentativa têm apresentações próprias. Requisições anteriores são canceladas ao trocar o mês ou sair da tela; atualização manual, a cada minuto e ao retomar a aba consultam novamente o servidor. Erros descartam resultados antigos.
+
+**Arquivos principais:**
+
+- `apps/web/src/dashboard/DashboardPage.tsx`, `DashboardCharts.tsx`, `dashboard-api.ts`, `dashboard-api.test.ts` e `dashboard.css`.
+- `apps/web/src/App.tsx`, `layout/AppShell.tsx` e limpeza dos estilos antigos em `index.css`. A antiga página inicial separada do funcionário foi substituída pelo painel autorizado.
+- `apps/api/src/modules/dashboard/dashboard-overview.service.ts`, `dashboard.routes.ts`, testes de rota e integração PostgreSQL; reaproveitamento da consulta de permissões em `authorization/financial-permissions.ts`.
+- `packages/types/src/dashboard.ts`, exportação em `index.ts`, `packages/validation/src/index.ts` e inclusão do endpoint na lista de documentação de `scripts/docs-check.ts`.
+
+**Verificações:** 56 testes do frontend e 71 testes da API aprovados. Os três testes opcionais de integração passaram separadamente em PostgreSQL local descartável com as cinco migrations existentes: valores e arredondamento do ticket, pagamentos parciais, cancelados, estornos, limites UTC, série de sete meses, pendências, saldo global, permissões alteradas entre consultas e caixa ausente. Typecheck de frontend/API e build dos pacotes compartilhados/frontend aprovados; lint, formatação e verificação de arquitetura aprovados. O build mantém os avisos de `use client` da dependência React Router.
+
+O Chromium confirmou login e sessão reais do Better Auth, retorno da API igual aos cartões, mês selecionado, estado vazio, gráficos, atalhos, atualização das permissões já na sessão aberta, restrição do saldo e menu móvel. Conferidas larguras 1280, 1024, 768, 390 e 320 px sem rolagem horizontal da página ou erros JavaScript. Também foram conferidos o OpenAPI mensal, seu exemplo e a recusa HTTP 401 sem sessão. O Chatbot não foi iniciado. O relatório resumido do navegador está em [verificacao.json](validacao-visual/dashboard/verificacao.json).
+
+**Ambiente e limites:** integração realizada contra PostgreSQL temporário, API local e contas/dados fictícios persistidos exclusivamente para teste. Os números dos prints não representam dados operacionais da papelaria. Não houve migração nem preenchimento de dados no banco do projeto. A aplicação não contém esses fixtures; usa as respostas reais da API configurada. A fonte Inter continua dependente do carregamento externo já adotado pelo projeto. Atualização é por consulta periódica/manual, sem canal de notificações em tempo real.
+
+Capturas para revisão:
+
+- [Dashboard no desktop](validacao-visual/dashboard/desktop.png).
+- [Dashboard no celular](validacao-visual/dashboard/mobile.png).
+- [Funcionário com acesso somente a recebimentos](validacao-visual/dashboard/funcionario-recebimentos.png).
+
+Para repetir os testes opcionais, forneça `DASHBOARD_TEST_DATABASE_URL` apontando para um PostgreSQL **local, descartável, vazio e migrado**, com nome de banco `sisgfpa_dashboard_test` e fuso UTC. Execute `vitest run src/modules/dashboard/dashboard-overview.integration.test.ts` em `apps/api`. A suíte recusa bancos com outro nome/host e bancos já preenchidos, não usa automaticamente o `.env` do projeto e é ignorada quando essa variável não está definida. Use uma instância nova para repetir, pois os registros sintéticos permanecem nela após a execução.
+
 ## Próxima etapa para revisão: administração e cadastro de funcionário
 
 - **Objetivo:** aplicar a composição visual da administração e do cadastro do exemplo às operações reais de `/admin`.

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 
-const state = vi.hoisted(() => ({ consultarResumo: vi.fn() }))
+const state = vi.hoisted(() => ({ consultarResumo: vi.fn(), consultarVisaoGeral: vi.fn() }))
 
 vi.mock('@sisgfpa/auth', () => ({
   getAuthenticatedUser: async (headers: Record<string, string | string[] | undefined>) => {
@@ -17,6 +17,7 @@ vi.mock('@sisgfpa/auth', () => ({
 }))
 
 vi.mock('./dashboard.service.js', () => state)
+vi.mock('./dashboard-overview.service.js', () => state)
 
 describe('rotas do dashboard', () => {
   let app: FastifyInstance
@@ -91,4 +92,49 @@ describe('rotas do dashboard', () => {
     expect(extra.statusCode).toBe(400)
     expect(state.consultarResumo).not.toHaveBeenCalled()
   })
+  it('autentica a visão geral e encaminha a identidade do funcionário para filtrar os dados', async () => {
+    state.consultarVisaoGeral.mockResolvedValue({
+      mes: '2026-11',
+      permissoes: { despesas: false, recebimentos: false, caixa: false, relatorios: false },
+      caixaConfigurado: null,
+      indicadores: Object.fromEntries(
+        ['entradas', 'saidas', 'resultado', 'ticketMedio'].map((key) => [
+          key,
+          { valor: null, variacaoPercentual: null },
+        ])
+      ),
+      serieMensal: [],
+      saidasPorCategoria: [],
+      ultimasMovimentacoes: [],
+      resumo: { saldoAtual: null, aPagar: null, aReceber: null },
+    })
+    const anonymous = await app.inject({ method: 'GET', url: '/dashboard/visao-geral?mes=2026-11' })
+    expect(anonymous.statusCode).toBe(401)
+    expect(state.consultarVisaoGeral).not.toHaveBeenCalled()
+    const employee = await app.inject({
+      method: 'GET',
+      url: '/dashboard/visao-geral?mes=2026-11',
+      headers: { 'x-test-role': 'FUNCIONARIO' },
+    })
+    expect(employee.statusCode).toBe(200)
+    expect(employee.json().resumo).toEqual({ saldoAtual: null, aPagar: null, aReceber: null })
+    expect(state.consultarVisaoGeral).toHaveBeenCalledWith(
+      { mes: '2026-11' },
+      expect.objectContaining({ id: 'funcionario-1', role: 'FUNCIONARIO' })
+    )
+  })
+
+  it.each(['', 'mes=2026-13', 'mes=2026-1', 'mes=2026-11&funcionarioId=outro'])(
+    'rejeita filtro mensal inválido ou tentativa de escolher outra identidade: %s',
+    async (query) => {
+      state.consultarVisaoGeral.mockClear()
+      const response = await app.inject({
+        method: 'GET',
+        url: `/dashboard/visao-geral?${query}`,
+        headers: { 'x-test-role': 'ADMIN' },
+      })
+      expect(response.statusCode).toBe(400)
+      expect(state.consultarVisaoGeral).not.toHaveBeenCalled()
+    }
+  )
 })

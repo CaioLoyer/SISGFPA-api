@@ -577,6 +577,77 @@ export const DashboardResumoSchema = z
     },
   })
 
+export const DashboardOverviewQuerySchema = z.strictObject({
+  mes: z
+    .string()
+    .regex(/^(?:19|[2-9]\d)\d{2}-(?:0[1-9]|1[0-2])$/)
+    .meta({ example: '2026-11' }),
+})
+
+const DashboardMetricSchema = z.object({
+  valor: z.number().nullable(),
+  variacaoPercentual: z.number().nullable(),
+})
+
+export const DashboardOverviewSchema = z
+  .object({
+    mes: z.string(),
+    permissoes: z.object({
+      despesas: z.boolean(),
+      recebimentos: z.boolean(),
+      caixa: z.boolean(),
+      relatorios: z.boolean(),
+    }),
+    caixaConfigurado: z.boolean().nullable(),
+    indicadores: z.object({
+      entradas: DashboardMetricSchema,
+      saidas: DashboardMetricSchema,
+      resultado: DashboardMetricSchema,
+      ticketMedio: DashboardMetricSchema,
+    }),
+    serieMensal: z.array(
+      z.object({ mes: z.string(), entradas: z.number().min(0), saidas: z.number().min(0) })
+    ),
+    saidasPorCategoria: z.array(z.object({ nome: z.string(), valor: z.number().positive() })),
+    ultimasMovimentacoes: z.array(
+      z.object({
+        id: z.uuid(),
+        data: z.iso.datetime(),
+        descricao: z.string(),
+        categoria: z.string().nullable(),
+        valor: z.number().positive(),
+        tipo: z.enum(['ENTRADA', 'SAIDA']),
+        origem: z.enum(['LIQUIDACAO', 'ESTORNO']),
+        tituloId: z.uuid().nullable(),
+        tipoTitulo: z.enum(['DESPESA', 'RECEBIMENTO']).nullable(),
+      })
+    ),
+    resumo: z.object({
+      saldoAtual: z.number().nullable(),
+      aPagar: z.number().nullable(),
+      aReceber: z.number().nullable(),
+    }),
+  })
+  .meta({
+    example: {
+      mes: '2026-11',
+      permissoes: { despesas: true, recebimentos: true, caixa: true, relatorios: true },
+      caixaConfigurado: true,
+      indicadores: {
+        entradas: { valor: 1200, variacaoPercentual: 20 },
+        saidas: { valor: 700, variacaoPercentual: null },
+        resultado: { valor: 500, variacaoPercentual: null },
+        ticketMedio: { valor: 200, variacaoPercentual: null },
+      },
+      serieMensal: [{ mes: '2026-11', entradas: 1200, saidas: 700 }],
+      saidasPorCategoria: [{ nome: 'Material', valor: 700 }],
+      ultimasMovimentacoes: [],
+      resumo: { saldoAtual: 1500, aPagar: 300, aReceber: 600 },
+    },
+  })
+
+export type DashboardOverviewQuery = z.output<typeof DashboardOverviewQuerySchema>
+
 // ===================== Caixa =====================
 
 export const AbrirCaixaBodySchema = z

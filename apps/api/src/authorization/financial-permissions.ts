@@ -1,9 +1,22 @@
 import { prisma } from '@sisgfpa/database'
 import { ForbiddenError, UnauthorizedError } from '@sisgfpa/http'
 import type { FastifyRequest } from 'fastify'
+import type { AuthenticatedUser } from '@sisgfpa/auth'
 
 export type FinancialModulePermission = 'despesas' | 'recebimentos'
 export type ContatoPapelPermitido = 'CLIENTE' | 'FORNECEDOR'
+
+export async function consultarPermissoesFinanceiras(user: AuthenticatedUser) {
+  if (user.role === 'ADMIN') return { despesas: true, recebimentos: true }
+  const configuracao = await prisma.funcionarioPermissao.findUnique({
+    where: { funcionarioId: user.id },
+    select: { despesas: true, recebimentos: true },
+  })
+  return {
+    despesas: configuracao?.despesas ?? true,
+    recebimentos: configuracao?.recebimentos ?? true,
+  }
+}
 
 async function funcionarioPode(
   request: FastifyRequest,
@@ -11,28 +24,14 @@ async function funcionarioPode(
   exigirTodas = false
 ) {
   if (!request.user) throw new UnauthorizedError()
-  if (request.user.role === 'ADMIN') return true
-
-  const configuracao = await prisma.funcionarioPermissao.findUnique({
-    where: { funcionarioId: request.user.id },
-    select: { despesas: true, recebimentos: true },
-  })
-
-  // Ausência de configuração preserva o acesso atual dos FUNCIONARIO.
-  const verifica = (permissao: FinancialModulePermission) => configuracao?.[permissao] ?? true
+  const configuracao = await consultarPermissoesFinanceiras(request.user)
+  const verifica = (permissao: FinancialModulePermission) => configuracao[permissao]
   return exigirTodas ? permissoes.every(verifica) : permissoes.some(verifica)
 }
 
 export async function papeisContatoPermitidos(request: FastifyRequest): Promise<ContatoPapelPermitido[]> {
   if (!request.user) throw new UnauthorizedError()
-  if (request.user.role === 'ADMIN') return ['CLIENTE', 'FORNECEDOR']
-
-  const configuracao = await prisma.funcionarioPermissao.findUnique({
-    where: { funcionarioId: request.user.id },
-    select: { despesas: true, recebimentos: true },
-  })
-  const despesas = configuracao?.despesas ?? true
-  const recebimentos = configuracao?.recebimentos ?? true
+  const { despesas, recebimentos } = await consultarPermissoesFinanceiras(request.user)
   const papeis: ContatoPapelPermitido[] = []
   if (recebimentos) papeis.push('CLIENTE')
   if (despesas) papeis.push('FORNECEDOR')

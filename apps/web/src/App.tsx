@@ -11,7 +11,6 @@ import { CaixaPage } from './caixa/CaixaPage'
 import { ChatbotPage } from './chatbot/ChatbotPage'
 import { ComercialPage } from './contatos/ComercialPage'
 import { DashboardPage } from './dashboard/DashboardPage'
-import { EmployeeHomePage } from './dashboard/EmployeeHomePage'
 import { AppShell } from './layout/AppShell'
 import { ProfilePage } from './perfil/ProfilePage'
 import { RelatoriosPage } from './relatorios/RelatoriosPage'
@@ -169,11 +168,6 @@ function ProtectedLayout() {
   if (!user) return <LoadingScreen label="Carregando sua conta…" />
 
   return <AppShell user={user} onLogout={logout} />
-}
-
-function HomePage() {
-  const { user } = useSession()
-  return canAccessAdmin(user?.role) ? <DashboardPage /> : <EmployeeHomePage />
 }
 
 function NotFoundPage() {
@@ -453,7 +447,8 @@ function ProtectedRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/recuperar-senha" element={<PasswordRecoveryPage />} />
       <Route element={<ProtectedLayout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="comercial" element={<ComercialPage />} />
         <Route path="despesas" element={<TitulosPage tipo="DESPESA" />} />
         <Route path="recebimentos" element={<TitulosPage tipo="RECEBIMENTO" />} />

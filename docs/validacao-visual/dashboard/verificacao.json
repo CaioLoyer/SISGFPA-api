@@ -1,0 +1,40 @@
+{
+  "environment": "API e autenticação reais, PostgreSQL temporário com dados fictícios persistidos; falha HTTP final controlada",
+  "checks": [
+    "Login Better Auth real, redirecionamento padrão para /dashboard e indicadores iguais ao retorno da API",
+    "Dashboard primeiro no menu, série de sete meses, cinco movimentos, fonte Inter e tabela acessível do gráfico",
+    "Troca de mês com dados reais, comparativos e mês sem movimentação",
+    "Responsividade 1280/1024/768/390/320, tabela com rolagem própria e menu móvel com Escape",
+    "Atalho para o caixa real e rota raiz sempre abrindo a dashboard",
+    "Permissões reais alteradas no banco refletidas na próxima consulta: ambos, recebimentos, despesas e nenhum acesso; sem saldo global para funcionário",
+    "Erro HTTP controlado descarta indicadores antigos e permite nova consulta real"
+  ],
+  "widths": [
+    {
+      "width": 1280,
+      "viewport": 1280,
+      "content": 1280
+    },
+    {
+      "width": 1024,
+      "viewport": 1024,
+      "content": 1024
+    },
+    {
+      "width": 768,
+      "viewport": 768,
+      "content": 768
+    },
+    {
+      "width": 390,
+      "viewport": 390,
+      "content": 390
+    },
+    {
+      "width": 320,
+      "viewport": 320,
+      "content": 320
+    }
+  ],
+  "errors": []
+}
