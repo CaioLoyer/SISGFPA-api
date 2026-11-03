@@ -1,0 +1,99 @@
+.recovery-page .login-content h1 {
+  margin-bottom: 0;
+}
+
+.recovery-intro {
+  margin: 4px 0 16px;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.recovery-page .login-button {
+  text-transform: none;
+}
+
+.recovery-destination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.recovery-destination span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #6b7280;
+}
+
+.recovery-page button:not(.login-button) {
+  padding: 0;
+  border: 0;
+  color: var(--login-green);
+  background: transparent;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+}
+
+.recovery-page button:not(.login-button):not(:disabled):hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.recovery-page button:not(.login-button):focus-visible {
+  outline: 2px solid var(--login-green);
+  outline-offset: 4px;
+}
+
+.recovery-page button:not(.login-button):disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.recovery-page .recovery-code {
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.recovery-links {
+  justify-content: space-between;
+  margin: 12px 0 0;
+}
+
+.recovery-links-single {
+  justify-content: center;
+}
+
+.recovery-hint {
+  margin: 0 0 16px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.recovery-notice {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--login-green-dark);
+  background: #e8f2ec;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.recovery-secondary-action {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.recovery-login-link {
+  display: block;
+  text-align: center;
+}
