@@ -97,9 +97,10 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ['Despesas'],
         summary: 'Registrar pagamento total ou parcial de despesa',
+        description: 'Use a mesma idempotencyKey ao repetir uma tentativa de pagamento.',
         params: DespesaParamsSchema,
         body: RegistrarPagamentoDespesaBodySchema,
-        response: responses({ 200: DespesaSchema }, 400, 401, 403, 404),
+        response: responses({ 200: DespesaSchema }, 400, 401, 403, 404, 409),
       },
     },
     async (request) => despesas.registrarPagamento(request.params.id, request.body, request.user.id)

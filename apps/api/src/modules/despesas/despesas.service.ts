@@ -239,6 +239,7 @@ export async function registrarPagamento(id: string, input: RegistrarPagamentoIn
       valor: input.valor,
       pagoEm: input.pagoEm ? new Date(input.pagoEm) : undefined,
       usuarioId,
+      idempotencyKey: input.idempotencyKey,
     })
   )
 

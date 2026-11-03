@@ -444,12 +444,12 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
     }
   }
 
-  async function liquidarTitulo(id: string, valor: number, data: string) {
+  async function liquidarTitulo(id: string, valor: number, data: string, idempotencyKey: string) {
     setErroAcao('')
     setMensagem('')
     setLiquidandoId(id)
     try {
-      await registrarLiquidacao(tipo, id, { valor, data })
+      await registrarLiquidacao(tipo, id, { valor, data, idempotencyKey })
       setMensagem(
         `Liquidação registrada. O movimento correspondente foi atualizado automaticamente no Caixa Principal.`
       )
@@ -981,12 +981,13 @@ function DetalheTitulo({
   erro: string
   carregando: boolean
   onClose: () => void
-  onLiquidar: (id: string, valor: number, data: string) => Promise<void>
+  onLiquidar: (id: string, valor: number, data: string, idempotencyKey: string) => Promise<void>
   liquidando: boolean
   tipo: FinanceiroTipo
 }) {
   const [valorLiquidacao, setValorLiquidacao] = useState('')
   const [dataLiquidacao, setDataLiquidacao] = useState(dataHoraAgora)
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
   const liquidacaoNome = tipo === 'DESPESA' ? 'Pagamentos' : 'Recebimentos'
   const valorEmAberto = detalhe
     ? detalhe.status === 'PAGO' || detalhe.status === 'CANCELADO'
@@ -999,6 +1000,7 @@ function DetalheTitulo({
       const saldo = Math.max(0, detalhe.valor - detalhe.valorLiquidado)
       setValorLiquidacao(saldo.toFixed(2))
       setDataLiquidacao(dataHoraAgora())
+      setIdempotencyKey(crypto.randomUUID())
     }
   }, [detalhe?.id, detalhe?.valor, detalhe?.valorLiquidado])
 
@@ -1007,7 +1009,7 @@ function DetalheTitulo({
     if (!detalhe) return
     const valor = Number(valorLiquidacao)
     if (!Number.isFinite(valor) || valor <= 0 || valor > valorEmAberto) return
-    void onLiquidar(detalhe.id, valor, dataLiquidacao)
+    void onLiquidar(detalhe.id, valor, dataLiquidacao, idempotencyKey)
   }
 
   return (
@@ -1090,7 +1092,10 @@ function DetalheTitulo({
                   id="finance-settlement-value"
                   max={valorEmAberto}
                   min="0.01"
-                  onChange={(event) => setValorLiquidacao(event.target.value)}
+                  onChange={(event) => {
+                    setValorLiquidacao(event.target.value)
+                    setIdempotencyKey(crypto.randomUUID())
+                  }}
                   required
                   step="0.01"
                   type="number"
@@ -1101,7 +1106,10 @@ function DetalheTitulo({
                 Data e hora efetiva
                 <input
                   id="finance-settlement-date"
-                  onChange={(event) => setDataLiquidacao(event.target.value)}
+                  onChange={(event) => {
+                    setDataLiquidacao(event.target.value)
+                    setIdempotencyKey(crypto.randomUUID())
+                  }}
                   required
                   type="datetime-local"
                   value={dataLiquidacao}

@@ -196,12 +196,25 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Limites:** não foram enviadas operações contra uma conta real ou banco de produção; criação, edição e persistência não foram exercitadas nesta etapa. Os dados e validações continuam conectados às operações existentes.
 
-## Próxima etapa para revisão: caixa automático
+## Nona entrega: Caixa automático
 
-- **Objetivo:** integrar o Caixa à API Financeira e concluir a ligação entre liquidações de despesas/recebimentos, movimentos efetivos, saldos e consulta do histórico.
-- **Áreas afetadas:** API Financeira, `apps/web/src/caixa/CaixaPage.tsx`, `apps/web/src/caixa/caixa-api.ts` e os formulários de baixa em `/despesas` e `/recebimentos`.
-- **Backend previsto:** definir entidades e contratos para caixas, saldo de abertura e movimentações; registrar a baixa e o movimento no caixa escolhido na mesma transação e impedir duplicidade por repetição da requisição. As permissões financeiras existentes precisam continuar aplicadas na API.
-- **Frontend previsto:** exibir caixas, saldos e movimentos reais, permitir selecionar um caixa nas baixas e apresentar o resultado retornado pelo servidor. As telas não devem simular uma movimentação antes de sua confirmação pela API.
-- **Decisões pendentes do autor:** como cadastrar/identificar caixas e registrar saldo inicial; como tratar títulos com liquidações históricas sem caixa associado; se haverá lançamentos avulsos além da abertura; e qual fluxo registra estorno quando uma liquidação for posteriormente devolvida. Nenhum saldo ou estorno histórico será presumido.
-- **Verificações necessárias:** revisar os contratos e a migration antes da implementação; validar atomicidade e repetição das baixas na API; conferir autorização por perfil, consulta de saldo/histórico, transferências apenas entre origem e destino definidos e apresentação desktop/celular. A etapa deve funcionar sem o Chatbot.
-- **Entrega:** separar mudanças necessárias da API e da tela em commits locais coerentes, com identidade Shishura. Apresentar hashes e destino e obter aprovação separada antes de qualquer push.
+**Objetivo e resultado:** a tela do Caixa agora usa o mesmo cabeçalho, cartões, filtros e tipografia adotados nas demais páginas financeiras. O resumo destaca saldo atual, saldo inicial, entradas e saídas; em telas estreitas, cada movimento é apresentado como cartão rotulado, sem depender de rolagem horizontal da tabela.
+
+**Integração existente preservada:** o monorepo já tinha uma API para o Caixa Principal, com saldo de abertura informado pelo ADMIN, consultas reais de saldo e movimentos, filtros, paginação e registro de devoluções reais de liquidações de títulos cancelados. Pagamentos e recebimentos criam o movimento correspondente dentro da mesma transação financeira; a tela mostra os valores consultados da API. O acesso permanece exclusivo para ADMIN.
+
+**Proteção contra repetição:** as tentativas de pagamento e baixa agora aceitam uma chave UUID opcional. A interface envia a mesma chave em uma repetição sem alterações dos dados; a API reconhece a tentativa já registrada e devolve o estado atual do título sem criar outro pagamento, baixa ou movimento. Reutilizar a chave com valor, data ou usuário diferentes retorna conflito. A unicidade é limitada ao título e as chamadas antigas sem chave continuam compatíveis. A migration adiciona colunas opcionais e índices únicos; não altera registros existentes.
+
+**Arquivos desta entrega:** `apps/web/src/caixa/CaixaPage.tsx`, novo `apps/web/src/caixa/caixa.css`, componentes do domínio de liquidação de despesas/recebimentos, serviços e rotas correspondentes, `apps/web/src/titulos/TitulosPage.tsx`, cliente e testes de API financeira, schema Prisma, migration `20261103120000_liquidacao_idempotente`, validações e este plano.
+
+**Verificações:** typecheck, lint, formatação, `git diff --check`, build de produção e testes de rota, serviço, liquidação e clientes financeiros. Os testes de serviço usam um segredo transitório exclusivo de teste; nenhum segredo do projeto foi lido ou alterado. Nenhum teste acessou PostgreSQL.
+
+**Limites:** esta sessão não disponibilizou navegador, então não gerei capturas nem conferi a tela renderizada em Chromium. A API continua com um único Caixa Principal e acesso exclusivo para ADMIN; não adicionei caixas múltiplos, seleção na baixa, transferências ou lançamentos avulsos. A abertura usa o saldo informado e não importa liquidações anteriores. A migration foi validada pelo schema Prisma, mas não aplicada a um banco nesta sessão. Nenhuma operação foi enviada contra o banco operacional.
+
+## Próxima etapa para revisão: decisões para ampliar o Caixa
+
+- **Objetivo:** definir o modelo e as regras financeiras necessárias antes de alterar o fluxo atualmente funcional do Caixa Principal.
+- **Áreas afetadas:** cadastro e consulta de caixas; saldo de abertura; seleção do caixa ao liquidar títulos; autorização para ADMIN e FUNCIONARIO; transferências; liquidações históricas; eventuais lançamentos avulsos e estornos.
+- **Backend/frontend previstos, conforme as decisões:** se permanecer um único caixa, manter o destino automático atual e terminar apenas os ajustes de integração que forem identificados. Se forem autorizados vários caixas, propor antes a migration, os endpoints, a seleção do caixa na baixa e a apresentação de saldos/históricos por caixa.
+- **Decisões pendentes do autor:** manter somente o Caixa Principal ou permitir vários caixas; quem pode consultar/configurar caixas e fazer baixas; como reconciliar liquidações anteriores sem vínculo de caixa; se transferências e lançamentos avulsos fazem parte do escopo; e em quais condições uma devolução comprovada deve gerar estorno. Não presumir saldos nem estornos passados.
+- **Verificações necessárias:** validar permissões na API, atomicidade e repetição de liquidações, cálculo de saldos, preservação dos históricos e responsividade. Qualquer mudança de schema deve ter migration e testes de regressão. A entrega permanece independente do Chatbot.
+- **Entrega:** depois da revisão das regras, apresentar um plano fechado da alteração e aguardar autorização para implementar. Manter commits locais com identidade Shishura; push exige aprovação separada.

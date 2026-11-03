@@ -255,11 +255,12 @@ model DespesaParcela {
 }
 
 model DespesaPagamento {
-  id        String   @id @default(uuid())
-  despesaId String
-  despesa   Despesa  @relation(fields: [despesaId], references: [id])
-  valor     Decimal  @db.Decimal(12, 2)
-  pagoEm    DateTime @db.Timestamptz()
+  id             String   @id @default(uuid())
+  despesaId      String
+  despesa        Despesa  @relation(fields: [despesaId], references: [id])
+  valor          Decimal  @db.Decimal(12, 2)
+  pagoEm         DateTime @db.Timestamptz()
+  idempotencyKey String?
 
   registradoPorId String
   registradoPor   User   @relation(fields: [registradoPorId], references: [id])
@@ -268,6 +269,7 @@ model DespesaPagamento {
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 
+  @@unique([despesaId, idempotencyKey])
   @@map("despesa_pagamento")
 }
 
@@ -341,11 +343,12 @@ model RecebimentoParcela {
 }
 
 model RecebimentoBaixa {
-  id            String      @id @default(uuid())
-  recebimentoId String
-  recebimento   Recebimento @relation(fields: [recebimentoId], references: [id])
-  valor         Decimal     @db.Decimal(12, 2)
-  recebidoEm    DateTime    @db.Timestamptz()
+  id             String      @id @default(uuid())
+  recebimentoId  String
+  recebimento    Recebimento @relation(fields: [recebimentoId], references: [id])
+  valor          Decimal     @db.Decimal(12, 2)
+  recebidoEm     DateTime    @db.Timestamptz()
+  idempotencyKey String?
 
   registradoPorId String
   registradoPor   User   @relation(fields: [registradoPorId], references: [id])
@@ -354,6 +357,7 @@ model RecebimentoBaixa {
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 
+  @@unique([recebimentoId, idempotencyKey])
   @@map("recebimento_baixa")
 }
 

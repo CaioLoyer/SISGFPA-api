@@ -99,9 +99,10 @@ export const recebimentosRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ['Recebimentos'],
         summary: 'Registrar pagamento total ou parcial de recebimento',
+        description: 'Use a mesma idempotencyKey ao repetir uma tentativa de recebimento.',
         params: RecebimentoParamsSchema,
         body: RegistrarBaixaRecebimentoBodySchema,
-        response: responses({ 200: RecebimentoSchema }, 400, 401, 403, 404),
+        response: responses({ 200: RecebimentoSchema }, 400, 401, 403, 404, 409),
       },
     },
     async (request) => recebimentos.registrarBaixa(request.params.id, request.body, request.user.id)

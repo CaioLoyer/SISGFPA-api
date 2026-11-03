@@ -7,6 +7,7 @@ import {
   criarTitulo,
   listarCategorias,
   listarTitulos,
+  registrarLiquidacao,
 } from './financeiro-api'
 
 const tituloDespesa = {
@@ -156,6 +157,36 @@ describe('cliente HTTP de despesas e recebimentos', () => {
     expect(result.parcelas).toHaveLength(1)
     expect(result.liquidacoes).toEqual([])
     expect(result.historico).toEqual([])
+  })
+
+  it.each([
+    ['DESPESA', 'despesas', 'pagamentos', 'pagoEm'],
+    ['RECEBIMENTO', 'recebimentos', 'baixas', 'recebidoEm'],
+  ] as const)('envia chave idempotente ao liquidar %s', async (tipo, endpoint, acao, campoData) => {
+    const body =
+      tipo === 'DESPESA'
+        ? { ...tituloDespesa, valorPago: 40, status: 'PARCIAL' }
+        : {
+            ...tituloDespesa,
+            cliente: entrada.pessoa,
+            clienteContatoId: entrada.contatoId,
+            valorRecebido: 40,
+            status: 'PARCIAL',
+          }
+    const fetchMock = vi.fn().mockResolvedValue(response(body))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const data = '2026-10-10T15:30'
+    const idempotencyKey = '00000000-0000-4000-8000-000000000001'
+    await registrarLiquidacao(tipo, tituloDespesa.id, { valor: 40, data, idempotencyKey })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(`http://localhost:8080/${endpoint}/${tituloDespesa.id}/${acao}`)
+    expect(JSON.parse(String(init.body))).toEqual({
+      valor: 40,
+      [campoData]: new Date(data).toISOString(),
+      idempotencyKey,
+    })
   })
 
   it('atualiza recebimento usando os campos cliente e clienteContatoId', async () => {

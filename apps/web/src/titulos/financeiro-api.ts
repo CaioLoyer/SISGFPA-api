@@ -81,6 +81,7 @@ export interface EntradaTituloFinanceiro {
 export interface EntradaLiquidacaoFinanceira {
   valor: number
   data: string
+  idempotencyKey: string
 }
 
 export interface ListaTitulosFinanceiros {
@@ -405,7 +406,11 @@ export async function registrarLiquidacao(
       `${apiBaseUrl}/${endpoint}/${encodeURIComponent(id)}/${tipo === 'DESPESA' ? 'pagamentos' : 'baixas'}`,
       {
         method: 'POST',
-        body: JSON.stringify({ valor: input.valor, [campoData]: new Date(input.data).toISOString() }),
+        body: JSON.stringify({
+          valor: input.valor,
+          [campoData]: new Date(input.data).toISOString(),
+          idempotencyKey: input.idempotencyKey,
+        }),
       }
     ),
     tipo

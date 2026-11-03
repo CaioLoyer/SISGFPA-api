@@ -338,8 +338,18 @@ export const RegistrarPagamentoDespesaBodySchema = z
   .object({
     valor: z.number().positive().meta({ example: 500 }),
     pagoEm: z.iso.datetime().optional().meta({ example: '2026-10-05T12:00:00.000Z' }),
+    idempotencyKey: z.uuid().optional().meta({
+      description: 'Identificador estável da tentativa para impedir baixa duplicada ao repetir a requisição',
+      example: '00000000-0000-4000-8000-000000000001',
+    }),
   })
-  .meta({ example: { valor: 500, pagoEm: '2026-10-05T12:00:00.000Z' } })
+  .meta({
+    example: {
+      valor: 500,
+      pagoEm: '2026-10-05T12:00:00.000Z',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001',
+    },
+  })
 
 export const ListDespesasQuerySchema = z.object({
   status: StatusTituloSchema.optional().meta({ example: 'PENDENTE' }),
@@ -467,8 +477,18 @@ export const RegistrarBaixaRecebimentoBodySchema = z
   .object({
     valor: z.number().positive().meta({ example: 150 }),
     recebidoEm: z.iso.datetime().optional().meta({ example: '2026-10-10T12:00:00.000Z' }),
+    idempotencyKey: z.uuid().optional().meta({
+      description: 'Identificador estável da tentativa para impedir baixa duplicada ao repetir a requisição',
+      example: '00000000-0000-4000-8000-000000000002',
+    }),
   })
-  .meta({ example: { valor: 150, recebidoEm: '2026-10-10T12:00:00.000Z' } })
+  .meta({
+    example: {
+      valor: 150,
+      recebidoEm: '2026-10-10T12:00:00.000Z',
+      idempotencyKey: '00000000-0000-4000-8000-000000000002',
+    },
+  })
 
 export const ListRecebimentosQuerySchema = z.object({
   status: StatusTituloSchema.optional().meta({ example: 'PENDENTE' }),

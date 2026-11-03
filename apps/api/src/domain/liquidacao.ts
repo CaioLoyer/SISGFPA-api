@@ -1,5 +1,5 @@
 import type { Prisma } from '@sisgfpa/database'
-import { NotFoundError } from '@sisgfpa/http'
+import { ConflictError, NotFoundError } from '@sisgfpa/http'
 
 import {
   CaixaNaoConfiguradoError,
@@ -21,15 +21,43 @@ const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2)}`
  */
 export async function aplicarPagamentoDespesa(
   tx: Tx,
-  input: { despesaId: string; valor: number; pagoEm?: Date; usuarioId: string }
+  input: {
+    despesaId: string
+    valor: number
+    pagoEm?: Date
+    usuarioId: string
+    idempotencyKey?: string
+  }
 ) {
   await tx.$queryRaw`SELECT id FROM despesa WHERE id = ${input.despesaId} FOR UPDATE`
 
   const despesa = await tx.despesa.findUnique({
     where: { id: input.despesaId },
-    include: { parcelas: true },
+    include: { categoria: true, parcelas: true },
   })
   if (!despesa) throw new NotFoundError('Despesa não encontrada')
+  if (input.idempotencyKey) {
+    const pagamentoExistente = await tx.despesaPagamento.findUnique({
+      where: {
+        despesaId_idempotencyKey: {
+          despesaId: despesa.id,
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+      select: { valor: true, pagoEm: true, registradoPorId: true },
+    })
+    if (pagamentoExistente) {
+      const mesmoValor = toCents(Number(pagamentoExistente.valor)) === toCents(input.valor)
+      const mesmaData = !input.pagoEm || pagamentoExistente.pagoEm.getTime() === input.pagoEm.getTime()
+      if (!mesmoValor || !mesmaData || pagamentoExistente.registradoPorId !== input.usuarioId) {
+        throw new ConflictError(
+          'IDEMPOTENCY_KEY_REUSED',
+          'Esta chave de tentativa já foi usada com outros dados de pagamento'
+        )
+      }
+      return despesa
+    }
+  }
   if (despesa.status === 'CANCELADO') {
     throw new TituloCanceladoError('Não é possível pagar um título cancelado')
   }
@@ -56,6 +84,7 @@ export async function aplicarPagamentoDespesa(
       despesaId: despesa.id,
       valor: input.valor,
       pagoEm,
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       registradoPorId: input.usuarioId,
     },
   })
@@ -111,15 +140,44 @@ export async function aplicarPagamentoDespesa(
 /** Equivalente de `aplicarPagamentoDespesa` para recebimentos (baixa total ou parcial). */
 export async function aplicarBaixaRecebimento(
   tx: Tx,
-  input: { recebimentoId: string; valor: number; recebidoEm?: Date; usuarioId: string }
+  input: {
+    recebimentoId: string
+    valor: number
+    recebidoEm?: Date
+    usuarioId: string
+    idempotencyKey?: string
+  }
 ) {
   await tx.$queryRaw`SELECT id FROM recebimento WHERE id = ${input.recebimentoId} FOR UPDATE`
 
   const recebimento = await tx.recebimento.findUnique({
     where: { id: input.recebimentoId },
-    include: { parcelas: true },
+    include: { categoria: true, parcelas: true },
   })
   if (!recebimento) throw new NotFoundError('Recebimento não encontrado')
+  if (input.idempotencyKey) {
+    const baixaExistente = await tx.recebimentoBaixa.findUnique({
+      where: {
+        recebimentoId_idempotencyKey: {
+          recebimentoId: recebimento.id,
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+      select: { valor: true, recebidoEm: true, registradoPorId: true },
+    })
+    if (baixaExistente) {
+      const mesmoValor = toCents(Number(baixaExistente.valor)) === toCents(input.valor)
+      const mesmaData =
+        !input.recebidoEm || baixaExistente.recebidoEm.getTime() === input.recebidoEm.getTime()
+      if (!mesmoValor || !mesmaData || baixaExistente.registradoPorId !== input.usuarioId) {
+        throw new ConflictError(
+          'IDEMPOTENCY_KEY_REUSED',
+          'Esta chave de tentativa já foi usada com outros dados de recebimento'
+        )
+      }
+      return recebimento
+    }
+  }
   if (recebimento.status === 'CANCELADO') {
     throw new TituloCanceladoError('Não é possível dar baixa em título cancelado')
   }
@@ -148,6 +206,7 @@ export async function aplicarBaixaRecebimento(
       recebimentoId: recebimento.id,
       valor: input.valor,
       recebidoEm,
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       registradoPorId: input.usuarioId,
     },
   })

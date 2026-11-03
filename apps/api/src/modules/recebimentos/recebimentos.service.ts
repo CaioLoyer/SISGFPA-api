@@ -240,6 +240,7 @@ export async function registrarBaixa(id: string, input: RegistrarBaixaInput, usu
       valor: input.valor,
       recebidoEm: input.recebidoEm ? new Date(input.recebidoEm) : undefined,
       usuarioId,
+      idempotencyKey: input.idempotencyKey,
     })
   )
 
