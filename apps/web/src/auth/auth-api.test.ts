@@ -183,7 +183,7 @@ describe('cliente de autenticação da API Financeira', () => {
     ).resolves.toEqual(created)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8080/api/usuarios/funcionarios',
+      'http://localhost:8080/usuarios/funcionarios',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
@@ -240,11 +240,11 @@ describe('cliente de autenticação da API Financeira', () => {
       updateFuncionarioPermissoes(item.id, { despesas: false, recebimentos: false })
     ).resolves.toEqual({ despesas: false, recebimentos: false })
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/api/usuarios/funcionarios')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/usuarios/funcionarios')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' })
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      `http://localhost:8080/api/usuarios/funcionarios/${item.id}/permissoes`,
+      `http://localhost:8080/usuarios/funcionarios/${item.id}/permissoes`,
       expect.objectContaining({
         method: 'PATCH',
         credentials: 'include',

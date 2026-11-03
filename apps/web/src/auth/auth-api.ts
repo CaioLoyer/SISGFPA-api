@@ -183,7 +183,7 @@ export async function createFuncionario(input: {
   email: string
   password: string
 }): Promise<CreatedFuncionario> {
-  const body = await request(`${apiBaseUrl}/api/usuarios/funcionarios`, {
+  const body = await request(`${apiBaseUrl}/usuarios/funcionarios`, {
     method: 'POST',
     body: JSON.stringify(input),
   })
@@ -228,7 +228,7 @@ function isFuncionarioAdmin(value: unknown): value is FuncionarioAdmin {
 }
 
 export async function listFuncionarios(): Promise<FuncionarioAdmin[]> {
-  const body = await request(`${apiBaseUrl}/api/usuarios/funcionarios`)
+  const body = await request(`${apiBaseUrl}/usuarios/funcionarios`)
   if (
     typeof body !== 'object' ||
     body === null ||
@@ -246,7 +246,7 @@ export async function updateFuncionarioPermissoes(
   permissoes: FuncionarioPermissoes
 ): Promise<FuncionarioPermissoes> {
   const body = await request(
-    `${apiBaseUrl}/api/usuarios/funcionarios/${encodeURIComponent(funcionarioId)}/permissoes`,
+    `${apiBaseUrl}/usuarios/funcionarios/${encodeURIComponent(funcionarioId)}/permissoes`,
     { method: 'PATCH', body: JSON.stringify(permissoes) }
   )
 
