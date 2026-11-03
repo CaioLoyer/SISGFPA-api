@@ -512,6 +512,9 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
                     : `Cadastre ${rotuloTipo(tipo)} com vencimento e parcelamento.`}
                 </p>
               </div>
+              <span className="finance-form-mode">
+                {editando ? 'Editando registro' : tituloDeDespesa ? 'Nova despesa' : 'Novo recebimento'}
+              </span>
             </div>
 
             {erroCategorias && (
@@ -526,152 +529,168 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
             )}
 
             <form className="finance-form" onSubmit={(event) => void salvarTitulo(event)}>
-              <label className="field-label" htmlFor="finance-description">
-                Descrição *
-                <input
-                  autoComplete="off"
-                  id="finance-description"
-                  onChange={(event) => atualizarCampo('descricao', event.target.value)}
-                  required
-                  value={formulario.descricao}
-                />
-              </label>
-
-              <div className="finance-contact-field">
-                <label className="field-label" htmlFor="finance-person">
-                  {pessoaLabel} *
+              <div className="finance-form-fields">
+                <label
+                  className="field-label finance-form-field finance-form-field-description"
+                  htmlFor="finance-description"
+                >
+                  Descrição *
                   <input
                     autoComplete="off"
-                    id="finance-person"
-                    onBlur={() => window.setTimeout(() => setContatoEmFoco(false), 120)}
-                    onChange={(event) => {
-                      atualizarCampo('pessoa', event.target.value)
-                      atualizarCampo('contatoId', null)
-                    }}
-                    onFocus={() => setContatoEmFoco(true)}
-                    placeholder={`Digite para buscar ${pessoaLabel.toLocaleLowerCase('pt-BR')} cadastrado`}
+                    id="finance-description"
+                    onChange={(event) => atualizarCampo('descricao', event.target.value)}
+                    placeholder="Ex.: compra de material de escritório"
                     required
-                    value={formulario.pessoa}
+                    value={formulario.descricao}
                   />
                 </label>
-                {contatoEmFoco && contatosSugeridos.length > 0 && !formulario.contatoId && (
-                  <ul
-                    className="finance-contact-suggestions"
-                    aria-label={`Sugestões de ${pessoaLabel.toLowerCase()}`}
+
+                <div className="finance-contact-field finance-form-field finance-form-field-contact">
+                  <label className="field-label" htmlFor="finance-person">
+                    {pessoaLabel} *
+                    <input
+                      autoComplete="off"
+                      id="finance-person"
+                      onBlur={() => window.setTimeout(() => setContatoEmFoco(false), 120)}
+                      onChange={(event) => {
+                        atualizarCampo('pessoa', event.target.value)
+                        atualizarCampo('contatoId', null)
+                      }}
+                      onFocus={() => setContatoEmFoco(true)}
+                      placeholder={`Digite para buscar ${pessoaLabel.toLocaleLowerCase('pt-BR')} cadastrado`}
+                      required
+                      value={formulario.pessoa}
+                    />
+                  </label>
+                  {contatoEmFoco && contatosSugeridos.length > 0 && !formulario.contatoId && (
+                    <ul
+                      className="finance-contact-suggestions"
+                      aria-label={`Sugestões de ${pessoaLabel.toLowerCase()}`}
+                    >
+                      {contatosSugeridos.map((contato) => (
+                        <li key={contato.id}>
+                          <button onMouseDown={() => selecionarContato(contato)} type="button">
+                            <strong>{contato.nome}</strong>
+                            <span>
+                              {contato.tipoPessoa === 'FISICA' ? 'Pessoa física' : 'Pessoa jurídica'}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {erroBuscaContato && <span className="finance-field-hint">{erroBuscaContato}</span>}
+                  {formulario.contatoId && (
+                    <span className="finance-field-hint finance-contact-confirmation">
+                      Contato comercial vinculado.
+                    </span>
+                  )}
+                  {!formulario.contatoId && !editando && (
+                    <span className="finance-field-hint">
+                      Se o cadastro ainda não existir, crie-o em{' '}
+                      <Link className="text-link" to="/comercial">
+                        Comercial
+                      </Link>
+                      .
+                    </span>
+                  )}
+                </div>
+
+                <label className="field-label finance-form-field" htmlFor="finance-value">
+                  Valor total *
+                  <input
+                    disabled={Boolean(editando && editando.valorLiquidado > 0)}
+                    id="finance-value"
+                    inputMode="decimal"
+                    min="0.01"
+                    onChange={(event) => atualizarCampo('valor', event.target.value)}
+                    placeholder="0,00"
+                    required
+                    step="0.01"
+                    type="number"
+                    value={formulario.valor}
+                  />
+                </label>
+
+                <label className="field-label finance-form-field" htmlFor="finance-due-date">
+                  Vencimento da primeira parcela *
+                  <input
+                    disabled={Boolean(editando && editando.valorLiquidado > 0)}
+                    id="finance-due-date"
+                    onChange={(event) => atualizarCampo('dataVencimento', event.target.value)}
+                    required
+                    type="date"
+                    value={formulario.dataVencimento}
+                  />
+                </label>
+
+                <label className="field-label finance-form-field" htmlFor="finance-category">
+                  Categoria
+                  <select
+                    id="finance-category"
+                    onChange={(event) => atualizarCampo('categoriaId', event.target.value)}
+                    value={formulario.categoriaId}
                   >
-                    {contatosSugeridos.map((contato) => (
-                      <li key={contato.id}>
-                        <button onMouseDown={() => selecionarContato(contato)} type="button">
-                          <strong>{contato.nome}</strong>
-                          <span>{contato.tipoPessoa === 'FISICA' ? 'Pessoa física' : 'Pessoa jurídica'}</span>
-                        </button>
-                      </li>
+                    <option value="">Sem categoria</option>
+                    {categorias.map((categoria) => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.nome}
+                      </option>
                     ))}
-                  </ul>
+                  </select>
+                </label>
+
+                {!editando ? (
+                  <>
+                    <label
+                      className="field-label finance-form-field finance-form-field-half"
+                      htmlFor="finance-entry-date"
+                    >
+                      Data de lançamento *
+                      <input
+                        id="finance-entry-date"
+                        onChange={(event) => atualizarCampo('dataLancamento', event.target.value)}
+                        required
+                        type="date"
+                        value={formulario.dataLancamento}
+                      />
+                    </label>
+                    <label
+                      className="field-label finance-form-field finance-form-field-half"
+                      htmlFor="finance-installments"
+                    >
+                      Número de parcelas *
+                      <input
+                        max="120"
+                        min="1"
+                        onChange={(event) => atualizarCampo('parcelas', event.target.value)}
+                        required
+                        type="number"
+                        value={formulario.parcelas}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <div className="finance-readonly-field finance-form-field finance-form-field-half">
+                    <span>Data de lançamento</span>
+                    <strong>{formatarData(editando.dataLancamento)}</strong>
+                  </div>
                 )}
-                {erroBuscaContato && <span className="finance-field-hint">{erroBuscaContato}</span>}
-                {formulario.contatoId && (
-                  <span className="finance-field-hint">Contato comercial vinculado.</span>
+
+                {editando && (
+                  <div className="finance-readonly-field finance-form-field finance-form-field-half">
+                    <span>Parcelas</span>
+                    <strong>{editando.numeroParcelas}</strong>
+                  </div>
                 )}
-                {!formulario.contatoId && !editando && (
-                  <span className="finance-field-hint">
-                    Se o cadastro ainda não existir, crie-o em{' '}
-                    <Link className="text-link" to="/comercial">
-                      Comercial
-                    </Link>
-                    .
-                  </span>
+
+                {editando && editando.valorLiquidado > 0 && (
+                  <p className="finance-form-note">
+                    Este título já tem {valorLiquidadoLabel.toLocaleLowerCase('pt-BR')} registrado. O valor e
+                    o vencimento ficam bloqueados para preservar as parcelas liquidadas.
+                  </p>
                 )}
               </div>
-
-              <label className="field-label" htmlFor="finance-value">
-                Valor total *
-                <input
-                  disabled={Boolean(editando && editando.valorLiquidado > 0)}
-                  id="finance-value"
-                  inputMode="decimal"
-                  min="0.01"
-                  onChange={(event) => atualizarCampo('valor', event.target.value)}
-                  required
-                  step="0.01"
-                  type="number"
-                  value={formulario.valor}
-                />
-              </label>
-
-              <label className="field-label" htmlFor="finance-due-date">
-                Vencimento da primeira parcela *
-                <input
-                  disabled={Boolean(editando && editando.valorLiquidado > 0)}
-                  id="finance-due-date"
-                  onChange={(event) => atualizarCampo('dataVencimento', event.target.value)}
-                  required
-                  type="date"
-                  value={formulario.dataVencimento}
-                />
-              </label>
-
-              {!editando ? (
-                <>
-                  <label className="field-label" htmlFor="finance-entry-date">
-                    Data de lançamento *
-                    <input
-                      id="finance-entry-date"
-                      onChange={(event) => atualizarCampo('dataLancamento', event.target.value)}
-                      required
-                      type="date"
-                      value={formulario.dataLancamento}
-                    />
-                  </label>
-                  <label className="field-label" htmlFor="finance-installments">
-                    Número de parcelas *
-                    <input
-                      id="finance-installments"
-                      max="120"
-                      min="1"
-                      onChange={(event) => atualizarCampo('parcelas', event.target.value)}
-                      required
-                      type="number"
-                      value={formulario.parcelas}
-                    />
-                  </label>
-                </>
-              ) : (
-                <div className="finance-readonly-field">
-                  <span>Data de lançamento</span>
-                  <strong>{formatarData(editando.dataLancamento)}</strong>
-                </div>
-              )}
-
-              <label className="field-label" htmlFor="finance-category">
-                Categoria
-                <select
-                  id="finance-category"
-                  onChange={(event) => atualizarCampo('categoriaId', event.target.value)}
-                  value={formulario.categoriaId}
-                >
-                  <option value="">Sem categoria</option>
-                  {categorias.map((categoria) => (
-                    <option key={categoria.id} value={categoria.id}>
-                      {categoria.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {editando && (
-                <div className="finance-readonly-field">
-                  <span>Parcelas</span>
-                  <strong>{editando.numeroParcelas}</strong>
-                </div>
-              )}
-
-              {editando && editando.valorLiquidado > 0 && (
-                <p className="finance-form-note">
-                  Este título já tem {valorLiquidadoLabel.toLocaleLowerCase('pt-BR')} registrado. O valor e o
-                  vencimento ficam bloqueados para preservar as parcelas liquidadas.
-                </p>
-              )}
 
               <label className="field-label finance-notes-field" htmlFor="finance-notes">
                 Observações

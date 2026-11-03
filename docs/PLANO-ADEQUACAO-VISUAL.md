@@ -184,12 +184,24 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Verificações:** typecheck, lint, formatação, `git diff --check` e build do frontend aprovados. O build mantém avisos de diretivas `use client` da dependência React Router. Não executei testes automatizados. Preparei uma API local temporária só de leitura com dados fictícios, que recusa métodos de escrita, mas a sessão não disponibilizou um navegador para conferir ou capturar o resultado. A prévia local foi iniciada, sem confirmação de que tenha sido aberta ou visualizada. Não foi conectada uma conta real nem confirmada persistência em banco.
 
-## Próxima etapa para revisão: criação e edição de títulos
+## Oitava entrega: formulários de criação e edição de títulos
 
-- **Objetivo:** aplicar a composição visual aprovada aos formulários de cadastro e edição sem alterar os fluxos financeiros existentes.
-- **Telas/operações afetadas:** formulários acessados de `/despesas` e `/recebimentos`; seleção de cliente/fornecedor cadastrado, valor, vencimento, data de lançamento, parcelas, categoria e observações.
-- **Frontend:** reorganizar os campos e os estados de carregamento, erro, validação e confirmação. Preservar a busca de contatos, as categorias reais e a responsividade. Manter os campos bloqueados quando o título já possui liquidação, conforme as regras atuais.
-- **Backend:** reutilizar `POST /despesas`, `POST /recebimentos` e `PATCH /{id}` das respectivas APIs. Não alterar contratos, permissões, parcelamento ou regras que protegem títulos já liquidados.
-- **Decisões e limites:** criação continuará exigindo selecionar um contato ativo; dados de exemplo não podem aparecer como persistidos. Qualquer necessidade de mudança em regra comercial ou financeira será registrada para revisão antes de implementá-la.
-- **Verificações planejadas:** typecheck, lint, formatação, build e conferência visual desktop/celular se um navegador estiver disponível; verificar os estados do formulário e autorização sem enviar operações contra dados reais.
-- **Entrega:** um commit local por etapa, com identidade Shishura e mensagem Conventional Commit em português. Push exige aprovação própria depois da apresentação do hash e do destino.
+**Objetivo e resultado:** os formulários de `/despesas` e `/recebimentos` agora agrupam descrição e contato, valores e datas, parcelamento e observações em uma composição responsiva no padrão visual já aprovado. O cabeçalho identifica se a pessoa está cadastrando uma despesa, um recebimento ou editando um registro.
+
+**Comportamento preservado:** contatos ativos são consultados pela API e precisam ser selecionados na criação; categorias continuam vindo da API. Os formulários mantêm as mesmas validações e chamadas `POST`/`PATCH`. Títulos com liquidação preservam o histórico, deixando valor e vencimento bloqueados e mostrando o motivo; data de lançamento e quantidade de parcelas continuam somente leitura na edição.
+
+**Arquivos principais:** `apps/web/src/titulos/TitulosPage.tsx` e `apps/web/src/titulos/titulos.css`. Não houve mudança de backend ou de contrato.
+
+**Verificações:** typecheck, lint do módulo, formatação, `git diff --check` e build de produção do frontend aprovados. O build mantém os avisos conhecidos de diretivas `use client` da dependência React Router. Não executei testes automatizados. Não havia navegador conectado nesta sessão para conferir a composição renderizada ou capturar prints; a responsividade foi ajustada pelas regras CSS, mas não conferida visualmente em Chromium.
+
+**Limites:** não foram enviadas operações contra uma conta real ou banco de produção; criação, edição e persistência não foram exercitadas nesta etapa. Os dados e validações continuam conectados às operações existentes.
+
+## Próxima etapa para revisão: caixa automático
+
+- **Objetivo:** integrar o Caixa à API Financeira e concluir a ligação entre liquidações de despesas/recebimentos, movimentos efetivos, saldos e consulta do histórico.
+- **Áreas afetadas:** API Financeira, `apps/web/src/caixa/CaixaPage.tsx`, `apps/web/src/caixa/caixa-api.ts` e os formulários de baixa em `/despesas` e `/recebimentos`.
+- **Backend previsto:** definir entidades e contratos para caixas, saldo de abertura e movimentações; registrar a baixa e o movimento no caixa escolhido na mesma transação e impedir duplicidade por repetição da requisição. As permissões financeiras existentes precisam continuar aplicadas na API.
+- **Frontend previsto:** exibir caixas, saldos e movimentos reais, permitir selecionar um caixa nas baixas e apresentar o resultado retornado pelo servidor. As telas não devem simular uma movimentação antes de sua confirmação pela API.
+- **Decisões pendentes do autor:** como cadastrar/identificar caixas e registrar saldo inicial; como tratar títulos com liquidações históricas sem caixa associado; se haverá lançamentos avulsos além da abertura; e qual fluxo registra estorno quando uma liquidação for posteriormente devolvida. Nenhum saldo ou estorno histórico será presumido.
+- **Verificações necessárias:** revisar os contratos e a migration antes da implementação; validar atomicidade e repetição das baixas na API; conferir autorização por perfil, consulta de saldo/histórico, transferências apenas entre origem e destino definidos e apresentação desktop/celular. A etapa deve funcionar sem o Chatbot.
+- **Entrega:** separar mudanças necessárias da API e da tela em commits locais coerentes, com identidade Shishura. Apresentar hashes e destino e obter aprovação separada antes de qualquer push.
