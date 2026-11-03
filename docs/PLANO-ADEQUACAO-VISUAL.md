@@ -89,12 +89,36 @@ Capturas para revisão:
 | Nova senha                    | [Abrir](validacao-visual/recuperacao/nova-senha-desktop.png) | [Abrir](validacao-visual/recuperacao/nova-senha-mobile.png) |
 | Sucesso em cenário controlado | [Abrir](validacao-visual/recuperacao/sucesso-desktop.png)    | —                                                           |
 
-## Próxima etapa para revisão: estrutura autenticada e início do funcionário
+## Terceira entrega: estrutura autenticada e início do funcionário
 
-- **Objetivo:** reproduzir a estrutura visual de `src/App.tsx` do exemplo, mantendo a navegação e a sessão reais.
-- **Telas/operações afetadas:** estrutura compartilhada das páginas autenticadas, menu lateral, cabeçalhos, identificação do usuário, logout e início do funcionário. O conteúdo interno dos módulos seguirá suas próprias entregas.
-- **Frontend:** marca com ícone de usuário, menu verde de 224 px no desktop, agrupamento Financeiro com as rotas existentes de despesas, recebimentos e caixa, perfil real na base e menu adaptado para celular. Ajustar o início do funcionário ao mesmo padrão sem exibir métricas exclusivas de ADMIN.
-- **Backend:** nenhuma mudança prevista; preservar as regras atuais, a validação de acesso na API e a independência do serviço de Chatbot.
-- **Decisões pendentes:** revisão e autorização desta etapa. Não criar permissões, indicadores ou operações financeiras adicionais por causa do protótipo.
-- **Verificações:** navegação por teclado, expansão do menu, rotas atuais e acesso direto, sessão expirada, logout, ADMIN/FUNCIONARIO e largura reduzida. Executar testes pertinentes, typecheck, lint, formatação e build, registrando quando a conferência de acesso usar respostas controladas.
-- **Entrega:** capturas em desktop/celular, arquivos, limitações e commit local com mensagem simples em português. A aprovação de push continuará separada.
+Autorizada pelo autor após a revisão da recuperação. Os commits `7cc18db` e `e45ae48` foram enviados, com aprovação explícita, para `origin/feature/integracao-telas` no repositório `https://github.com/CaioLoyer/SISGFPA-api`.
+
+**Objetivo e resultado:** a estrutura autenticada agora acompanha o exemplo: menu de 224 px com gradiente verde, marca circular, ícones, seleção do item ativo, submenu Financeiro, usuário real e saída da conta. Os cabeçalhos das páginas internas usam fundo branco, título e descrição no padrão visual de referência. A página inicial do funcionário oferece atalhos sem métricas administrativas ou números simulados.
+
+**Organização no monorepo:** `App.tsx` mantém as rotas e a proteção da sessão; a apresentação autenticada foi extraída para `apps/web/src/layout/AppShell.tsx` e `layout.css`. O início do funcionário fica em `dashboard/EmployeeHomePage.tsx` e `employee-home.css`. Os elementos reutilizáveis ficam em `shared/Icon.tsx` e `shared/PageHeader.tsx`. Os estilos antigos do menu e do início foram removidos de `index.css`. Não foram criadas dependências, branches adicionais, endpoints ou alterações nos pacotes de backend.
+
+**Rotas e acesso:** preservadas `/`, `/comercial`, `/despesas`, `/recebimentos`, `/caixa`, `/relatorios`, `/admin`, `/chatbot` e `/perfil`. Financeiro agrupa as rotas existentes, sem criar uma tela unificada ou lançamento fictício. Caixa, relatórios e administração continuam exclusivos de ADMIN. Despesas e recebimentos continuam sujeitos às permissões consultadas pela API. Nome, iniciais e papel apresentados vêm da sessão; logout só redireciona após confirmação do serviço e impede envios duplicados.
+
+**Responsividade e teclado:** abaixo de 900 px, uma barra compacta abre o menu lateral. O fundo fica inerte e sem rolagem enquanto o menu está aberto; foco é contido no painel, Escape e clique no fundo fecham o menu, e o foco retorna ao acionador. Selecionar uma rota fecha o painel e direciona o foco ao conteúdo. Há também um atalho para pular a navegação. O redimensionamento restaura o comportamento de desktop.
+
+**Verificações:** os 46 testes existentes do frontend, typecheck, lint, formatação, build e o script `scripts/verify-architecture.ts` passaram. Em Chromium, foram conferidos desktop de 1280 px, início e menu em 1024/768/390/320 px, rotas existentes, seleção/expansão do Financeiro, ADMIN/FUNCIONARIO, recusa 403 de despesas, sessão ausente e indisponível, retorno seguro ao login, logout com erro e sem duplicação, foco e fechamento do menu. Não houve erros JavaScript; os cenários de início/menu e recebimentos no celular não apresentaram rolagem horizontal.
+
+**Limitação:** API e banco locais não estavam em execução. A verificação de navegador usou respostas HTTP controladas, incluindo o nome e o papel dos usuários das capturas. Ela não comprova persistência ou autorização contra banco real. A navegação foi exercitada com o processo de Chatbot indisponível; os demais módulos mantiveram seus acessos.
+
+Capturas para revisão:
+
+- [Início do funcionário no desktop](validacao-visual/navegacao/funcionario-desktop.png).
+- [Início do funcionário no celular](validacao-visual/navegacao/funcionario-mobile.png).
+- [Menu aberto no celular](validacao-visual/navegacao/menu-mobile.png).
+- [Estrutura de ADMIN no desktop](validacao-visual/navegacao/admin-desktop.png). O conteúdo interno do perfil permanece para sua própria etapa visual.
+
+## Próxima etapa para revisão: administração e cadastro de funcionário
+
+- **Objetivo:** aplicar a composição visual da administração e do cadastro do exemplo às operações reais de `/admin`.
+- **Telas/operações afetadas:** consulta de funcionários, cadastro administrativo e edição individual das permissões de despesas e recebimentos.
+- **Frontend:** organizar lista e controles em cartões, usar ícones e componentes compartilhados, adaptar o formulário ao padrão de campos e ações do exemplo e manter estados vazios, de carregamento, erro e confirmação. No celular, empilhar os painéis e preservar acesso aos controles.
+- **Backend:** nenhuma mudança prevista; reutilizar listagem/cadastro de funcionários e atualização das permissões atuais. Não mostrar presença online, último acesso, histórico global ou total de administradores sem dados disponíveis.
+- **Regras:** manter cadastro público fechado, contas criadas como FUNCIONARIO pelo servidor, senha mínima de oito caracteres e permissões por pessoa. Não converter os controles para permissões por cargo por causa da imagem de referência.
+- **Decisões pendentes:** revisão e autorização desta etapa. Se forem solicitados novos dados ou operações além do contrato atual, discutir antes de implementar o fluxo afetado.
+- **Verificações:** cadastro e erros, atualização das permissões, bloqueio de acesso por funcionário, respostas de indisponibilidade, teclado, desktop/celular, testes pertinentes, typecheck, lint, formatação e build. Distinguir cenários controlados de validação contra banco real.
+- **Entrega:** capturas, arquivos, limitações e commit local com mensagem simples em português; push somente após aprovação explícita dos commits apresentados.

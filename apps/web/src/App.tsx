@@ -1,16 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import {
-  Link,
-  Navigate,
-  NavLink,
-  Outlet,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from 'react-router-dom'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { canAccessAdmin, decideProtectedRoute, safeReturnPath } from './auth/protected-route'
 import { createFuncionario, listFuncionarios, updateFuncionarioPermissoes } from './auth/auth-api'
@@ -21,6 +11,8 @@ import { CaixaPage } from './caixa/CaixaPage'
 import { ChatbotPage } from './chatbot/ChatbotPage'
 import { ComercialPage } from './contatos/ComercialPage'
 import { DashboardPage } from './dashboard/DashboardPage'
+import { EmployeeHomePage } from './dashboard/EmployeeHomePage'
+import { AppShell } from './layout/AppShell'
 import { ProfilePage } from './perfil/ProfilePage'
 import { RelatoriosPage } from './relatorios/RelatoriosPage'
 import { TitulosPage } from './titulos/TitulosPage'
@@ -168,8 +160,6 @@ function LoginPage() {
 function ProtectedLayout() {
   const { status, user, refresh, logout } = useSession()
   const location = useLocation()
-  const navigate = useNavigate()
-  const [logoutError, setLogoutError] = useState('')
   const decision = decideProtectedRoute(status, `${location.pathname}${location.search}${location.hash}`)
 
   if (decision.kind === 'loading') return <LoadingScreen />
@@ -178,203 +168,12 @@ function ProtectedLayout() {
   if (decision.kind === 'redirect') return <Navigate to={decision.to} replace />
   if (!user) return <LoadingScreen label="Carregando sua conta…" />
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <Link className="sidebar-brand" to="/" aria-label="Mil Folhas, início">
-          <BrandMark small />
-          <span>
-            <strong>Mil Folhas</strong>
-            <small>Papelaria</small>
-          </span>
-        </Link>
-
-        <div className="nav-caption">MENU PRINCIPAL</div>
-        <nav className="sidebar-nav" aria-label="Navegação principal">
-          <NavLink className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`} end to="/">
-            <span className="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="m3.5 10 8.5-7 8.5 7v10.5h-6v-6h-5v6h-6V10Z"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            Visão geral
-          </NavLink>
-          <NavLink
-            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-            to="/comercial"
-          >
-            <span className="nav-icon" aria-hidden="true">
-              ◉
-            </span>
-            Comercial
-          </NavLink>
-          <NavLink
-            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-            to="/despesas"
-          >
-            <span className="nav-icon" aria-hidden="true">
-              −
-            </span>
-            Contas a pagar
-          </NavLink>
-          <NavLink
-            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-            to="/recebimentos"
-          >
-            <span className="nav-icon" aria-hidden="true">
-              ＋
-            </span>
-            Contas a receber
-          </NavLink>
-          {canAccessAdmin(user.role) && (
-            <NavLink
-              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-              to="/caixa"
-            >
-              <span className="nav-icon" aria-hidden="true">
-                ◉
-              </span>
-              Caixa
-            </NavLink>
-          )}
-          {canAccessAdmin(user.role) && (
-            <NavLink
-              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-              to="/relatorios"
-            >
-              <span className="nav-icon" aria-hidden="true">
-                ▤
-              </span>
-              Relatórios
-            </NavLink>
-          )}
-          {canAccessAdmin(user.role) && (
-            <NavLink
-              className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-              to="/admin"
-            >
-              <span className="nav-icon" aria-hidden="true">
-                ＋
-              </span>
-              Administração
-            </NavLink>
-          )}
-          <NavLink
-            className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`}
-            to="/chatbot"
-          >
-            <span className="nav-icon" aria-hidden="true">
-              ◌
-            </span>
-            Assistente guiado
-          </NavLink>
-          <NavLink className={({ isActive }) => `nav-item${isActive ? ' nav-item-active' : ''}`} to="/perfil">
-            <span className="nav-icon" aria-hidden="true">
-              ◉
-            </span>
-            Meu perfil
-          </NavLink>
-        </nav>
-
-        <p className="sidebar-note">
-          O acesso financeiro é validado pela API conforme as permissões da sua conta.
-        </p>
-
-        <div className="sidebar-user">
-          <div className="avatar" aria-hidden="true">
-            {initials(user.name)}
-          </div>
-          <div className="sidebar-user-copy">
-            <strong>{user.name}</strong>
-            <span>{roleLabel(user.role)}</span>
-          </div>
-          <button
-            aria-label="Sair da conta"
-            className="icon-button"
-            onClick={async () => {
-              setLogoutError('')
-              try {
-                await logout()
-                navigate('/login', { replace: true })
-              } catch (error) {
-                setLogoutError(error instanceof Error ? error.message : 'Não foi possível encerrar a sessão.')
-              }
-            }}
-            title="Sair"
-            type="button"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
-              <path
-                d="M10 17l5-5-5-5M15 12H3m9-8h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <span>
-            Mil Folhas <span className="topbar-divider">/</span> Área segura
-          </span>
-          <span className="role-pill">{roleLabel(user.role)}</span>
-        </header>
-        <Outlet />
-      </main>
-      {logoutError && (
-        <div className="logout-alert" role="alert">
-          {logoutError}
-        </div>
-      )}
-    </div>
-  )
+  return <AppShell user={user} onLogout={logout} />
 }
 
 function HomePage() {
   const { user } = useSession()
-
-  if (canAccessAdmin(user?.role)) return <DashboardPage />
-
-  return (
-    <section className="welcome-page">
-      <div className="welcome-heading">
-        <div>
-          <p className="eyebrow">VISÃO GERAL</p>
-          <h1>Olá, {user?.name}</h1>
-          <p>Seu acesso está ativo. Use o menu para consultar os módulos liberados para sua conta.</p>
-        </div>
-        <div className="welcome-icon" aria-hidden="true">
-          <BrandMark small />
-        </div>
-      </div>
-
-      <section className="welcome-panel" aria-labelledby="next-title">
-        <div className="panel-icon" aria-hidden="true">
-          ✓
-        </div>
-        <div>
-          <h2 id="next-title">Sessão conectada à API Financeira</h2>
-          <p>
-            Você entrou como <strong>{roleLabel(user?.role)}</strong>. As operações disponíveis respeitam as
-            permissões configuradas pela administração.
-          </p>
-        </div>
-      </section>
-
-      <p className="welcome-footnote">
-        Indicadores financeiros detalhados ficam disponíveis somente para ADMIN.
-      </p>
-    </section>
-  )
+  return canAccessAdmin(user?.role) ? <DashboardPage /> : <EmployeeHomePage />
 }
 
 function NotFoundPage() {
@@ -671,17 +470,4 @@ function ProtectedRoutes() {
 
 export default function App() {
   return <ProtectedRoutes />
-}
-
-function roleLabel(role: 'ADMIN' | 'FUNCIONARIO' | undefined): string {
-  return role === 'ADMIN' ? 'Administrador' : role === 'FUNCIONARIO' ? 'Funcionário' : 'Usuário'
-}
-
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase('pt-BR') ?? '')
-    .join('')
 }

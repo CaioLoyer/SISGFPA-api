@@ -178,9 +178,7 @@ a {
     transform 0.18s,
     box-shadow 0.18s;
 }
-.button:focus-visible,
-.icon-button:focus-visible,
-.nav-item:focus-visible {
+.button:focus-visible {
   outline: 3px solid #85c69c;
   outline-offset: 2px;
 }
@@ -293,192 +291,6 @@ a {
   line-height: 1.6;
 }
 
-.app-shell {
-  min-height: 100vh;
-}
-.sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 2;
-  display: flex;
-  width: 248px;
-  flex-direction: column;
-  color: #fff;
-  background: linear-gradient(180deg, #195b38, #0e3d27);
-}
-.sidebar-brand {
-  display: flex;
-  min-height: 82px;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 20px;
-  border-bottom: 1px solid #ffffff15;
-}
-.sidebar-brand .brand-mark {
-  color: #1a6941;
-  background: #f1f7f2;
-  box-shadow: none;
-}
-.sidebar-brand strong,
-.sidebar-brand small {
-  display: block;
-}
-.sidebar-brand strong {
-  font:
-    700 16px Inter,
-    system-ui,
-    sans-serif;
-}
-.sidebar-brand small {
-  margin-top: 3px;
-  color: #d2e2d7;
-  font-size: 11px;
-}
-.nav-caption {
-  margin: 28px 20px 10px;
-  color: #b5d0bd;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-}
-.sidebar-nav {
-  display: grid;
-  gap: 5px;
-  padding: 0 12px;
-}
-.nav-item {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 12px;
-  padding: 0 13px;
-  border-radius: 8px;
-  color: #d4e4d8;
-  font-size: 13px;
-  font-weight: 600;
-  transition:
-    background 0.16s,
-    color 0.16s;
-}
-.nav-item:hover {
-  color: #fff;
-  background: #ffffff12;
-}
-.nav-item-active {
-  color: #fff;
-  background: #ffffff1a;
-  box-shadow: inset 3px 0 #9bcbaa;
-}
-.nav-icon {
-  display: grid;
-  width: 18px;
-  place-items: center;
-  color: #b5d9bf;
-}
-.nav-icon svg {
-  width: 17px;
-  height: 17px;
-}
-.sidebar-note {
-  margin: 18px 20px;
-  color: #b8d0bf;
-  font-size: 11px;
-  line-height: 1.6;
-}
-.sidebar-user {
-  display: flex;
-  min-height: 74px;
-  align-items: center;
-  gap: 10px;
-  margin-top: auto;
-  padding: 13px 14px;
-  border-top: 1px solid #ffffff17;
-  background: #082f1e40;
-}
-.avatar {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid #ffffff55;
-  border-radius: 50%;
-  color: #fff;
-  background: #2b8050;
-  font-size: 11px;
-  font-weight: 700;
-}
-.sidebar-user-copy {
-  min-width: 0;
-  flex: 1;
-}
-.sidebar-user-copy strong,
-.sidebar-user-copy span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sidebar-user-copy strong {
-  font-size: 11px;
-}
-.sidebar-user-copy span {
-  margin-top: 4px;
-  color: #b9d1c0;
-  font-size: 10px;
-}
-.icon-button {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 0;
-  border-radius: 7px;
-  color: #d8e7dc;
-  background: transparent;
-}
-.icon-button:hover {
-  color: #fff;
-  background: #ffffff17;
-}
-.icon-button svg {
-  width: 18px;
-  height: 18px;
-}
-.logout-alert {
-  position: fixed;
-  right: 22px;
-  bottom: 22px;
-  z-index: 5;
-  max-width: min(420px, calc(100vw - 36px));
-  padding: 12px 16px;
-  border: 1px solid #f0c8c4;
-  border-radius: 8px;
-  color: #8e2b24;
-  background: #fff3f2;
-  box-shadow: 0 8px 26px #32110f14;
-  font-size: 12px;
-}
-.main-content {
-  min-height: 100vh;
-  margin-left: 248px;
-}
-.topbar {
-  display: flex;
-  height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 34px;
-  border-bottom: 1px solid var(--border);
-  color: #758278;
-  background: #fff;
-  font-size: 12px;
-}
-.topbar-divider {
-  margin: 0 7px;
-  color: #b4beb7;
-}
 .role-pill {
   padding: 6px 10px;
   border-radius: 999px;
@@ -505,64 +317,6 @@ a {
   margin: 9px 0 0;
   color: var(--text-muted);
   font-size: 13px;
-}
-.welcome-icon {
-  display: grid;
-  width: 70px;
-  height: 70px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid #d8e7dc;
-  border-radius: 20px;
-  background: #eaf3ec;
-}
-.welcome-icon .brand-mark {
-  box-shadow: none;
-}
-.welcome-panel {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-top: 38px;
-  padding: 25px;
-  border: 1px solid #dce8df;
-  border-radius: 13px;
-  background: #fff;
-  box-shadow: 0 8px 28px #12321c07;
-}
-.panel-icon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 12px;
-  color: #1b7548;
-  background: #e6f1e9;
-  font-weight: 700;
-}
-.welcome-panel h2 {
-  margin: 1px 0 7px;
-  color: var(--green-dark);
-  font:
-    700 15px Inter,
-    system-ui,
-    sans-serif;
-}
-.welcome-panel p {
-  max-width: 620px;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-.welcome-panel strong {
-  color: #44584a;
-}
-.welcome-footnote {
-  margin-top: 18px;
-  color: #8c9890;
-  font-size: 11px;
 }
 .admin-page .welcome-heading {
   margin-bottom: 28px;
@@ -1778,42 +1532,6 @@ a {
   .auth-content {
     padding: 30px 25px 25px;
   }
-  .sidebar {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    min-height: auto;
-  }
-  .sidebar-brand {
-    min-height: 68px;
-  }
-  .nav-caption,
-  .sidebar-note {
-    display: none;
-  }
-  .sidebar-nav {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding: 0 12px 10px;
-  }
-  .nav-item {
-    min-height: 40px;
-    flex: 0 0 auto;
-    padding: 0 10px;
-  }
-  .sidebar-user {
-    min-height: 64px;
-    margin: 0;
-    padding: 10px 16px;
-  }
-  .main-content {
-    margin-left: 0;
-  }
-  .topbar {
-    height: 54px;
-    padding: 0 18px;
-  }
   .welcome-page {
     padding: 32px 20px;
   }
@@ -1834,25 +1552,6 @@ a {
   }
   .welcome-heading h1 {
     font-size: 23px;
-  }
-  .welcome-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-  }
-  .welcome-icon .brand-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
-  }
-  .welcome-icon .brand-mark svg {
-    width: 24px;
-    height: 24px;
-  }
-  .welcome-panel {
-    gap: 12px;
-    margin-top: 28px;
-    padding: 18px;
   }
   .commercial-page {
     padding: 28px 14px;
