@@ -210,7 +210,28 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Limites:** esta sessão não disponibilizou navegador, então não gerei capturas nem conferi a tela renderizada em Chromium. A API continua com um único Caixa Principal e acesso exclusivo para ADMIN; não adicionei caixas múltiplos, seleção na baixa, transferências ou lançamentos avulsos. A abertura usa o saldo informado e não importa liquidações anteriores. A migration foi validada pelo schema Prisma, mas não aplicada a um banco nesta sessão. Nenhuma operação foi enviada contra o banco operacional.
 
-## Próxima etapa para revisão: decisões para ampliar o Caixa
+## Décima entrega: Relatórios
+
+**Objetivo e resultado:** a página de Relatórios agora segue o cabeçalho, paleta, cartões, campos e tipografia das demais telas. Os controles de tipo e período ficam reunidos, o resumo distingue total, valor liquidado e saldo em aberto, e a listagem muda para cartões rotulados em telas menores. O período é explicado como vencimento do título, correspondente à primeira parcela.
+
+**Integração preservada:** contas a pagar e a receber continuam consultadas nos endpoints JSON existentes, e a exportação baixa o CSV real com o mesmo tipo e intervalo aplicado. Os relatórios continuam exclusivos para ADMIN, como definido no modelo de permissões e aplicado pela API. Títulos cancelados não aparecem nem entram nos totais; não foram adicionados dados fixos, gráficos sem fonte de dados, PDF ou Excel.
+
+**Arquivos desta entrega:** `apps/web/src/relatorios/RelatoriosPage.tsx`, novo `apps/web/src/relatorios/relatorios.css`, remoção dos estilos globais antigos de relatórios em `apps/web/src/index.css` e atualização deste plano. API, contratos, autorização e schema não foram alterados.
+
+**Verificações:** typecheck e build de produção do frontend; lint da página; Prettier e `git diff --check`; 16 testes existentes do cliente, serviço e controle de acesso de relatórios aprovados. O build mantém os avisos conhecidos de diretivas `use client` da dependência React Router.
+
+**Limites:** não havia navegador conectado para conferir a página renderizada ou produzir capturas. Não consultei dados de um banco operacional. O escopo de autorização permanece ADMIN conforme o modelo atual; qualquer abertura a funcionários exigirá atualização coerente da API, interface e documentação.
+
+## Próxima etapa para revisão: Perfil
+
+- **Objetivo:** alinhar a página de perfil ao padrão visual e responsivo das telas integradas, preservando as operações reais disponíveis para a própria conta.
+- **Áreas afetadas:** identificação do usuário, alteração do próprio nome, e-mail e papel somente leitura, e formulário de troca de senha com senha atual.
+- **Backend/frontend previstos:** reorganizar o cabeçalho e os cartões de dados/segurança, manter o cliente Better Auth e os endpoints atuais, e não apresentar telefone, CPF, 2FA ou exclusão de conta enquanto não houver suporte real.
+- **Decisões pendentes:** nenhuma para o escopo visual e para as operações já existentes. Novos dados pessoais ou ações exigiriam decisão e implementação próprias.
+- **Verificações necessárias:** typecheck, lint, build, testes existentes de autenticação/perfil e conferência de responsividade e mensagens de erro/sucesso.
+- **Entrega:** aguardar a revisão e autorização do autor antes de iniciar a implementação. Commit local com identidade Shishura; push segue aprovação separada.
+
+## Decisões pendentes para uma futura ampliação do Caixa
 
 - **Objetivo:** definir o modelo e as regras financeiras necessárias antes de alterar o fluxo atualmente funcional do Caixa Principal.
 - **Áreas afetadas:** cadastro e consulta de caixas; saldo de abertura; seleção do caixa ao liquidar títulos; autorização para ADMIN e FUNCIONARIO; transferências; liquidações históricas; eventuais lançamentos avulsos e estornos.
