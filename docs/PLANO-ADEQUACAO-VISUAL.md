@@ -222,14 +222,27 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Limites:** não havia navegador conectado para conferir a página renderizada ou produzir capturas. Não consultei dados de um banco operacional. O escopo de autorização permanece ADMIN conforme o modelo atual; qualquer abertura a funcionários exigirá atualização coerente da API, interface e documentação.
 
-## Próxima etapa para revisão: Perfil
+## Décima primeira entrega: Perfil
 
-- **Objetivo:** alinhar a página de perfil ao padrão visual e responsivo das telas integradas, preservando as operações reais disponíveis para a própria conta.
-- **Áreas afetadas:** identificação do usuário, alteração do próprio nome, e-mail e papel somente leitura, e formulário de troca de senha com senha atual.
-- **Backend/frontend previstos:** reorganizar o cabeçalho e os cartões de dados/segurança, manter o cliente Better Auth e os endpoints atuais, e não apresentar telefone, CPF, 2FA ou exclusão de conta enquanto não houver suporte real.
-- **Decisões pendentes:** nenhuma para o escopo visual e para as operações já existentes. Novos dados pessoais ou ações exigiriam decisão e implementação próprias.
-- **Verificações necessárias:** typecheck, lint, build, testes existentes de autenticação/perfil e conferência de responsividade e mensagens de erro/sucesso.
-- **Entrega:** aguardar a revisão e autorização do autor antes de iniciar a implementação. Commit local com identidade Shishura; push segue aprovação separada.
+**Resultado:** a tela de Perfil foi reorganizada em um cabeçalho, identificação da conta, dados pessoais e seção de segurança. O nome continua editável; e-mail e papel permanecem somente leitura; a troca de senha continua exigindo a senha atual e avisa sobre o encerramento das outras sessões.
+
+**Integração preservada:** as ações continuam usando Better Auth e os mesmos endpoints existentes. Não foram adicionados telefone, CPF, 2FA, exclusão de conta ou dados de demonstração.
+
+**Arquivos:** `apps/web/src/perfil/ProfilePage.tsx`, novo `apps/web/src/perfil/profile.css`, remoção dos estilos antigos de Perfil de `apps/web/src/index.css` e atualização deste plano. API, permissões, contratos e schema não mudaram.
+
+**Verificações:** typecheck e build de produção do frontend; lint da página; Prettier e `git diff --check`; 11 testes do cliente de autenticação e 2 testes da rota de perfil aprovados. O build conserva os avisos conhecidos de diretivas `use client` do React Router.
+
+**Limites:** não havia navegador conectado para renderizar a tela ou produzir captura. Os testes da rota usam configuração isolada de teste; não foi consultado banco operacional.
+
+## Próxima etapa para revisão: Chatbot e revisão final
+
+- **Objetivo:** concluir a apresentação da última tela funcional conforme o exemplo visual e verificar o fluxo completo das conversas já integrado.
+- **Áreas afetadas:** lista e criação de conversas, histórico, envio de mensagens, tópicos/atalhos para módulos e confirmação ou descarte de operações financeiras pendentes.
+- **Frontend previsto:** alinhar cabeçalho, painel de conversas, transcrição, campos, estados vazios/de carregamento/erro e controles responsivos ao padrão visual das telas integradas; manter a apresentação como assistente guiado, sem sugerir IA.
+- **Backend e integração previstos:** revisar o cliente HTTP existente do serviço de Chatbot e a integração com a API Financeira. Preservar sessão, permissões aplicadas pela API, confirmação explícita antes de gravar e o comportamento de indisponibilidade. Não se prevê mudança de schema ou regra financeira; qualquer necessidade identificada será registrada antes de ampliar o escopo.
+- **Decisões pendentes:** nenhuma para a interface e os fluxos já suportados. Novas intenções financeiras, alteração nas permissões ou mudança no processo de confirmação dependem de decisão e implementação próprias.
+- **Verificações necessárias:** typecheck, lint, build, testes do cliente do Chatbot e dos fluxos API relevantes; conferir envio, resposta, confirmação, descarte, sessão expirada e falha de conexão, além das larguras desktop, tablet e celular. Confirmar que os demais módulos continuam iniciando sem o processo do Chatbot.
+- **Entrega:** aguardar a revisão e autorização do autor antes de iniciar esta etapa. Commit local com identidade Shishura; push segue aprovação separada.
 
 ## Decisões pendentes para uma futura ampliação do Caixa
 

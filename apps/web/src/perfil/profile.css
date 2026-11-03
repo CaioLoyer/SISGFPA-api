@@ -1,0 +1,253 @@
+.profile-page {
+  min-width: 0;
+}
+
+.profile-page > .workspace-page-header {
+  padding: 16px 24px;
+}
+
+.profile-page > .workspace-page-header h1 {
+  color: #14291d;
+}
+
+.profile-page > .workspace-page-header p {
+  font-size: 12px;
+}
+
+.profile-content {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 20px 24px 28px;
+}
+
+.profile-identity,
+.profile-panel {
+  min-width: 0;
+  border: 1px solid #dce2de;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px #12321c05;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 20px;
+}
+
+.profile-avatar {
+  display: grid;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid #cbe1d2;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #278653, #145b37);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.profile-identity-copy {
+  min-width: 0;
+}
+
+.profile-overline {
+  display: block;
+  margin-bottom: 4px;
+  color: #748278;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.profile-identity-copy h2 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: #20382a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.profile-identity-copy p {
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  color: #6b7a70;
+  font-size: 12px;
+}
+
+.profile-role {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #d8e9de;
+  border-radius: 999px;
+  color: #216540;
+  background: #edf6f0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profile-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.profile-panel {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 22px;
+}
+
+.profile-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.profile-panel-icon {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  color: #1c7045;
+  background: #e9f3ec;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.profile-panel-icon-security {
+  color: #8a6325;
+  background: #fbf3e5;
+}
+
+.profile-panel-heading h2 {
+  margin: 0;
+  color: #20382a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-panel-heading p {
+  margin: 5px 0 0;
+  color: #718077;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.profile-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-readonly-grid > div {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #e2e9e3;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.profile-readonly-grid span {
+  color: #718077;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.profile-readonly-grid strong {
+  overflow-wrap: anywhere;
+  color: #31483a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-form {
+  display: grid;
+  gap: 15px;
+  min-width: 0;
+}
+
+.profile-form .field-label input {
+  height: 43px;
+}
+
+.profile-form .button {
+  justify-self: start;
+}
+
+.profile-security-note {
+  margin: -5px 0 0;
+  padding: 11px 12px;
+  border-left: 3px solid #d6ab60;
+  border-radius: 0 7px 7px 0;
+  color: #6e5a36;
+  background: #fcf8ef;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.profile-password-form {
+  gap: 13px;
+}
+
+@media (max-width: 1080px) {
+  .profile-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-page > .workspace-page-header {
+    padding: 16px 18px;
+  }
+
+  .profile-content {
+    padding: 16px 18px 24px;
+  }
+
+  .profile-panel {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-identity {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .profile-avatar {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+  }
+
+  .profile-identity-copy {
+    flex: 1 1 calc(100% - 60px);
+  }
+
+  .profile-role {
+    margin-left: 58px;
+  }
+
+  .profile-readonly-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-form .button {
+    width: 100%;
+  }
+}
