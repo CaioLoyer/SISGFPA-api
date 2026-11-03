@@ -18,6 +18,9 @@ import type {
   TipoTituloContato,
   TituloSemContato,
 } from './contatos-api'
+import { Icon } from '../shared/Icon'
+import { PageHeader } from '../shared/PageHeader'
+import './comercial.css'
 
 type FiltroPapel = PapelContato | 'TODOS'
 type FiltroSituacao = SituacaoContato
@@ -397,283 +400,536 @@ export function ComercialPage() {
   }
 
   return (
-    <section className="welcome-page commercial-page">
-      <div className="welcome-heading commercial-heading">
-        <div>
-          <p className="eyebrow">MÓDULO COMERCIAL</p>
-          <h1>Clientes e fornecedores</h1>
-          <p>Cadastre contatos, filtre por atuação e associe registros antigos aos títulos.</p>
+    <section className="commercial-page">
+      <PageHeader
+        title="Clientes e fornecedores"
+        description="Gerencie cadastros e vínculos com registros financeiros existentes."
+      />
+      <div className="commercial-content">
+        <div className="commercial-tabs" role="group" aria-label="Operações comerciais">
+          <button
+            aria-pressed={aba === 'CADASTROS'}
+            className={aba === 'CADASTROS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
+            onClick={() => setAba('CADASTROS')}
+            type="button"
+          >
+            Cadastro de contatos
+          </button>
+          <button
+            aria-pressed={aba === 'VINCULOS'}
+            className={aba === 'VINCULOS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
+            onClick={() => setAba('VINCULOS')}
+            type="button"
+          >
+            Associar títulos antigos
+          </button>
         </div>
-      </div>
 
-      <div className="commercial-tabs" role="tablist" aria-label="Operações comerciais">
-        <button
-          aria-selected={aba === 'CADASTROS'}
-          className={aba === 'CADASTROS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
-          onClick={() => setAba('CADASTROS')}
-          role="tab"
-          type="button"
-        >
-          Cadastro de contatos
-        </button>
-        <button
-          aria-selected={aba === 'VINCULOS'}
-          className={aba === 'VINCULOS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
-          onClick={() => setAba('VINCULOS')}
-          role="tab"
-          type="button"
-        >
-          Associar títulos antigos
-        </button>
-      </div>
+        {mensagem && (
+          <p className="commercial-success" role="status">
+            {mensagem}
+          </p>
+        )}
 
-      {mensagem && (
-        <p className="commercial-success" role="status">
-          {mensagem}
-        </p>
-      )}
-
-      {aba === 'CADASTROS' ? (
-        <>
-          <section className="commercial-card" aria-labelledby="contact-form-title">
-            <div className="commercial-card-heading">
-              <div>
-                <h2 id="contact-form-title">{editandoId ? 'Editar contato' : 'Novo cadastro'}</h2>
-                <p>Um contato pode atuar como cliente, fornecedor ou nos dois papéis.</p>
-              </div>
-              {editandoId && (
-                <button className="button button-secondary" onClick={descartarEdicao} type="button">
-                  Cancelar edição
-                </button>
-              )}
-            </div>
-            <form className="commercial-form" onSubmit={(event) => void salvarContato(event)}>
-              <fieldset className="commercial-role-fieldset">
-                <legend>Atuação *</legend>
-                <div className="commercial-role-options">
-                  {papeisPermitidos.map((papel) => (
-                    <label className="commercial-checkbox" key={papel}>
-                      <input
-                        checked={formulario.papeis.includes(papel)}
-                        onChange={() => alternarPapel(papel)}
-                        type="checkbox"
-                      />
-                      <span>{nomePapel(papel)}</span>
-                    </label>
-                  ))}
-                  {papeisPermitidos.length === 0 && (
-                    <span className="commercial-muted">Carregando permissões…</span>
-                  )}
+        {aba === 'CADASTROS' ? (
+          <>
+            <section className="commercial-card" aria-labelledby="contact-form-title">
+              <div className="commercial-card-heading">
+                <span className="commercial-heading-icon">
+                  <Icon name="user" />
+                </span>
+                <div>
+                  <h2 id="contact-form-title">{editandoId ? 'Editar contato' : 'Novo cadastro'}</h2>
+                  <p>Um contato pode atuar como cliente, fornecedor ou nos dois papéis.</p>
                 </div>
-              </fieldset>
+                {editandoId && (
+                  <button className="button button-secondary" onClick={descartarEdicao} type="button">
+                    Cancelar edição
+                  </button>
+                )}
+              </div>
+              <form className="commercial-form" onSubmit={(event) => void salvarContato(event)}>
+                <fieldset className="commercial-role-fieldset">
+                  <legend>Atuação *</legend>
+                  <div className="commercial-role-options">
+                    {papeisPermitidos.map((papel) => (
+                      <label className="commercial-checkbox" key={papel}>
+                        <input
+                          checked={formulario.papeis.includes(papel)}
+                          onChange={() => alternarPapel(papel)}
+                          type="checkbox"
+                        />
+                        <span>{nomePapel(papel)}</span>
+                      </label>
+                    ))}
+                    {papeisPermitidos.length === 0 && (
+                      <span className="commercial-muted">
+                        {carregandoContatos
+                          ? 'Carregando permissões…'
+                          : erroContatos
+                            ? 'Não foi possível verificar suas permissões.'
+                            : 'Seu usuário não tem permissões para gerenciar contatos.'}
+                      </span>
+                    )}
+                  </div>
+                </fieldset>
 
-              <div className="commercial-form-grid">
-                <label className="field-label commercial-field-wide">
-                  Nome / Razão social *
+                <div className="commercial-form-grid">
+                  <label className="field-label commercial-field-wide">
+                    Nome / Razão social *
+                    <input
+                      autoComplete="organization"
+                      maxLength={160}
+                      onChange={(event) => setFormulario({ ...formulario, nome: event.target.value })}
+                      required
+                      value={formulario.nome}
+                    />
+                  </label>
+                  <label className="field-label">
+                    Tipo de pessoa *
+                    <select
+                      onChange={(event) =>
+                        setFormulario({ ...formulario, tipoPessoa: event.target.value as TipoPessoa })
+                      }
+                      value={formulario.tipoPessoa}
+                    >
+                      <option value="FISICA">Pessoa física</option>
+                      <option value="JURIDICA">Pessoa jurídica</option>
+                    </select>
+                  </label>
+                  <label className="field-label">
+                    {formulario.tipoPessoa === 'FISICA' ? 'CPF *' : 'CNPJ *'}
+                    <input
+                      autoComplete="off"
+                      inputMode="numeric"
+                      onChange={(event) => setFormulario({ ...formulario, documento: event.target.value })}
+                      placeholder={
+                        formulario.tipoPessoa === 'FISICA' ? '000.000.000-00' : '00.000.000/0000-00'
+                      }
+                      required
+                      value={formulario.documento}
+                    />
+                  </label>
+                  <label className="field-label">
+                    Telefone *
+                    <input
+                      autoComplete="tel"
+                      onChange={(event) => setFormulario({ ...formulario, telefone: event.target.value })}
+                      placeholder="(00) 00000-0000"
+                      required
+                      value={formulario.telefone}
+                    />
+                  </label>
+                  <label className="field-label">
+                    Cidade
+                    <input
+                      autoComplete="address-level2"
+                      maxLength={100}
+                      onChange={(event) => setFormulario({ ...formulario, cidade: event.target.value })}
+                      value={formulario.cidade}
+                    />
+                  </label>
+                  <label className="field-label commercial-field-uf">
+                    UF
+                    <input
+                      autoComplete="address-level1"
+                      maxLength={2}
+                      onChange={(event) => setFormulario({ ...formulario, uf: event.target.value })}
+                      value={formulario.uf}
+                    />
+                  </label>
+                </div>
+
+                {erroFormulario && (
+                  <p className="form-error" role="alert">
+                    {erroFormulario}
+                  </p>
+                )}
+                <div className="commercial-form-actions">
+                  <button
+                    className="button button-primary"
+                    disabled={salvando || carregandoContatos || papeisPermitidos.length === 0}
+                    type="submit"
+                  >
+                    {salvando ? 'Salvando…' : editandoId ? 'Salvar alterações' : 'Salvar cadastro'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section className="commercial-card commercial-list-card" aria-labelledby="contacts-list-title">
+              <div className="commercial-card-heading">
+                <span className="commercial-heading-icon">
+                  <Icon name="user" />
+                </span>
+                <div>
+                  <h2 id="contacts-list-title">Contatos cadastrados</h2>
+                  <p>{totalContatos} registro(s) encontrados</p>
+                </div>
+              </div>
+              <form
+                className="commercial-filters"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  setBuscaContatos(buscaRascunho.trim())
+                  setPaginaContatos(1)
+                }}
+              >
+                <label className="field-label">
+                  Buscar por código, nome ou documento
                   <input
-                    autoComplete="organization"
-                    maxLength={160}
-                    onChange={(event) => setFormulario({ ...formulario, nome: event.target.value })}
-                    required
-                    value={formulario.nome}
+                    onChange={(event) => setBuscaRascunho(event.target.value)}
+                    placeholder="Digite para buscar"
+                    value={buscaRascunho}
                   />
                 </label>
                 <label className="field-label">
-                  Tipo de pessoa *
+                  Atuação
                   <select
-                    onChange={(event) =>
-                      setFormulario({ ...formulario, tipoPessoa: event.target.value as TipoPessoa })
-                    }
-                    value={formulario.tipoPessoa}
+                    onChange={(event) => {
+                      setFiltroPapel(event.target.value as FiltroPapel)
+                      setPaginaContatos(1)
+                    }}
+                    value={filtroPapel}
                   >
-                    <option value="FISICA">Pessoa física</option>
-                    <option value="JURIDICA">Pessoa jurídica</option>
+                    <option value="TODOS">Todas as minhas atuações</option>
+                    {papeisPermitidos.map((papel) => (
+                      <option key={papel} value={papel}>
+                        {nomePapel(papel)}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="field-label">
-                  {formulario.tipoPessoa === 'FISICA' ? 'CPF *' : 'CNPJ *'}
-                  <input
-                    autoComplete="off"
-                    inputMode="numeric"
-                    onChange={(event) => setFormulario({ ...formulario, documento: event.target.value })}
-                    placeholder={formulario.tipoPessoa === 'FISICA' ? '000.000.000-00' : '00.000.000/0000-00'}
-                    required
-                    value={formulario.documento}
-                  />
+                  Situação
+                  <select
+                    onChange={(event) => {
+                      setFiltroSituacao(event.target.value as FiltroSituacao)
+                      setPaginaContatos(1)
+                    }}
+                    value={filtroSituacao}
+                  >
+                    <option value="ATIVOS">Ativos</option>
+                    <option value="INATIVOS">Inativos</option>
+                    <option value="TODOS">Todos</option>
+                  </select>
                 </label>
-                <label className="field-label">
-                  Telefone *
-                  <input
-                    autoComplete="tel"
-                    onChange={(event) => setFormulario({ ...formulario, telefone: event.target.value })}
-                    placeholder="(00) 00000-0000"
-                    required
-                    value={formulario.telefone}
-                  />
-                </label>
-                <label className="field-label">
-                  Cidade
-                  <input
-                    autoComplete="address-level2"
-                    maxLength={100}
-                    onChange={(event) => setFormulario({ ...formulario, cidade: event.target.value })}
-                    value={formulario.cidade}
-                  />
-                </label>
-                <label className="field-label commercial-field-uf">
-                  UF
-                  <input
-                    autoComplete="address-level1"
-                    maxLength={2}
-                    onChange={(event) => setFormulario({ ...formulario, uf: event.target.value })}
-                    value={formulario.uf}
-                  />
-                </label>
-              </div>
+                <button className="button button-secondary" type="submit">
+                  Buscar
+                </button>
+              </form>
 
-              {erroFormulario && (
+              {erroContatos && (
                 <p className="form-error" role="alert">
-                  {erroFormulario}
+                  {erroContatos}
+                  <button
+                    className="text-button commercial-retry"
+                    onClick={() => void carregarContatos()}
+                    type="button"
+                  >
+                    Tentar novamente
+                  </button>
                 </p>
               )}
-              <div className="commercial-form-actions">
-                <button className="button button-primary" disabled={salvando} type="submit">
-                  {salvando ? 'Salvando…' : editandoId ? 'Salvar alterações' : 'Salvar cadastro'}
-                </button>
+              {carregandoContatos ? (
+                <p className="commercial-empty" role="status">
+                  Carregando contatos…
+                </p>
+              ) : contatos.length === 0 ? (
+                <p className="commercial-empty">Nenhum contato corresponde aos filtros.</p>
+              ) : (
+                <div className="commercial-table-wrap commercial-contact-wrap">
+                  <table className="commercial-table commercial-contact-table">
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>Nome / Razão social</th>
+                        <th>Atuação</th>
+                        <th>Pessoa</th>
+                        <th>CPF / CNPJ</th>
+                        <th>Telefone</th>
+                        <th>Cidade / UF</th>
+                        <th>Situação e ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contatos.map((contato) => (
+                        <tr key={contato.id}>
+                          <td data-label="Código">{String(contato.codigo).padStart(5, '0')}</td>
+                          <td className="commercial-name-cell" data-label="Nome / Razão social">
+                            <strong>{contato.nome}</strong>
+                          </td>
+                          <td data-label="Atuação">
+                            <div className="commercial-badges">
+                              {contato.papeis.map((papel) => (
+                                <span className="commercial-badge" key={papel}>
+                                  {nomePapel(papel)}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td data-label="Pessoa">{nomeTipoPessoa(contato.tipoPessoa)}</td>
+                          <td data-label="CPF / CNPJ">{contato.documento}</td>
+                          <td data-label="Telefone">{contato.telefone}</td>
+                          <td data-label="Cidade / UF">
+                            {[contato.cidade, contato.uf].filter(Boolean).join(' / ') || '—'}
+                          </td>
+                          <td data-label="Situação e ações">
+                            <div className="commercial-row-actions">
+                              <span
+                                className={
+                                  contato.ativo
+                                    ? 'commercial-status'
+                                    : 'commercial-status commercial-status-inactive'
+                                }
+                              >
+                                {contato.ativo ? 'Ativo' : 'Inativo'}
+                              </span>
+                              <button
+                                className="text-button"
+                                onClick={() => iniciarEdicao(contato)}
+                                type="button"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="text-button"
+                                onClick={() => void alterarSituacao(contato)}
+                                type="button"
+                              >
+                                {contato.ativo ? 'Inativar' : 'Reativar'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="commercial-pagination">
+                <span>
+                  Página {paginaContatos} de {paginasContatos}
+                </span>
+                <div>
+                  <button
+                    className="button button-secondary"
+                    disabled={paginaContatos <= 1 || carregandoContatos}
+                    onClick={() => setPaginaContatos((page) => page - 1)}
+                    type="button"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    disabled={paginaContatos >= paginasContatos || carregandoContatos}
+                    onClick={() => setPaginaContatos((page) => page + 1)}
+                    type="button"
+                  >
+                    Próxima
+                  </button>
+                </div>
               </div>
-            </form>
-          </section>
-
-          <section className="commercial-card commercial-list-card" aria-labelledby="contacts-list-title">
+            </section>
+          </>
+        ) : (
+          <section className="commercial-card" aria-labelledby="legacy-links-title">
             <div className="commercial-card-heading">
+              <span className="commercial-heading-icon">
+                <Icon name="book" />
+              </span>
               <div>
-                <h2 id="contacts-list-title">Contatos cadastrados</h2>
-                <p>{totalContatos} registro(s) encontrados</p>
+                <h2 id="legacy-links-title">Associar títulos antigos</h2>
+                <p>
+                  Os títulos continuam com o nome original; esta associação registra apenas o contato
+                  escolhido.
+                </p>
               </div>
             </div>
+
+            <div className="commercial-link-type" role="group" aria-label="Tipo de título">
+              {(['DESPESA', 'RECEBIMENTO'] as const).map((tipo) => {
+                const papel: PapelContato = tipo === 'DESPESA' ? 'FORNECEDOR' : 'CLIENTE'
+                if (!papeisPermitidos.includes(papel)) return null
+                return (
+                  <button
+                    aria-pressed={tipoTitulo === tipo}
+                    className={
+                      tipoTitulo === tipo ? 'commercial-tab commercial-tab-active' : 'commercial-tab'
+                    }
+                    key={tipo}
+                    onClick={() => {
+                      setTipoTitulo(tipo)
+                      setPaginaTitulos(1)
+                      setTitulosSelecionados(new Set())
+                      setContatoPorTitulo({})
+                    }}
+                    type="button"
+                  >
+                    {nomeTipoTitulo(tipo)}
+                  </button>
+                )
+              })}
+            </div>
+
             <form
-              className="commercial-filters"
+              className="commercial-filters commercial-link-search"
               onSubmit={(event) => {
                 event.preventDefault()
-                setBuscaContatos(buscaRascunho.trim())
-                setPaginaContatos(1)
+                setBuscaAntiga(buscaAntigaRascunho.trim())
+                setPaginaTitulos(1)
+                setTitulosSelecionados(new Set())
+                setContatoPorTitulo({})
+                setSugestoesPorTitulo({})
               }}
             >
               <label className="field-label">
-                Buscar por código, nome ou documento
+                Buscar pelo nome gravado no título
                 <input
-                  onChange={(event) => setBuscaRascunho(event.target.value)}
-                  placeholder="Digite para buscar"
-                  value={buscaRascunho}
+                  onChange={(event) => setBuscaAntigaRascunho(event.target.value)}
+                  placeholder="Ex.: Papelaria ABC"
+                  value={buscaAntigaRascunho}
                 />
               </label>
-              <label className="field-label">
-                Atuação
-                <select
-                  onChange={(event) => {
-                    setFiltroPapel(event.target.value as FiltroPapel)
-                    setPaginaContatos(1)
-                  }}
-                  value={filtroPapel}
-                >
-                  <option value="TODOS">Todas as minhas atuações</option>
-                  {papeisPermitidos.map((papel) => (
-                    <option key={papel} value={papel}>
-                      {nomePapel(papel)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-label">
-                Situação
-                <select
-                  onChange={(event) => {
-                    setFiltroSituacao(event.target.value as FiltroSituacao)
-                    setPaginaContatos(1)
-                  }}
-                  value={filtroSituacao}
-                >
-                  <option value="ATIVOS">Ativos</option>
-                  <option value="INATIVOS">Inativos</option>
-                  <option value="TODOS">Todos</option>
-                </select>
-              </label>
               <button className="button button-secondary" type="submit">
-                Buscar
+                Buscar títulos
+              </button>
+              <button className="text-button" onClick={() => void selecionarTodosResultados()} type="button">
+                Selecionar todos os resultados da busca
               </button>
             </form>
 
-            {erroContatos && (
+            <div className="commercial-bulk-bar">
+              <form
+                className="commercial-bulk-search"
+                onSubmit={(event) => void buscarSugestoesEmLote(event)}
+              >
+                <label className="field-label">
+                  Contato parecido para os títulos selecionados
+                  <input
+                    onChange={(event) => setBuscaContatoLote(event.target.value)}
+                    placeholder="Buscar nome de cliente ou fornecedor"
+                    value={buscaContatoLote}
+                  />
+                </label>
+                <button className="button button-secondary" disabled={carregandoLote} type="submit">
+                  {carregandoLote ? 'Buscando…' : 'Sugerir contatos'}
+                </button>
+              </form>
+              <div className="commercial-bulk-assign">
+                <label className="field-label">
+                  Aplicar aos {titulosSelecionados.size} selecionado(s)
+                  <select onChange={(event) => setContatoLoteId(event.target.value)} value={contatoLoteId}>
+                    <option value="">Selecione um contato</option>
+                    {sugestoesLote.map((contato) => (
+                      <option key={contato.id} value={contato.id}>
+                        {contato.nome} · {contato.documento}
+                        {contato.ativo ? '' : ' · Inativo'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="button button-secondary"
+                  disabled={!contatoLoteId || titulosSelecionados.size === 0}
+                  onClick={aplicarContatoEmLote}
+                  type="button"
+                >
+                  Aplicar contato
+                </button>
+              </div>
+            </div>
+
+            {erroTitulos && (
               <p className="form-error" role="alert">
-                {erroContatos}
+                {erroTitulos}
+                {papelDisponivelParaVinculo && (
+                  <button
+                    className="text-button commercial-retry"
+                    onClick={() => void carregarTitulosAntigos()}
+                    type="button"
+                  >
+                    Tentar novamente
+                  </button>
+                )}
               </p>
             )}
-            {carregandoContatos ? (
+            <div className="commercial-link-heading">
+              <label className="commercial-checkbox">
+                <input
+                  checked={todosDaPaginaSelecionados}
+                  onChange={(event) => selecionarPagina(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Selecionar todos desta página</span>
+              </label>
+              <span>{totalTitulosAntigos} título(s) sem contato vinculado</span>
+            </div>
+
+            {carregandoTitulos ? (
               <p className="commercial-empty" role="status">
-                Carregando contatos…
+                Carregando títulos…
               </p>
-            ) : contatos.length === 0 ? (
-              <p className="commercial-empty">Nenhum contato corresponde aos filtros.</p>
+            ) : titulosAntigos.length === 0 ? (
+              <p className="commercial-empty">Não há títulos sem contato para esta busca.</p>
             ) : (
-              <div className="commercial-table-wrap">
-                <table className="commercial-table">
+              <div className="commercial-table-wrap commercial-pending-wrap">
+                <table className="commercial-table commercial-link-table commercial-pending-table">
                   <thead>
                     <tr>
-                      <th>Código</th>
-                      <th>Nome / Razão social</th>
-                      <th>Atuação</th>
-                      <th>Pessoa</th>
-                      <th>CPF / CNPJ</th>
-                      <th>Telefone</th>
-                      <th>Cidade / UF</th>
-                      <th>Situação e ações</th>
+                      <th aria-label="Selecionar" />
+                      <th>Nome original</th>
+                      <th>Título</th>
+                      <th>Valor</th>
+                      <th>Vencimento</th>
+                      <th>Contato associado</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {contatos.map((contato) => (
-                      <tr key={contato.id}>
-                        <td>{String(contato.codigo).padStart(5, '0')}</td>
-                        <td className="commercial-name-cell">
-                          <strong>{contato.nome}</strong>
+                    {titulosAntigos.map((titulo) => (
+                      <tr key={titulo.id}>
+                        <td data-label="Selecionar">
+                          <input
+                            aria-label={`Selecionar título ${titulo.descricao}`}
+                            checked={titulosSelecionados.has(titulo.id)}
+                            onChange={(event) => selecionarTitulo(titulo.id, event.target.checked)}
+                            type="checkbox"
+                          />
                         </td>
-                        <td>
-                          <div className="commercial-badges">
-                            {contato.papeis.map((papel) => (
-                              <span className="commercial-badge" key={papel}>
-                                {nomePapel(papel)}
-                              </span>
-                            ))}
-                          </div>
+                        <td data-label="Nome original">
+                          <strong>{titulo.nomeOriginal}</strong>
                         </td>
-                        <td>{nomeTipoPessoa(contato.tipoPessoa)}</td>
-                        <td>{contato.documento}</td>
-                        <td>{contato.telefone}</td>
-                        <td>{[contato.cidade, contato.uf].filter(Boolean).join(' / ') || '—'}</td>
-                        <td>
-                          <div className="commercial-row-actions">
-                            <span
-                              className={
-                                contato.ativo
-                                  ? 'commercial-status'
-                                  : 'commercial-status commercial-status-inactive'
+                        <td data-label="Título">{titulo.descricao}</td>
+                        <td data-label="Valor">{formatarMoeda(titulo.valor)}</td>
+                        <td data-label="Vencimento">{formatarData(titulo.dataVencimento)}</td>
+                        <td data-label="Associar contato">
+                          <div className="commercial-suggestion-control">
+                            <button
+                              className="text-button"
+                              disabled={carregandoSugestoes === titulo.id}
+                              onClick={() => void buscarSugestoes(titulo)}
+                              type="button"
+                            >
+                              {carregandoSugestoes === titulo.id ? 'Buscando…' : 'Sugerir parecidos'}
+                            </button>
+                            <select
+                              aria-label={`Contato para ${titulo.descricao}`}
+                              onChange={(event) =>
+                                setContatoPorTitulo((atual) => ({
+                                  ...atual,
+                                  [titulo.id]: event.target.value,
+                                }))
                               }
+                              value={contatoPorTitulo[titulo.id] ?? ''}
                             >
-                              {contato.ativo ? 'Ativo' : 'Inativo'}
-                            </span>
-                            <button
-                              className="text-button"
-                              onClick={() => iniciarEdicao(contato)}
-                              type="button"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="text-button"
-                              onClick={() => void alterarSituacao(contato)}
-                              type="button"
-                            >
-                              {contato.ativo ? 'Inativar' : 'Reativar'}
-                            </button>
+                              <option value="">Selecione</option>
+                              {(sugestoesPorTitulo[titulo.id] ?? []).map((contato) => (
+                                <option key={contato.id} value={contato.id}>
+                                  {contato.nome} · {contato.documento}
+                                  {contato.ativo ? '' : ' · Inativo'}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </td>
                       </tr>
@@ -682,251 +938,43 @@ export function ComercialPage() {
                 </table>
               </div>
             )}
+
             <div className="commercial-pagination">
               <span>
-                Página {paginaContatos} de {paginasContatos}
+                Página {paginaTitulos} de {paginasTitulosAntigos}
               </span>
               <div>
                 <button
                   className="button button-secondary"
-                  disabled={paginaContatos <= 1 || carregandoContatos}
-                  onClick={() => setPaginaContatos((page) => page - 1)}
+                  disabled={paginaTitulos <= 1 || carregandoTitulos}
+                  onClick={() => setPaginaTitulos((page) => page - 1)}
                   type="button"
                 >
                   Anterior
                 </button>
                 <button
                   className="button button-secondary"
-                  disabled={paginaContatos >= paginasContatos || carregandoContatos}
-                  onClick={() => setPaginaContatos((page) => page + 1)}
+                  disabled={paginaTitulos >= paginasTitulosAntigos || carregandoTitulos}
+                  onClick={() => setPaginaTitulos((page) => page + 1)}
                   type="button"
                 >
                   Próxima
                 </button>
               </div>
             </div>
+            <div className="commercial-form-actions">
+              <button
+                className="button button-primary"
+                disabled={salvandoVinculos || titulosSelecionados.size === 0}
+                onClick={() => void salvarVinculos()}
+                type="button"
+              >
+                {salvandoVinculos ? 'Associando…' : `Associar ${titulosSelecionados.size} título(s)`}
+              </button>
+            </div>
           </section>
-        </>
-      ) : (
-        <section className="commercial-card" aria-labelledby="legacy-links-title">
-          <div className="commercial-card-heading">
-            <div>
-              <h2 id="legacy-links-title">Associar títulos antigos</h2>
-              <p>
-                Os títulos continuam com o nome original; esta associação registra apenas o contato escolhido.
-              </p>
-            </div>
-          </div>
-
-          <div className="commercial-link-type" role="group" aria-label="Tipo de título">
-            {(['DESPESA', 'RECEBIMENTO'] as const).map((tipo) => {
-              const papel: PapelContato = tipo === 'DESPESA' ? 'FORNECEDOR' : 'CLIENTE'
-              if (!papeisPermitidos.includes(papel)) return null
-              return (
-                <button
-                  className={tipoTitulo === tipo ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
-                  key={tipo}
-                  onClick={() => {
-                    setTipoTitulo(tipo)
-                    setPaginaTitulos(1)
-                    setTitulosSelecionados(new Set())
-                    setContatoPorTitulo({})
-                  }}
-                  type="button"
-                >
-                  {nomeTipoTitulo(tipo)}
-                </button>
-              )
-            })}
-          </div>
-
-          <form
-            className="commercial-filters commercial-link-search"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setBuscaAntiga(buscaAntigaRascunho.trim())
-              setPaginaTitulos(1)
-              setTitulosSelecionados(new Set())
-              setContatoPorTitulo({})
-              setSugestoesPorTitulo({})
-            }}
-          >
-            <label className="field-label">
-              Buscar pelo nome gravado no título
-              <input
-                onChange={(event) => setBuscaAntigaRascunho(event.target.value)}
-                placeholder="Ex.: Papelaria ABC"
-                value={buscaAntigaRascunho}
-              />
-            </label>
-            <button className="button button-secondary" type="submit">
-              Buscar títulos
-            </button>
-            <button className="text-button" onClick={() => void selecionarTodosResultados()} type="button">
-              Selecionar todos os resultados da busca
-            </button>
-          </form>
-
-          <div className="commercial-bulk-bar">
-            <form className="commercial-bulk-search" onSubmit={(event) => void buscarSugestoesEmLote(event)}>
-              <label className="field-label">
-                Contato parecido para os títulos selecionados
-                <input
-                  onChange={(event) => setBuscaContatoLote(event.target.value)}
-                  placeholder="Buscar nome de cliente ou fornecedor"
-                  value={buscaContatoLote}
-                />
-              </label>
-              <button className="button button-secondary" disabled={carregandoLote} type="submit">
-                {carregandoLote ? 'Buscando…' : 'Sugerir contatos'}
-              </button>
-            </form>
-            <div className="commercial-bulk-assign">
-              <label className="field-label">
-                Aplicar aos {titulosSelecionados.size} selecionado(s)
-                <select onChange={(event) => setContatoLoteId(event.target.value)} value={contatoLoteId}>
-                  <option value="">Selecione um contato</option>
-                  {sugestoesLote.map((contato) => (
-                    <option key={contato.id} value={contato.id}>
-                      {contato.nome} · {contato.documento}
-                      {contato.ativo ? '' : ' · Inativo'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="button button-secondary"
-                disabled={!contatoLoteId || titulosSelecionados.size === 0}
-                onClick={aplicarContatoEmLote}
-                type="button"
-              >
-                Aplicar contato
-              </button>
-            </div>
-          </div>
-
-          {erroTitulos && (
-            <p className="form-error" role="alert">
-              {erroTitulos}
-            </p>
-          )}
-          <div className="commercial-link-heading">
-            <label className="commercial-checkbox">
-              <input
-                checked={todosDaPaginaSelecionados}
-                onChange={(event) => selecionarPagina(event.target.checked)}
-                type="checkbox"
-              />
-              <span>Selecionar todos desta página</span>
-            </label>
-            <span>{totalTitulosAntigos} título(s) sem contato vinculado</span>
-          </div>
-
-          {carregandoTitulos ? (
-            <p className="commercial-empty" role="status">
-              Carregando títulos…
-            </p>
-          ) : titulosAntigos.length === 0 ? (
-            <p className="commercial-empty">Não há títulos sem contato para esta busca.</p>
-          ) : (
-            <div className="commercial-table-wrap">
-              <table className="commercial-table commercial-link-table">
-                <thead>
-                  <tr>
-                    <th aria-label="Selecionar" />
-                    <th>Nome original</th>
-                    <th>Título</th>
-                    <th>Valor</th>
-                    <th>Vencimento</th>
-                    <th>Contato associado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {titulosAntigos.map((titulo) => (
-                    <tr key={titulo.id}>
-                      <td>
-                        <input
-                          aria-label={`Selecionar título ${titulo.descricao}`}
-                          checked={titulosSelecionados.has(titulo.id)}
-                          onChange={(event) => selecionarTitulo(titulo.id, event.target.checked)}
-                          type="checkbox"
-                        />
-                      </td>
-                      <td>
-                        <strong>{titulo.nomeOriginal}</strong>
-                      </td>
-                      <td>{titulo.descricao}</td>
-                      <td>{formatarMoeda(titulo.valor)}</td>
-                      <td>{formatarData(titulo.dataVencimento)}</td>
-                      <td>
-                        <div className="commercial-suggestion-control">
-                          <button
-                            className="text-button"
-                            disabled={carregandoSugestoes === titulo.id}
-                            onClick={() => void buscarSugestoes(titulo)}
-                            type="button"
-                          >
-                            {carregandoSugestoes === titulo.id ? 'Buscando…' : 'Sugerir parecidos'}
-                          </button>
-                          <select
-                            aria-label={`Contato para ${titulo.descricao}`}
-                            onChange={(event) =>
-                              setContatoPorTitulo((atual) => ({ ...atual, [titulo.id]: event.target.value }))
-                            }
-                            value={contatoPorTitulo[titulo.id] ?? ''}
-                          >
-                            <option value="">Selecione</option>
-                            {(sugestoesPorTitulo[titulo.id] ?? []).map((contato) => (
-                              <option key={contato.id} value={contato.id}>
-                                {contato.nome} · {contato.documento}
-                                {contato.ativo ? '' : ' · Inativo'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="commercial-pagination">
-            <span>
-              Página {paginaTitulos} de {paginasTitulosAntigos}
-            </span>
-            <div>
-              <button
-                className="button button-secondary"
-                disabled={paginaTitulos <= 1 || carregandoTitulos}
-                onClick={() => setPaginaTitulos((page) => page - 1)}
-                type="button"
-              >
-                Anterior
-              </button>
-              <button
-                className="button button-secondary"
-                disabled={paginaTitulos >= paginasTitulosAntigos || carregandoTitulos}
-                onClick={() => setPaginaTitulos((page) => page + 1)}
-                type="button"
-              >
-                Próxima
-              </button>
-            </div>
-          </div>
-          <div className="commercial-form-actions">
-            <button
-              className="button button-primary"
-              disabled={salvandoVinculos || titulosSelecionados.size === 0}
-              onClick={() => void salvarVinculos()}
-              type="button"
-            >
-              {salvandoVinculos ? 'Associando…' : `Associar ${titulosSelecionados.size} título(s)`}
-            </button>
-          </div>
-        </section>
-      )}
+        )}
+      </div>
     </section>
   )
 }

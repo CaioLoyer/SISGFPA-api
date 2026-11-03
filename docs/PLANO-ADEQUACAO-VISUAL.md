@@ -164,12 +164,22 @@ A interface não exibe totais de usuários, administradores, presença online, a
 
 As capturas de desktop e celular usam dados fictícios servidos apenas para conferência visual; foram mostradas ao autor durante a revisão desta etapa.
 
-## Próxima etapa para revisão: clientes e fornecedores
+## Sexta entrega: módulo Comercial
 
-- **Objetivo:** aplicar o padrão visual atual à gestão comercial em `/comercial`, conectada à API existente.
-- **Telas/operações afetadas:** listagem e filtros de contatos, criação e edição, situação ativa/inativa, papéis de cliente/fornecedor, vínculos pendentes e associações com títulos existentes.
-- **Frontend:** organizar filtros, formulário, tabela e estados vazios/erro na linguagem visual aprovada; preservar paginação, busca e controles existentes, ajustando a tabela para telas pequenas.
-- **Backend:** reutilizar as rotas e regras atuais de contatos. Só ampliar contratos se uma operação necessária à interface não existir; discutir previamente qualquer nova regra comercial.
-- **Regras e pontos de atenção:** um contato pode ter ambos os papéis; dados legados de contraparte devem continuar preservados. As opções e operações devem acompanhar a permissão financeira do funcionário. Não atribuir novo vínculo ou alterar títulos automaticamente sem confirmação das operações existentes.
-- **Verificações planejadas:** typecheck, lint, build e conferência visual em desktop/celular; inspecionar filtros, formulário e resposta de autorização. Não exibir resultado de persistência sem confirmação da API.
-- **Entrega:** commit local por etapa e capturas de revisão; push somente após aprovação explícita.
+**Objetivo e resultado:** `/comercial` mantém cadastro, edição, situação, filtros e associação de títulos antigos à API real, com o mesmo padrão de cabeçalho, cartões, cores e tipografia das telas autenticadas. O cadastro continua permitindo que um contato seja cliente e fornecedor ao mesmo tempo.
+
+**Comportamento:** a listagem e os vínculos continuam usando os endpoints existentes de contatos. A API aplica as permissões financeiras do funcionário e impede remover papéis ainda usados por títulos vinculados. A associação histórica registra o contato escolhido sem substituir a descrição/nome original do título. Erros de consulta permitem nova tentativa; o botão de cadastro aguarda permissões carregadas e fica indisponível sem acesso. As tabelas de contatos e títulos sem vínculo se reorganizam em cartões em telas estreitas.
+
+**Arquivos principais:** `apps/web/src/contatos/ComercialPage.tsx` e o novo `apps/web/src/contatos/comercial.css`; remoção dos estilos específicos antigos de `apps/web/src/index.css`. Não foi necessária alteração no backend nem nos contratos.
+
+**Verificações:** typecheck, lint do módulo, formatação, `git diff --check`, build do frontend e conferência no Chromium em desktop e celular. A largura móvel de 390 px não apresentou rolagem horizontal, e o console não registrou erros. A conferência visual usou respostas GET controladas; endpoints de cadastro, edição, situação e associação recusaram escrita. Portanto, a verificação visual não confirma persistência em banco real. As capturas foram exibidas ao autor durante a revisão, sem serem guardadas como arquivos no repositório. Nenhum teste automatizado foi executado nesta entrega.
+
+## Próxima etapa para revisão: gerenciamento de títulos
+
+- **Objetivo:** adequar a listagem de contas a pagar e contas a receber ao padrão visual aprovado, preservando os dados e ações servidos pela API Financeira.
+- **Telas/operações afetadas:** rotas `/despesas` e `/recebimentos`; filtros por pessoa, situação, categoria e período; tabela/lista paginada; visualização de detalhes, parcelas, histórico e liquidações; ações de cancelamento e registro de pagamento/recebimento já existentes.
+- **Frontend:** reorganizar cabeçalho, filtros, resumo da lista, estados de carregamento/erro/vazio, status e ações. Manter os dois tipos acessíveis e adaptar a listagem e os detalhes para celular. O formulário de criação/edição será tratado em uma etapa separada.
+- **Backend:** usar os contratos atuais de despesas e recebimentos, sem alterar regras financeiras. A autorização individual de cada módulo deve continuar aplicada pela API e refletida na navegação/interface.
+- **Decisões e limites:** manter pagamentos e recebimentos parciais e cancelamentos conforme os fluxos atuais; não inventar indicadores, estados ou resultado de persistência. Se a revisão encontrar necessidade de mudar regra ou contrato, registrar a decisão antes de implementar essa parte.
+- **Verificações planejadas:** typecheck, lint, formatação, build e conferência visual em desktop/celular; verificar filtros, paginação, detalhes, estados sem dados/erro e permissões por tipo.
+- **Entrega:** uma etapa coerente com commit local em português usando a identidade configurada. O push do novo commit dependerá de aprovação explícita própria.
