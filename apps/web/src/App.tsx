@@ -29,6 +29,7 @@ import { DashboardPage } from './dashboard/DashboardPage'
 import { ProfilePage } from './perfil/ProfilePage'
 import { RelatoriosPage } from './relatorios/RelatoriosPage'
 import { TitulosPage } from './titulos/TitulosPage'
+import './auth/login.css'
 
 function BrandMark({ small = false }: { small?: boolean }) {
   return (
@@ -88,6 +89,7 @@ function LoginPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
 
@@ -102,64 +104,67 @@ function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <div className="auth-decoration auth-decoration-one" aria-hidden="true" />
-      <div className="auth-decoration auth-decoration-two" aria-hidden="true" />
-      <section className="auth-card" aria-labelledby="login-title">
-        <div className="auth-accent" />
-        <div className="auth-content">
-          <BrandMark />
-          <p className="eyebrow">MIL FOLHAS PAPELARIA</p>
-          <h1 id="login-title">Bem-vindo de volta</h1>
-          <p className="auth-intro">Entre com seu e-mail e senha para continuar.</p>
+    <main className="login-page">
+      <section className="login-card" aria-labelledby="login-title">
+        <div className="login-accent" aria-hidden="true" />
+        <div className="login-content">
+          <div className="login-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="5" y="11" width="14" height="11" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 id="login-title">Mil Folhas</h1>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label className="field-label" htmlFor="email">
-              E-mail
-              <input
-                autoComplete="username"
-                autoFocus
-                id="email"
-                name="email"
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@empresa.com.br"
-                required
-                type="email"
-                value={email}
-              />
-            </label>
-            <label className="field-label" htmlFor="password">
-              Senha
-              <input
-                autoComplete="current-password"
-                id="password"
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Digite sua senha"
-                required
-                type="password"
-                value={password}
-              />
-            </label>
+          <div className="login-fields">
+            <form onSubmit={handleSubmit}>
+              <label className="login-field" htmlFor="email">
+                E-mail
+                <input
+                  autoComplete="username"
+                  autoFocus
+                  disabled={submitting}
+                  id="email"
+                  name="email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="seu@email.com.br"
+                  required
+                  type="email"
+                  value={email}
+                />
+              </label>
+              <label className="login-field" htmlFor="password">
+                Senha
+                <input
+                  autoComplete="current-password"
+                  disabled={submitting}
+                  id="password"
+                  name="password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Digite sua senha"
+                  required
+                  type="password"
+                  value={password}
+                />
+              </label>
 
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
+              <div className="login-links">
+                <Link to="/recuperar-senha">Esqueceu a senha?</Link>
+              </div>
 
-            <button className="button button-primary login-submit" disabled={submitting} type="submit">
-              {submitting ? 'Entrando…' : 'Entrar'}
-            </button>
-          </form>
+              {error && (
+                <p className="login-error" role="alert">
+                  {error}
+                </p>
+              )}
 
-          <p className="auth-help">
-            <Link className="text-link" to="/recuperar-senha">
-              Esqueceu sua senha?
-            </Link>
-          </p>
+              <button className="login-button" disabled={submitting} type="submit">
+                {submitting ? 'Entrando…' : 'Entrar'}
+              </button>
+            </form>
+          </div>
         </div>
-        <footer className="auth-footer">Acesso restrito a usuários cadastrados pela administração</footer>
+        <footer className="login-footer">© {new Date().getFullYear()} Mil Folhas Papelaria</footer>
       </section>
     </main>
   )
