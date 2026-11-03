@@ -174,12 +174,22 @@ As capturas de desktop e celular usam dados fictícios servidos apenas para conf
 
 **Verificações:** typecheck, lint do módulo, formatação, `git diff --check`, build do frontend e conferência no Chromium em desktop e celular. A largura móvel de 390 px não apresentou rolagem horizontal, e o console não registrou erros. A conferência visual usou respostas GET controladas; endpoints de cadastro, edição, situação e associação recusaram escrita. Portanto, a verificação visual não confirma persistência em banco real. As capturas foram exibidas ao autor durante a revisão, sem serem guardadas como arquivos no repositório. Nenhum teste automatizado foi executado nesta entrega.
 
-## Próxima etapa para revisão: gerenciamento de títulos
+## Sétima entrega: listagem e detalhes de títulos
 
-- **Objetivo:** adequar a listagem de contas a pagar e contas a receber ao padrão visual aprovado, preservando os dados e ações servidos pela API Financeira.
-- **Telas/operações afetadas:** rotas `/despesas` e `/recebimentos`; filtros por pessoa, situação, categoria e período; tabela/lista paginada; visualização de detalhes, parcelas, histórico e liquidações; ações de cancelamento e registro de pagamento/recebimento já existentes.
-- **Frontend:** reorganizar cabeçalho, filtros, resumo da lista, estados de carregamento/erro/vazio, status e ações. Manter os dois tipos acessíveis e adaptar a listagem e os detalhes para celular. O formulário de criação/edição será tratado em uma etapa separada.
-- **Backend:** usar os contratos atuais de despesas e recebimentos, sem alterar regras financeiras. A autorização individual de cada módulo deve continuar aplicada pela API e refletida na navegação/interface.
-- **Decisões e limites:** manter pagamentos e recebimentos parciais e cancelamentos conforme os fluxos atuais; não inventar indicadores, estados ou resultado de persistência. Se a revisão encontrar necessidade de mudar regra ou contrato, registrar a decisão antes de implementar essa parte.
-- **Verificações planejadas:** typecheck, lint, formatação, build e conferência visual em desktop/celular; verificar filtros, paginação, detalhes, estados sem dados/erro e permissões por tipo.
-- **Entrega:** uma etapa coerente com commit local em português usando a identidade configurada. O push do novo commit dependerá de aprovação explícita própria.
+**Objetivo e resultado:** `/despesas` e `/recebimentos` passam a usar o cabeçalho e os cartões do restante do aplicativo. Os dados permanecem ligados às consultas existentes, com filtros por pessoa, status, categoria e vencimento, paginação, saldos em aberto, status e ações por título. A tabela se converte em cartões no celular, mantendo cabeçalhos semânticos para leitores de tela.
+
+**Detalhes e operações:** o painel mantém parcelas, histórico e liquidações retornados pela API. Pagamentos e recebimentos parciais continuam usando as operações atuais e exibem os valores atualizados após a confirmação da API. Cancelamento segue restrito a ADMIN; edição e liquidação continuam disponíveis segundo os estados e permissões já implementados. Uma resposta 403 informa a falta de acesso. O formulário existente de criação/edição não foi reformulado nesta etapa.
+
+**Arquivos principais:** `apps/web/src/titulos/TitulosPage.tsx` e o novo `apps/web/src/titulos/titulos.css`. Não houve mudança nos contratos nem no backend.
+
+**Verificações:** typecheck, lint, formatação, `git diff --check` e build do frontend aprovados. O build mantém avisos de diretivas `use client` da dependência React Router. Não executei testes automatizados. Preparei uma API local temporária só de leitura com dados fictícios, que recusa métodos de escrita, mas a sessão não disponibilizou um navegador para conferir ou capturar o resultado. A prévia local foi iniciada, sem confirmação de que tenha sido aberta ou visualizada. Não foi conectada uma conta real nem confirmada persistência em banco.
+
+## Próxima etapa para revisão: criação e edição de títulos
+
+- **Objetivo:** aplicar a composição visual aprovada aos formulários de cadastro e edição sem alterar os fluxos financeiros existentes.
+- **Telas/operações afetadas:** formulários acessados de `/despesas` e `/recebimentos`; seleção de cliente/fornecedor cadastrado, valor, vencimento, data de lançamento, parcelas, categoria e observações.
+- **Frontend:** reorganizar os campos e os estados de carregamento, erro, validação e confirmação. Preservar a busca de contatos, as categorias reais e a responsividade. Manter os campos bloqueados quando o título já possui liquidação, conforme as regras atuais.
+- **Backend:** reutilizar `POST /despesas`, `POST /recebimentos` e `PATCH /{id}` das respectivas APIs. Não alterar contratos, permissões, parcelamento ou regras que protegem títulos já liquidados.
+- **Decisões e limites:** criação continuará exigindo selecionar um contato ativo; dados de exemplo não podem aparecer como persistidos. Qualquer necessidade de mudança em regra comercial ou financeira será registrada para revisão antes de implementá-la.
+- **Verificações planejadas:** typecheck, lint, formatação, build e conferência visual desktop/celular se um navegador estiver disponível; verificar os estados do formulário e autorização sem enviar operações contra dados reais.
+- **Entrega:** um commit local por etapa, com identidade Shishura e mensagem Conventional Commit em português. Push exige aprovação própria depois da apresentação do hash e do destino.
