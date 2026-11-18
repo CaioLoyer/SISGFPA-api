@@ -33,7 +33,13 @@ vi.mock('@sisgfpa/database', () => ({
   },
 }))
 
-import { abrirCaixa, consultarCaixa, listarMovimentacoes, registrarEstorno } from './caixa.service.js'
+import {
+  abrirCaixa,
+  consultarCaixa,
+  listarMovimentacoes,
+  registrarEstorno,
+  registrarLancamentoAvulso,
+} from './caixa.service.js'
 
 const openedAt = new Date('2026-10-21T12:00:00.000Z')
 
@@ -115,6 +121,135 @@ describe('Caixa Principal', () => {
       statusCode: 409,
     })
     expect(state.caixaUpdate).not.toHaveBeenCalled()
+  })
+
+  it('registra entrada avulsa no Caixa com data civil local, autoria e chave idempotente', async () => {
+    state.caixaFindUnique.mockResolvedValue({ id: 'caixa-1' })
+    state.movimentoFindUnique.mockResolvedValue(null)
+    state.movimentoCreate.mockResolvedValue({
+      id: 'movimento-avulso',
+      caixaId: 'caixa-1',
+      tipo: 'ENTRADA',
+      origem: 'AVULSA',
+      valor: 150,
+      data: new Date('2026-11-18T04:00:00.000Z'),
+      descricao: 'Aporte de capital',
+      estornoDeId: null,
+      registradoPorId: 'admin-1',
+    })
+
+    const result = await registrarLancamentoAvulso(
+      {
+        tipo: 'ENTRADA',
+        valor: 150,
+        data: '2026-11-18',
+        descricao: 'Aporte de capital',
+        idempotencyKey: '00000000-0000-4000-8000-000000000003',
+      },
+      'admin-1'
+    )
+
+    expect(state.queryRaw).toHaveBeenCalledOnce()
+    expect(state.movimentoCreate).toHaveBeenCalledWith({
+      data: {
+        caixaId: 'caixa-1',
+        tipo: 'ENTRADA',
+        origem: 'AVULSA',
+        valor: 150,
+        data: new Date('2026-11-18T04:00:00.000Z'),
+        descricao: 'Aporte de capital',
+        idempotencyKey: '00000000-0000-4000-8000-000000000003',
+        registradoPorId: 'admin-1',
+      },
+    })
+    expect(result).toMatchObject({
+      id: 'movimento-avulso',
+      tipo: 'ENTRADA',
+      origem: 'AVULSA',
+      valor: 150,
+      descricao: 'Aporte de capital',
+      titulo: null,
+      podeEstornar: true,
+    })
+  })
+
+  it('exige que o Caixa Principal esteja configurado antes de lançar entrada ou saída', async () => {
+    state.caixaFindUnique.mockResolvedValue(null)
+
+    await expect(
+      registrarLancamentoAvulso(
+        {
+          tipo: 'SAIDA',
+          valor: 25,
+          data: '2026-11-18',
+          descricao: 'Retirada para troco',
+          idempotencyKey: '00000000-0000-4000-8000-000000000006',
+        },
+        'admin-1'
+      )
+    ).rejects.toMatchObject({ code: 'CAIXA_NAO_CONFIGURADO', statusCode: 409 })
+    expect(state.movimentoCreate).not.toHaveBeenCalled()
+  })
+
+  it('retorna o mesmo lançamento quando a chave e os dados da tentativa são repetidos', async () => {
+    const existente = {
+      id: 'movimento-avulso',
+      caixaId: 'caixa-1',
+      tipo: 'SAIDA',
+      origem: 'AVULSA',
+      valor: 35,
+      data: new Date('2026-11-18T04:00:00.000Z'),
+      descricao: 'Retirada para troco',
+      estornoDeId: null,
+      registradoPorId: 'admin-1',
+      despesaPagamento: null,
+      recebimentoBaixa: null,
+      estornoDe: null,
+      estornos: [],
+    }
+    state.caixaFindUnique.mockResolvedValue({ id: 'caixa-1' })
+    state.movimentoFindUnique.mockResolvedValue(existente)
+
+    const result = await registrarLancamentoAvulso(
+      {
+        tipo: 'SAIDA',
+        valor: 35,
+        data: '2026-11-18',
+        descricao: 'Retirada para troco',
+        idempotencyKey: '00000000-0000-4000-8000-000000000004',
+      },
+      'admin-1'
+    )
+
+    expect(result).toMatchObject({ id: 'movimento-avulso', tipo: 'SAIDA', origem: 'AVULSA' })
+    expect(state.movimentoCreate).not.toHaveBeenCalled()
+  })
+
+  it('recusa reutilizar chave de lançamento avulso com dados diferentes', async () => {
+    state.caixaFindUnique.mockResolvedValue({ id: 'caixa-1' })
+    state.movimentoFindUnique.mockResolvedValue({
+      id: 'movimento-avulso',
+      origem: 'AVULSA',
+      tipo: 'ENTRADA',
+      valor: 150,
+      data: new Date('2026-11-18T04:00:00.000Z'),
+      descricao: 'Aporte de capital',
+      registradoPorId: 'admin-1',
+    })
+
+    await expect(
+      registrarLancamentoAvulso(
+        {
+          tipo: 'ENTRADA',
+          valor: 151,
+          data: '2026-11-18',
+          descricao: 'Aporte de capital',
+          idempotencyKey: '00000000-0000-4000-8000-000000000003',
+        },
+        'admin-1'
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+    expect(state.movimentoCreate).not.toHaveBeenCalled()
   })
 
   it('aplica dias inclusivos no fuso da papelaria ao listar movimentos paginados', async () => {
@@ -252,5 +387,87 @@ describe('Caixa Principal', () => {
       data: expect.objectContaining({ tipo: 'SAIDA', origem: 'ESTORNO', estornoDeId: 'movimento-entrada' }),
     })
     expect(result.titulo).toMatchObject({ pessoa: 'Cliente X', status: 'CANCELADO' })
+  })
+
+  it('corrige lançamento avulso com estorno integral, motivo e vínculo ao original', async () => {
+    state.movimentoFindUnique
+      .mockResolvedValueOnce({
+        id: 'movimento-avulso',
+        caixaId: 'caixa-1',
+        tipo: 'SAIDA',
+        origem: 'AVULSA',
+        valor: 80,
+        descricao: 'Retirada registrada em duplicidade',
+        despesaPagamento: null,
+        recebimentoBaixa: null,
+      })
+      .mockResolvedValueOnce(null)
+    state.movimentoAggregate.mockResolvedValue({ _sum: { valor: 0 } })
+    state.movimentoCreate.mockResolvedValue({
+      id: 'estorno-avulso',
+      tipo: 'ENTRADA',
+      origem: 'ESTORNO',
+      valor: 80,
+      data: openedAt,
+      descricao:
+        'Estorno do lançamento avulso: Retirada registrada em duplicidade. Motivo: Lançamento duplicado',
+    })
+
+    const result = await registrarEstorno(
+      'movimento-avulso',
+      {
+        valor: 80,
+        motivo: 'Lançamento duplicado',
+        idempotencyKey: '00000000-0000-4000-8000-000000000005',
+      },
+      'admin-1'
+    )
+
+    expect(state.movimentoCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tipo: 'ENTRADA',
+        origem: 'ESTORNO',
+        valor: 80,
+        descricao: expect.stringContaining('Motivo: Lançamento duplicado'),
+        estornoDeId: 'movimento-avulso',
+        idempotencyKey: '00000000-0000-4000-8000-000000000005',
+        registradoPorId: 'admin-1',
+      }),
+    })
+    expect(result).toMatchObject({
+      origem: 'ESTORNO',
+      valor: 80,
+      titulo: null,
+      estornoDeId: 'movimento-avulso',
+      saldoEstornavel: 0,
+      podeEstornar: false,
+    })
+  })
+
+  it('não permite correção parcial de um lançamento avulso', async () => {
+    state.movimentoFindUnique.mockResolvedValueOnce({
+      id: 'movimento-avulso',
+      caixaId: 'caixa-1',
+      tipo: 'ENTRADA',
+      origem: 'AVULSA',
+      valor: 100,
+      descricao: 'Entrada lançada incorretamente',
+      despesaPagamento: null,
+      recebimentoBaixa: null,
+    })
+    state.movimentoAggregate.mockResolvedValue({ _sum: { valor: 0 } })
+
+    await expect(
+      registrarEstorno(
+        'movimento-avulso',
+        {
+          valor: 75,
+          motivo: 'Valor incorreto',
+          idempotencyKey: '00000000-0000-4000-8000-000000000011',
+        },
+        'admin-1'
+      )
+    ).rejects.toMatchObject({ code: 'ESTORNO_INVALIDO' })
+    expect(state.movimentoCreate).not.toHaveBeenCalled()
   })
 })

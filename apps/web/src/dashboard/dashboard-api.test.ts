@@ -29,6 +29,29 @@ describe('cliente da dashboard mensal', () => {
       signal,
     })
   })
+  it('aceita lançamentos avulsos entre as movimentações da dashboard', async () => {
+    const body = {
+      ...overview,
+      ultimasMovimentacoes: [
+        {
+          id: '00000000-0000-4000-8000-000000000010',
+          data: '2026-11-18T04:00:00.000Z',
+          descricao: 'Aporte de capital',
+          categoria: 'Lançamento avulso',
+          valor: 150,
+          tipo: 'ENTRADA',
+          origem: 'AVULSA',
+          tituloId: null,
+          tipoTitulo: null,
+        },
+      ],
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(body)))
+
+    await expect(consultarVisaoGeral('2026-11')).resolves.toMatchObject({
+      ultimasMovimentacoes: [{ origem: 'AVULSA', descricao: 'Aporte de capital' }],
+    })
+  })
   it.each([
     { ...overview, mes: '2026-10' },
     { ...overview, serieMensal: [{ mes: '2026-11', entradas: -1, saidas: 100 }] },

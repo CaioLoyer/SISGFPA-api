@@ -29,7 +29,7 @@ export interface DashboardOverview {
     categoria: string | null
     valor: number
     tipo: 'ENTRADA' | 'SAIDA'
-    origem: 'LIQUIDACAO' | 'ESTORNO'
+    origem: 'LIQUIDACAO' | 'ESTORNO' | 'AVULSA'
     tituloId: string | null
     tipoTitulo: 'DESPESA' | 'RECEBIMENTO' | null
   }[]

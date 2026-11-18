@@ -1,19 +1,25 @@
 import { prisma } from '@sisgfpa/database'
 import type { OrigemMovimentacaoCaixa, StatusTitulo, TipoMovimentacaoCaixa } from '@sisgfpa/database'
+import { financialDayStart } from '@sisgfpa/types'
 import { ConflictError, NotFoundError } from '@sisgfpa/http'
 import type {
   AbrirCaixaInput,
   EstornarMovimentacaoInput,
+  LancamentoAvulsoCaixaInput,
   ListCaixaMovimentacoesQuery,
 } from '@sisgfpa/validation'
 
-import { EstornoInvalidoError } from '../../errors.js'
+import { CaixaNaoConfiguradoError, EstornoInvalidoError } from '../../errors.js'
 import { periodoMovimentacao } from '../../domain/periodo.js'
 
 const CODIGO_CAIXA_PRINCIPAL = 'PRINCIPAL'
 
 function numero(valor: unknown) {
   return Number(valor ?? 0)
+}
+
+function centavos(valor: unknown) {
+  return Math.round(numero(valor) * 100)
 }
 
 export async function consultarCaixa() {
@@ -173,9 +179,13 @@ function toMovimentacaoDto(movimentacao: {
   const valorEstornado = movimentacao.estornos.reduce((total, estorno) => total + numero(estorno.valor), 0)
   const titulo = dadosTitulo(movimentacao)
   const saldoEstornavel =
-    movimentacao.origem === 'LIQUIDACAO' && titulo?.status === 'CANCELADO'
-      ? Math.max(0, valor - valorEstornado)
-      : 0
+    movimentacao.origem === 'AVULSA'
+      ? valorEstornado === 0
+        ? valor
+        : 0
+      : movimentacao.origem === 'LIQUIDACAO' && titulo?.status === 'CANCELADO'
+        ? Math.max(0, valor - valorEstornado)
+        : 0
   return {
     id: movimentacao.id,
     tipo: movimentacao.tipo,
@@ -217,6 +227,58 @@ export async function listarMovimentacoes(query: ListCaixaMovimentacoesQuery) {
   return { items: items.map(toMovimentacaoDto), total, page: query.page, pageSize: query.pageSize }
 }
 
+export async function registrarLancamentoAvulso(input: LancamentoAvulsoCaixaInput, usuarioId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM caixa WHERE codigo = 'PRINCIPAL' FOR UPDATE`
+    const caixa = await tx.caixa.findUnique({
+      where: { codigo: CODIGO_CAIXA_PRINCIPAL },
+      select: { id: true },
+    })
+    if (!caixa) throw new CaixaNaoConfiguradoError()
+
+    const existente = await tx.caixaMovimentacao.findUnique({
+      where: { caixaId_idempotencyKey: { caixaId: caixa.id, idempotencyKey: input.idempotencyKey } },
+      include: selectMovimentacao,
+    })
+    if (existente) {
+      const mesmosDados =
+        existente.origem === 'AVULSA' &&
+        existente.tipo === input.tipo &&
+        centavos(existente.valor) === centavos(input.valor) &&
+        existente.data.getTime() === financialDayStart(input.data).getTime() &&
+        existente.descricao === input.descricao &&
+        existente.registradoPorId === usuarioId
+      if (!mesmosDados) {
+        throw new ConflictError(
+          'IDEMPOTENCY_KEY_REUSED',
+          'Esta chave já foi usada com outros dados de movimento'
+        )
+      }
+      return toMovimentacaoDto(existente)
+    }
+
+    const movimento = await tx.caixaMovimentacao.create({
+      data: {
+        caixaId: caixa.id,
+        tipo: input.tipo,
+        origem: 'AVULSA',
+        valor: input.valor,
+        data: financialDayStart(input.data),
+        descricao: input.descricao,
+        idempotencyKey: input.idempotencyKey,
+        registradoPorId: usuarioId,
+      },
+    })
+    return toMovimentacaoDto({
+      ...movimento,
+      despesaPagamento: null,
+      recebimentoBaixa: null,
+      estornoDe: null,
+      estornos: [],
+    })
+  })
+}
+
 export async function registrarEstorno(
   movimentacaoId: string,
   input: EstornarMovimentacaoInput,
@@ -236,15 +298,49 @@ export async function registrarEstorno(
       },
     })
     if (!original) throw new NotFoundError('Movimentação não encontrada')
-    if (original.origem !== 'LIQUIDACAO') {
-      throw new EstornoInvalidoError('Somente uma liquidação original pode receber estorno')
-    }
 
     const despesa = original.despesaPagamento?.despesa
     const recebimento = original.recebimentoBaixa?.recebimento
     const titulo = despesa ?? recebimento
-    if (!titulo || titulo.status !== 'CANCELADO') {
-      throw new EstornoInvalidoError('Só é possível estornar uma liquidação de título cancelado')
+    const descricaoEstornoAvulso = `Estorno do lançamento avulso: ${original.descricao}. Motivo: ${input.motivo ?? ''}`
+    if (input.idempotencyKey) {
+      const repeticao = await tx.caixaMovimentacao.findUnique({
+        where: {
+          caixaId_idempotencyKey: { caixaId: original.caixaId, idempotencyKey: input.idempotencyKey },
+        },
+        include: selectMovimentacao,
+      })
+      if (repeticao) {
+        const mesmosDados =
+          repeticao.origem === 'ESTORNO' &&
+          repeticao.estornoDeId === original.id &&
+          centavos(repeticao.valor) === centavos(input.valor) &&
+          repeticao.registradoPorId === usuarioId &&
+          (original.origem !== 'AVULSA' || repeticao.descricao === descricaoEstornoAvulso)
+        if (!mesmosDados) {
+          throw new ConflictError(
+            'IDEMPOTENCY_KEY_REUSED',
+            'Esta chave já foi usada com outros dados de movimento'
+          )
+        }
+        return toMovimentacaoDto(repeticao)
+      }
+    }
+
+    if (original.origem === 'LIQUIDACAO') {
+      if (!titulo || titulo.status !== 'CANCELADO') {
+        throw new EstornoInvalidoError('Só é possível estornar uma liquidação de título cancelado')
+      }
+    } else if (original.origem === 'AVULSA') {
+      if (!input.motivo || !input.idempotencyKey) {
+        throw new EstornoInvalidoError(
+          'Informe o motivo e a chave da tentativa para corrigir um lançamento avulso'
+        )
+      }
+    } else {
+      throw new EstornoInvalidoError(
+        'Somente liquidações canceladas ou lançamentos avulsos podem receber estorno'
+      )
     }
 
     const anteriores = await tx.caixaMovimentacao.aggregate({
@@ -252,8 +348,13 @@ export async function registrarEstorno(
       _sum: { valor: true },
     })
     const valorJaEstornado = numero(anteriores._sum.valor)
-    const cents = (valor: number) => Math.round(valor * 100)
-    if (cents(valorJaEstornado) + cents(input.valor) > cents(numero(original.valor))) {
+    if (
+      original.origem === 'AVULSA' &&
+      (centavos(valorJaEstornado) > 0 || centavos(input.valor) !== centavos(original.valor))
+    ) {
+      throw new EstornoInvalidoError('Um lançamento avulso deve ser estornado integralmente uma única vez')
+    }
+    if (centavos(valorJaEstornado) + centavos(input.valor) > centavos(original.valor)) {
       throw new EstornoInvalidoError('O valor do estorno excede o saldo da liquidação original')
     }
 
@@ -264,8 +365,12 @@ export async function registrarEstorno(
         origem: 'ESTORNO',
         valor: input.valor,
         data: new Date(),
-        descricao: `Estorno: ${titulo.descricao}`,
+        descricao:
+          original.origem === 'AVULSA'
+            ? descricaoEstornoAvulso
+            : `Estorno: ${titulo?.descricao ?? 'Título cancelado'}`,
         estornoDeId: original.id,
+        ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
         registradoPorId: usuarioId,
       },
     })
@@ -277,16 +382,21 @@ export async function registrarEstorno(
       valor: numero(movimento.valor),
       data: movimento.data.toISOString(),
       descricao: movimento.descricao,
-      titulo: {
-        id: titulo.id,
-        descricao: titulo.descricao,
-        pessoa: despesa ? despesa.fornecedor : (recebimento?.cliente ?? ''),
-        status: titulo.status,
-      },
+      titulo:
+        titulo && original.origem === 'LIQUIDACAO'
+          ? {
+              id: titulo.id,
+              descricao: titulo.descricao,
+              pessoa: despesa ? despesa.fornecedor : (recebimento?.cliente ?? ''),
+              status: titulo.status,
+            }
+          : null,
       estornoDeId: original.id,
       valorEstornado: valorJaEstornado + input.valor,
       saldoEstornavel: Math.max(0, numero(original.valor) - valorJaEstornado - input.valor),
-      podeEstornar: cents(valorJaEstornado) + cents(input.valor) < cents(numero(original.valor)),
+      podeEstornar:
+        original.origem === 'LIQUIDACAO' &&
+        centavos(valorJaEstornado) + centavos(input.valor) < centavos(original.valor),
     }
   })
 }

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { financialDateTime } from '@sisgfpa/types'
 
 import { useSession } from '../auth/session-context'
 import { Icon } from '../shared/Icon'
 import { PageHeader } from '../shared/PageHeader'
 import {
   CaixaApiError,
+  corrigirLancamentoAvulso,
+  criarLancamentoAvulso,
   consultarCaixa,
   estornarMovimentacao,
   informarSaldoInicial,
@@ -41,7 +44,16 @@ export function CaixaPage() {
   const [salvandoAbertura, setSalvandoAbertura] = useState(false)
   const [estornoAbertoId, setEstornoAbertoId] = useState<string | null>(null)
   const [valorEstorno, setValorEstorno] = useState('')
+  const [motivoEstorno, setMotivoEstorno] = useState('')
+  const [chaveEstorno, setChaveEstorno] = useState(() => crypto.randomUUID())
   const [estornando, setEstornando] = useState(false)
+  const [lancamentoAvulsoAberto, setLancamentoAvulsoAberto] = useState(false)
+  const [tipoLancamento, setTipoLancamento] = useState<TipoMovimentacao>('ENTRADA')
+  const [valorLancamento, setValorLancamento] = useState('')
+  const [dataLancamento, setDataLancamento] = useState(() => financialDateTime().slice(0, 10))
+  const [descricaoLancamento, setDescricaoLancamento] = useState('')
+  const [chaveLancamento, setChaveLancamento] = useState(() => crypto.randomUUID())
+  const [salvandoLancamento, setSalvandoLancamento] = useState(false)
   const [atualizacao, setAtualizacao] = useState(0)
 
   const carregar = useCallback(async () => {
@@ -116,24 +128,65 @@ export function CaixaPage() {
       setErro(`Informe um valor positivo de até ${formatarMoeda(movimento.saldoEstornavel)}.`)
       return
     }
-    if (
-      !window.confirm(
-        `Confirma que a devolução de ${formatarMoeda(valor)} já ocorreu e deve ser registrada no Caixa?`
-      )
-    ) {
+    const avulso = movimento.origem === 'AVULSA'
+    const confirmacao = avulso
+      ? `Confirma corrigir este lançamento por um estorno integral de ${formatarMoeda(valor)}? O registro original será preservado.`
+      : `Confirma que a devolução de ${formatarMoeda(valor)} já ocorreu e deve ser registrada no Caixa?`
+    if (!window.confirm(confirmacao)) {
       return
     }
     setEstornando(true)
     setErro('')
     try {
-      await estornarMovimentacao(movimento.id, valor)
+      if (avulso) {
+        await corrigirLancamentoAvulso(movimento.id, valor, motivoEstorno.trim(), chaveEstorno)
+      } else {
+        await estornarMovimentacao(movimento.id, valor)
+      }
       setEstornoAbertoId(null)
       setValorEstorno('')
+      setMotivoEstorno('')
+      setChaveEstorno(crypto.randomUUID())
       setAtualizacao((version) => version + 1)
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível registrar o estorno.')
     } finally {
       setEstornando(false)
+    }
+  }
+
+  async function salvarLancamentoAvulso(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const valor = Number(valorLancamento)
+    if (!Number.isFinite(valor) || valor <= 0) {
+      setErro('Informe um valor maior que zero para o lançamento.')
+      return
+    }
+    const direcao = tipoLancamento === 'ENTRADA' ? 'entrada' : 'saída'
+    if (!window.confirm(`Confirma registrar a ${direcao} de ${formatarMoeda(valor)} no Caixa Principal?`))
+      return
+
+    setSalvandoLancamento(true)
+    setErro('')
+    try {
+      await criarLancamentoAvulso({
+        tipo: tipoLancamento,
+        valor,
+        data: dataLancamento,
+        descricao: descricaoLancamento.trim(),
+        idempotencyKey: chaveLancamento,
+      })
+      setLancamentoAvulsoAberto(false)
+      setTipoLancamento('ENTRADA')
+      setValorLancamento('')
+      setDataLancamento(financialDateTime().slice(0, 10))
+      setDescricaoLancamento('')
+      setChaveLancamento(crypto.randomUUID())
+      setAtualizacao((version) => version + 1)
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível registrar o lançamento.')
+    } finally {
+      setSalvandoLancamento(false)
     }
   }
 
@@ -160,7 +213,7 @@ export function CaixaPage() {
     <section className="cash-page" aria-label="Controle de Caixa">
       <PageHeader
         title="Controle de Caixa"
-        description="Pagamentos e recebimentos liquidados atualizam o Caixa Principal automaticamente."
+        description="Liquidações atualizam o Caixa automaticamente; o ADMIN também registra entradas e saídas avulsas."
       />
       <div className="cash-content">
         {erro && (
@@ -224,25 +277,116 @@ export function CaixaPage() {
               <article className="cash-summary-card cash-summary-in">
                 <span>Entradas</span>
                 <strong>{formatarMoeda(caixa.totalEntradas)}</strong>
-                <small>Baixas e estornos recebidos</small>
+                <small>Baixas, aportes e estornos recebidos</small>
               </article>
               <article className="cash-summary-card cash-summary-out">
                 <span>Saídas</span>
                 <strong>{formatarMoeda(caixa.totalSaidas)}</strong>
-                <small>Pagamentos e devoluções</small>
+                <small>Pagamentos, retiradas e devoluções</small>
               </article>
             </section>
 
             <section className="finance-card cash-movement-card" aria-labelledby="cash-movements-title">
-              <div className="finance-section-heading cash-section-heading">
-                <span className="cash-heading-icon">
-                  <Icon name="book" />
-                </span>
-                <div>
-                  <h2 id="cash-movements-title">Movimentações</h2>
-                  <p>{total} registros. O histórico inclui movimentos de títulos depois cancelados.</p>
+              <div className="cash-movements-heading">
+                <div className="finance-section-heading cash-section-heading">
+                  <span className="cash-heading-icon">
+                    <Icon name="book" />
+                  </span>
+                  <div>
+                    <h2 id="cash-movements-title">Movimentações</h2>
+                    <p>
+                      {total} registros. Liquidações, entradas e saídas avulsas e estornos ficam no histórico.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  className="button button-primary"
+                  disabled={salvandoLancamento}
+                  onClick={() => setLancamentoAvulsoAberto((aberto) => !aberto)}
+                  type="button"
+                >
+                  {lancamentoAvulsoAberto ? 'Fechar lançamento' : 'Novo lançamento'}
+                </button>
               </div>
+
+              {lancamentoAvulsoAberto && (
+                <form className="cash-manual-form" onSubmit={(event) => void salvarLancamentoAvulso(event)}>
+                  <label className="field-label" htmlFor="cash-manual-direction">
+                    Movimento
+                    <select
+                      disabled={salvandoLancamento}
+                      id="cash-manual-direction"
+                      onChange={(event) => {
+                        setTipoLancamento(event.target.value as TipoMovimentacao)
+                        setChaveLancamento(crypto.randomUUID())
+                      }}
+                      value={tipoLancamento}
+                    >
+                      <option value="ENTRADA">Entrada (aporte)</option>
+                      <option value="SAIDA">Saída (retirada)</option>
+                    </select>
+                  </label>
+                  <label className="field-label" htmlFor="cash-manual-value">
+                    Valor (R$)
+                    <input
+                      disabled={salvandoLancamento}
+                      id="cash-manual-value"
+                      min="0.01"
+                      onChange={(event) => {
+                        setValorLancamento(event.target.value)
+                        setChaveLancamento(crypto.randomUUID())
+                      }}
+                      required
+                      step="0.01"
+                      type="number"
+                      value={valorLancamento}
+                    />
+                  </label>
+                  <label className="field-label" htmlFor="cash-manual-date">
+                    Data efetiva
+                    <input
+                      disabled={salvandoLancamento}
+                      id="cash-manual-date"
+                      onChange={(event) => {
+                        setDataLancamento(event.target.value)
+                        setChaveLancamento(crypto.randomUUID())
+                      }}
+                      required
+                      type="date"
+                      value={dataLancamento}
+                    />
+                  </label>
+                  <label className="field-label cash-manual-description" htmlFor="cash-manual-description">
+                    Descrição / justificativa
+                    <input
+                      disabled={salvandoLancamento}
+                      id="cash-manual-description"
+                      maxLength={160}
+                      minLength={3}
+                      onChange={(event) => {
+                        setDescricaoLancamento(event.target.value)
+                        setChaveLancamento(crypto.randomUUID())
+                      }}
+                      placeholder="Ex.: aporte de capital"
+                      required
+                      value={descricaoLancamento}
+                    />
+                  </label>
+                  <div className="cash-manual-actions">
+                    <button
+                      className="button button-secondary"
+                      disabled={salvandoLancamento}
+                      onClick={() => setLancamentoAvulsoAberto(false)}
+                      type="button"
+                    >
+                      Cancelar
+                    </button>
+                    <button className="button button-primary" disabled={salvandoLancamento} type="submit">
+                      {salvandoLancamento ? 'Registrando…' : 'Confirmar lançamento'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               <form className="finance-filters cash-filters" onSubmit={(event) => aplicarFiltros(event)}>
                 <label className="field-label" htmlFor="cash-filter-type">
@@ -298,7 +442,7 @@ export function CaixaPage() {
                       <tr>
                         <th>Data</th>
                         <th>Movimento</th>
-                        <th>Título</th>
+                        <th>Título / descrição</th>
                         <th>Cliente/fornecedor</th>
                         <th>Valor</th>
                         <th>Ação</th>
@@ -312,9 +456,15 @@ export function CaixaPage() {
                             <span className={`cash-direction cash-direction-${movimento.tipo.toLowerCase()}`}>
                               {movimento.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}
                             </span>
-                            {movimento.origem === 'ESTORNO' && <small className="cash-origin">Estorno</small>}
+                            <small className="cash-origin">
+                              {movimento.origem === 'ESTORNO'
+                                ? 'Estorno'
+                                : movimento.origem === 'AVULSA'
+                                  ? 'Avulso'
+                                  : 'Liquidação'}
+                            </small>
                           </td>
-                          <td className="finance-description-cell" data-label="Título">
+                          <td className="finance-description-cell" data-label="Título / descrição">
                             <strong>{movimento.titulo?.descricao ?? movimento.descricao}</strong>
                             {movimento.titulo?.status === 'CANCELADO' && (
                               <span>Título cancelado; movimento preservado</span>
@@ -334,26 +484,59 @@ export function CaixaPage() {
                                   className="cash-refund-form"
                                   onSubmit={(event) => void confirmarEstorno(event, movimento)}
                                 >
-                                  <label className="field-label" htmlFor={`refund-${movimento.id}`}>
-                                    Valor devolvido (até {formatarMoeda(movimento.saldoEstornavel)})
-                                    <input
-                                      autoFocus
-                                      id={`refund-${movimento.id}`}
-                                      max={movimento.saldoEstornavel}
-                                      min="0.01"
-                                      onChange={(event) => setValorEstorno(event.target.value)}
-                                      required
-                                      step="0.01"
-                                      type="number"
-                                      value={valorEstorno}
-                                    />
-                                  </label>
+                                  {movimento.origem === 'AVULSA' ? (
+                                    <>
+                                      <p>
+                                        Estorno integral de {formatarMoeda(movimento.saldoEstornavel)}. O
+                                        original continuará no histórico.
+                                      </p>
+                                      <label
+                                        className="field-label"
+                                        htmlFor={`refund-reason-${movimento.id}`}
+                                      >
+                                        Motivo da correção
+                                        <input
+                                          autoFocus
+                                          id={`refund-reason-${movimento.id}`}
+                                          disabled={estornando}
+                                          maxLength={300}
+                                          minLength={5}
+                                          onChange={(event) => {
+                                            setMotivoEstorno(event.target.value)
+                                            setChaveEstorno(crypto.randomUUID())
+                                          }}
+                                          required
+                                          value={motivoEstorno}
+                                        />
+                                      </label>
+                                    </>
+                                  ) : (
+                                    <label className="field-label" htmlFor={`refund-${movimento.id}`}>
+                                      Valor devolvido (até {formatarMoeda(movimento.saldoEstornavel)})
+                                      <input
+                                        disabled={estornando}
+                                        autoFocus
+                                        id={`refund-${movimento.id}`}
+                                        max={movimento.saldoEstornavel}
+                                        min="0.01"
+                                        onChange={(event) => setValorEstorno(event.target.value)}
+                                        required
+                                        step="0.01"
+                                        type="number"
+                                        value={valorEstorno}
+                                      />
+                                    </label>
+                                  )}
                                   <button
                                     className="button button-primary"
                                     disabled={estornando}
                                     type="submit"
                                   >
-                                    {estornando ? 'Registrando…' : 'Confirmar devolução'}
+                                    {estornando
+                                      ? 'Registrando…'
+                                      : movimento.origem === 'AVULSA'
+                                        ? 'Confirmar estorno'
+                                        : 'Confirmar devolução'}
                                   </button>
                                   <button
                                     className="button button-secondary"
@@ -371,11 +554,15 @@ export function CaixaPage() {
                                   onClick={() => {
                                     setEstornoAbertoId(movimento.id)
                                     setValorEstorno(movimento.saldoEstornavel.toFixed(2))
+                                    setMotivoEstorno('')
+                                    setChaveEstorno(crypto.randomUUID())
                                     setErro('')
                                   }}
                                   type="button"
                                 >
-                                  Registrar devolução
+                                  {movimento.origem === 'AVULSA'
+                                    ? 'Corrigir lançamento'
+                                    : 'Registrar devolução'}
                                 </button>
                               )
                             ) : movimento.origem === 'ESTORNO' ? (

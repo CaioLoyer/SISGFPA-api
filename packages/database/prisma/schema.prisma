@@ -34,8 +34,8 @@ model User {
   permissoesFuncionario FuncionarioPermissao?
   permissoesAlteradas   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAutor")
   historicoPermissoes   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAlvo")
-  papeisAlterados       UsuarioPapelHistorico[] @relation("UsuarioPapelHistoricoAutor")
-  historicoPapeis       UsuarioPapelHistorico[] @relation("UsuarioPapelHistoricoAlvo")
+  papeisAlterados       UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAutor")
+  historicoPapeis       UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAlvo")
 
   // Conversas (Chatbot)
   chats    Chat[]
@@ -171,6 +171,7 @@ enum TipoMovimentacaoCaixa {
 enum OrigemMovimentacaoCaixa {
   LIQUIDACAO
   ESTORNO
+  AVULSA
 }
 
 enum PapelContato {
@@ -431,10 +432,12 @@ model CaixaMovimentacao {
   estornos    CaixaMovimentacao[] @relation("EstornosCaixa")
 
   registradoPorId String
-  registradoPor   User   @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+  registradoPor   User    @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+  idempotencyKey  String?
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 
+  @@unique([caixaId, idempotencyKey])
   @@index([caixaId, data])
   @@index([estornoDeId])
   @@map("caixa_movimentacao")

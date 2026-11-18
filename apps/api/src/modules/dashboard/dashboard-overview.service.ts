@@ -124,7 +124,11 @@ export async function consultarVisaoGeral(
         GROUP BY mes, m.tipo ORDER BY mes, m.tipo
       `),
         tx.$queryRaw<CategoryGroup[]>(Prisma.sql`
-        SELECT COALESCE(cd.nome, cr.nome, 'Sem categoria') AS nome, SUM(m.valor) AS valor
+        SELECT COALESCE(
+          cd.nome,
+          cr.nome,
+          CASE WHEN m.origem = 'AVULSA' THEN 'Lançamentos avulsos' ELSE 'Sem categoria' END
+        ) AS nome, SUM(m.valor) AS valor
         FROM caixa_movimentacao m ${sourceJoins}
         LEFT JOIN categoria cd ON cd.id = d."categoriaId"
         LEFT JOIN categoria cr ON cr.id = r."categoriaId"
@@ -136,7 +140,8 @@ export async function consultarVisaoGeral(
           (Omit<DashboardOverview['ultimasMovimentacoes'][number], 'valor'> & { valor: unknown })[]
         >(Prisma.sql`
           SELECT m.id, to_char(m.data AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS data,
-            m.descricao, m.valor, m.tipo, m.origem, COALESCE(cd.nome, cr.nome) AS categoria,
+            m.descricao, m.valor, m.tipo, m.origem,
+            COALESCE(cd.nome, cr.nome, CASE WHEN m.origem = 'AVULSA' THEN 'Lançamento avulso' END) AS categoria,
             COALESCE(d.id, r.id) AS "tituloId",
             CASE WHEN d.id IS NOT NULL THEN 'DESPESA' WHEN r.id IS NOT NULL THEN 'RECEBIMENTO' END AS "tipoTitulo"
           FROM caixa_movimentacao m ${sourceJoins}

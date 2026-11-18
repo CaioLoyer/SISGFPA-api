@@ -154,6 +154,30 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
         },
       ],
     })
+    await db.caixaMovimentacao.createMany({
+      data: [
+        {
+          caixaId,
+          tipo: 'ENTRADA',
+          origem: 'AVULSA',
+          valor: 30,
+          data: new Date('2026-11-18T12:00:00Z'),
+          descricao: 'Aporte de capital',
+          idempotencyKey: crypto.randomUUID(),
+          registradoPorId: admin.id,
+        },
+        {
+          caixaId,
+          tipo: 'SAIDA',
+          origem: 'AVULSA',
+          valor: 20,
+          data: new Date('2026-11-19T12:00:00Z'),
+          descricao: 'Retirada para despesas menores',
+          idempotencyKey: crypto.randomUUID(),
+          registradoPorId: admin.id,
+        },
+      ],
+    })
     await payment('RECEBIMENTO', 999, '2026-12-01T04:00:00Z')
   })
 
@@ -161,21 +185,22 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
     await db?.$disconnect()
   })
 
-  it('conta baixas parciais, exclui estornos do ticket e inclui cancelados no caixa', async () => {
+  it('inclui lançamentos avulsos no caixa sem alterar o ticket médio', async () => {
     const data = await consult({ mes: '2026-11' }, admin)
     expect(data.indicadores).toEqual({
-      entradas: { valor: 350, variacaoPercentual: 75 },
-      saidas: { valor: 150, variacaoPercentual: 200 },
-      resultado: { valor: 200, variacaoPercentual: 33.3 },
+      entradas: { valor: 380, variacaoPercentual: 90 },
+      saidas: { valor: 170, variacaoPercentual: 240 },
+      resultado: { valor: 210, variacaoPercentual: 40 },
       ticketMedio: { valor: 83.33, variacaoPercentual: -58.3 },
     })
-    expect(data.resumo).toEqual({ saldoAtual: 2359, aPagar: 400, aReceber: 650 })
+    expect(data.resumo).toEqual({ saldoAtual: 2369, aPagar: 400, aReceber: 650 })
     expect(data.serieMensal).toHaveLength(7)
     expect(data.serieMensal[0]).toEqual({ mes: '2026-05', entradas: 0, saidas: 0 })
-    expect(data.serieMensal.at(-1)).toEqual({ mes: '2026-11', entradas: 350, saidas: 150 })
+    expect(data.serieMensal.at(-1)).toEqual({ mes: '2026-11', entradas: 380, saidas: 170 })
     expect(data.saidasPorCategoria).toEqual([
       { nome: 'Material', valor: 100 },
       { nome: 'Vendas', valor: 50 },
+      { nome: 'Lançamentos avulsos', valor: 20 },
     ])
     expect(data.ultimasMovimentacoes).toHaveLength(5)
     expect(data.ultimasMovimentacoes[0]).toMatchObject({
@@ -184,6 +209,7 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
       tipoTitulo: 'DESPESA',
       categoria: 'Material',
     })
+    expect(data.ultimasMovimentacoes.some((item) => item.origem === 'AVULSA')).toBe(true)
     expect(data.ultimasMovimentacoes.every((item) => item.data.startsWith('2026-11'))).toBe(true)
   })
 

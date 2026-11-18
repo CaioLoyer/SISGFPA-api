@@ -1,7 +1,7 @@
 const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
 export type TipoMovimentacao = 'ENTRADA' | 'SAIDA'
-export type OrigemMovimentacao = 'LIQUIDACAO' | 'ESTORNO'
+export type OrigemMovimentacao = 'LIQUIDACAO' | 'ESTORNO' | 'AVULSA'
 export type StatusTituloCaixa = 'PENDENTE' | 'PARCIAL' | 'PAGO' | 'CANCELADO'
 
 export interface CaixaResumo {
@@ -122,7 +122,7 @@ function parseMovimento(value: unknown): MovimentoCaixa {
     !isRecord(value) ||
     typeof value.id !== 'string' ||
     (value.tipo !== 'ENTRADA' && value.tipo !== 'SAIDA') ||
-    (value.origem !== 'LIQUIDACAO' && value.origem !== 'ESTORNO') ||
+    (value.origem !== 'LIQUIDACAO' && value.origem !== 'ESTORNO' && value.origem !== 'AVULSA') ||
     typeof value.valor !== 'number' ||
     typeof value.data !== 'string' ||
     typeof value.descricao !== 'string' ||
@@ -192,6 +192,35 @@ export async function estornarMovimentacao(id: string, valor: number) {
     await request(`${apiBaseUrl}/caixa/movimentacoes/${encodeURIComponent(id)}/estornos`, {
       method: 'POST',
       body: JSON.stringify({ valor }),
+    })
+  )
+}
+
+export async function criarLancamentoAvulso(input: {
+  tipo: TipoMovimentacao
+  valor: number
+  data: string
+  descricao: string
+  idempotencyKey: string
+}) {
+  return parseMovimento(
+    await request(`${apiBaseUrl}/caixa/movimentacoes/avulsas`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  )
+}
+
+export async function corrigirLancamentoAvulso(
+  id: string,
+  valor: number,
+  motivo: string,
+  idempotencyKey: string
+) {
+  return parseMovimento(
+    await request(`${apiBaseUrl}/caixa/movimentacoes/${encodeURIComponent(id)}/estornos`, {
+      method: 'POST',
+      body: JSON.stringify({ valor, motivo, idempotencyKey }),
     })
   )
 }

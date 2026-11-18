@@ -697,7 +697,7 @@ export const DashboardOverviewSchema = z
         categoria: z.string().nullable(),
         valor: z.number().positive(),
         tipo: z.enum(['ENTRADA', 'SAIDA']),
-        origem: z.enum(['LIQUIDACAO', 'ESTORNO']),
+        origem: z.enum(['LIQUIDACAO', 'ESTORNO', 'AVULSA']),
         tituloId: z.uuid().nullable(),
         tipoTitulo: z.enum(['DESPESA', 'RECEBIMENTO']).nullable(),
       })
@@ -730,6 +730,14 @@ export type DashboardOverviewQuery = z.output<typeof DashboardOverviewQuerySchem
 
 // ===================== Caixa =====================
 
+const ValorMovimentacaoCaixaSchema = z
+  .number()
+  .positive()
+  .max(9_999_999_999.99)
+  .refine((valor) => Math.abs(valor * 100 - Math.round(valor * 100)) < 0.000001, {
+    message: 'Use no máximo duas casas decimais',
+  })
+
 export const AbrirCaixaBodySchema = z
   .strictObject({
     saldoInicial: z.number().min(0).meta({ example: 1250.5 }),
@@ -741,15 +749,43 @@ export const AbrirCaixaBodySchema = z
 
 export const EstornarMovimentacaoBodySchema = z
   .strictObject({
-    valor: z.number().positive().meta({ example: 80 }),
+    valor: ValorMovimentacaoCaixaSchema.meta({ example: 80 }),
+    motivo: z.string().trim().min(5).max(300).optional().meta({
+      example: 'Valor digitado incorretamente',
+      description: 'Obrigatório ao corrigir lançamento avulso',
+    }),
+    idempotencyKey: z.uuid().optional().meta({
+      description: 'Obrigatória ao corrigir lançamento avulso; torna a tentativa segura para repetição',
+    }),
   })
   .meta({
-    description: 'Registra uma devolução real, vinculada à liquidação original de um título cancelado.',
+    description:
+      'Registra devolução de liquidação cancelada ou estorno integral e justificado de lançamento avulso.',
     example: { valor: 80 },
   })
 
+export const LancamentoAvulsoCaixaBodySchema = z
+  .strictObject({
+    tipo: z.enum(['ENTRADA', 'SAIDA']).meta({ example: 'ENTRADA' }),
+    valor: ValorMovimentacaoCaixaSchema.meta({ example: 150 }),
+    data: z.iso.date().meta({ example: '2026-11-18', description: 'Data efetiva no fuso da papelaria' }),
+    descricao: z.string().trim().min(3).max(160).meta({ example: 'Aporte de capital' }),
+    idempotencyKey: z.uuid().meta({ example: '00000000-0000-4000-8000-000000000003' }),
+  })
+  .meta({
+    description:
+      'Registra entrada ou saída avulsa no Caixa Principal sem criar título. Somente ADMIN. Use uma chave UUID para repetir com segurança.',
+    example: {
+      tipo: 'ENTRADA',
+      valor: 150,
+      data: '2026-11-18',
+      descricao: 'Aporte de capital',
+      idempotencyKey: '00000000-0000-4000-8000-000000000003',
+    },
+  })
+
 export const CaixaMovimentacaoParamsSchema = z.object({
-  id: z.uuid().meta({ example: EXEMPLOS.despesaId }),
+  id: z.uuid().meta({ example: '00000000-0000-4000-8000-000000000010' }),
 })
 
 export const ListCaixaMovimentacoesQuerySchema = z.object({
@@ -785,7 +821,7 @@ export const CaixaResumoSchema = z.object({
 export const CaixaMovimentacaoSchema = z.object({
   id: z.uuid(),
   tipo: z.enum(['ENTRADA', 'SAIDA']),
-  origem: z.enum(['LIQUIDACAO', 'ESTORNO']),
+  origem: z.enum(['LIQUIDACAO', 'ESTORNO', 'AVULSA']),
   valor: z.number(),
   data: z.iso.datetime(),
   descricao: z.string(),
@@ -827,6 +863,7 @@ export type RelatorioQuery = z.output<typeof RelatorioQuerySchema>
 export type DashboardResumoQuery = z.output<typeof DashboardResumoQuerySchema>
 export type AbrirCaixaInput = z.output<typeof AbrirCaixaBodySchema>
 export type EstornarMovimentacaoInput = z.output<typeof EstornarMovimentacaoBodySchema>
+export type LancamentoAvulsoCaixaInput = z.output<typeof LancamentoAvulsoCaixaBodySchema>
 export type ListCaixaMovimentacoesQuery = z.output<typeof ListCaixaMovimentacoesQuerySchema>
 export type StatusTituloDto = z.infer<typeof StatusTituloSchema>
 export type DespesaDto = z.infer<typeof DespesaSchema>

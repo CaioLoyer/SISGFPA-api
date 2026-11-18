@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { consultarCaixa, estornarMovimentacao, informarSaldoInicial, listarMovimentacoes } from './caixa-api'
+import {
+  consultarCaixa,
+  corrigirLancamentoAvulso,
+  criarLancamentoAvulso,
+  estornarMovimentacao,
+  informarSaldoInicial,
+  listarMovimentacoes,
+} from './caixa-api'
 
 const movement = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -99,6 +106,73 @@ describe('cliente HTTP do Caixa', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe(`http://localhost:8080/caixa/movimentacoes/${movement.id}/estornos`)
     expect(JSON.parse(String(init.body))).toEqual({ valor: 25 })
+  })
+
+  it('cria entrada avulsa sem título e envia a chave idempotente', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      response({
+        ...movement,
+        id: '00000000-0000-4000-8000-000000000007',
+        tipo: 'ENTRADA',
+        origem: 'AVULSA',
+        valor: 150,
+        descricao: 'Aporte de capital',
+        titulo: null,
+        podeEstornar: true,
+        saldoEstornavel: 150,
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await criarLancamentoAvulso({
+      tipo: 'ENTRADA',
+      valor: 150,
+      data: '2026-11-18',
+      descricao: 'Aporte de capital',
+      idempotencyKey: '00000000-0000-4000-8000-000000000008',
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('http://localhost:8080/caixa/movimentacoes/avulsas')
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('origem')
+    expect(body).toEqual({
+      tipo: 'ENTRADA',
+      valor: 150,
+      data: '2026-11-18',
+      descricao: 'Aporte de capital',
+      idempotencyKey: '00000000-0000-4000-8000-000000000008',
+    })
+  })
+
+  it('envia motivo e chave idempotente na correção de lançamento avulso', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      response({
+        ...movement,
+        origem: 'ESTORNO',
+        titulo: null,
+        estornoDeId: movement.id,
+        valorEstornado: 25,
+        saldoEstornavel: 0,
+        podeEstornar: false,
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await corrigirLancamentoAvulso(
+      movement.id,
+      25,
+      'Lançamento duplicado',
+      '00000000-0000-4000-8000-000000000009'
+    )
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(`http://localhost:8080/caixa/movimentacoes/${movement.id}/estornos`)
+    expect(JSON.parse(String(init.body))).toEqual({
+      valor: 25,
+      motivo: 'Lançamento duplicado',
+      idempotencyKey: '00000000-0000-4000-8000-000000000009',
+    })
   })
 
   it('apresenta erro de autorização retornado pela API', async () => {

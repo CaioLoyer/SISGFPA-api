@@ -39,6 +39,72 @@
   border-top: 3px solid #1b7a4b;
 }
 
+.cash-movements-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cash-page .cash-movements-heading .cash-section-heading {
+  min-width: 0;
+  margin: 0;
+}
+
+.cash-movements-heading > .button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 11px;
+}
+
+.cash-manual-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #e2e9e4;
+  border-radius: 9px;
+  background: #f8faf8;
+}
+
+.cash-manual-form .field-label {
+  min-width: 0;
+  gap: 6px;
+  color: #31483a;
+  font-size: 11px;
+}
+
+.cash-manual-form .field-label input,
+.cash-manual-form .field-label select {
+  min-height: 40px;
+  height: 40px;
+  padding: 8px 10px;
+  border-color: #d8dfdb;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.cash-manual-form .cash-manual-description {
+  grid-column: span 2;
+}
+
+.cash-manual-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cash-manual-actions .button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 11px;
+}
+
 .cash-page .finance-section-heading.cash-section-heading {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
@@ -288,6 +354,10 @@
   .cash-page .cash-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .cash-manual-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 800px) {
@@ -349,6 +419,7 @@
   }
 
   .cash-page .cash-table td[data-label='Título'],
+  .cash-page .cash-table td[data-label='Título / descrição'],
   .cash-page .cash-table td[data-label='Ação'] {
     grid-column: 1 / -1;
   }
@@ -406,6 +477,32 @@
 
   .cash-page .cash-opening-form > .button {
     width: 100%;
+  }
+
+  .cash-movements-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cash-movements-heading > .button {
+    width: 100%;
+  }
+
+  .cash-manual-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cash-manual-form .cash-manual-description {
+    grid-column: auto;
+  }
+
+  .cash-manual-actions {
+    align-items: stretch;
+  }
+
+  .cash-manual-actions .button {
+    flex: 1;
   }
 
   .cash-page .finance-pagination {

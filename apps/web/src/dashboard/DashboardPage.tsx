@@ -251,7 +251,11 @@ export function DashboardPage() {
                                 <span
                                   className={`overview-status${item.origem === 'ESTORNO' ? ' overview-status-reversal' : ''}`}
                                 >
-                                  {item.origem === 'ESTORNO' ? 'Estorno' : 'Confirmado'}
+                                  {item.origem === 'ESTORNO'
+                                    ? 'Estorno'
+                                    : item.origem === 'AVULSA'
+                                      ? 'Avulso'
+                                      : 'Confirmado'}
                                 </span>
                               </td>
                             </tr>

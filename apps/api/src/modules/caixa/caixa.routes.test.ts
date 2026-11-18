@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   abrirCaixa: vi.fn(),
   listarMovimentacoes: vi.fn(),
   registrarEstorno: vi.fn(),
+  registrarLancamentoAvulso: vi.fn(),
 }))
 
 vi.mock('@sisgfpa/auth', () => ({
@@ -63,6 +64,19 @@ describe('rotas do Caixa', () => {
       },
     })
     state.listarMovimentacoes.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 })
+    state.registrarLancamentoAvulso.mockResolvedValue({
+      id: '00000000-0000-4000-8000-000000000002',
+      tipo: 'ENTRADA',
+      origem: 'AVULSA',
+      valor: 150,
+      data: '2026-11-18T04:00:00.000Z',
+      descricao: 'Aporte de capital',
+      titulo: null,
+      estornoDeId: null,
+      valorEstornado: 0,
+      saldoEstornavel: 150,
+      podeEstornar: true,
+    })
   })
 
   it('exige ADMIN para consultar e configurar o Caixa', async () => {
@@ -113,6 +127,59 @@ describe('rotas do Caixa', () => {
       { valor: 15 },
       'admin-1'
     )
+  })
+
+  it('permite somente ADMIN criar lançamento avulso com autoria do usuário autenticado', async () => {
+    const body = {
+      tipo: 'ENTRADA',
+      valor: 150,
+      data: '2026-11-18',
+      descricao: 'Aporte de capital',
+      idempotencyKey: '00000000-0000-4000-8000-000000000003',
+    }
+    const funcionario = await app.inject({
+      method: 'POST',
+      url: '/caixa/movimentacoes/avulsas',
+      headers: { 'x-test-role': 'FUNCIONARIO', 'content-type': 'application/json' },
+      payload: body,
+    })
+    const admin = await app.inject({
+      method: 'POST',
+      url: '/caixa/movimentacoes/avulsas',
+      headers: { 'x-test-role': 'ADMIN', 'content-type': 'application/json' },
+      payload: body,
+    })
+
+    expect(funcionario.statusCode).toBe(403)
+    expect(admin.statusCode).toBe(200)
+    expect(admin.json()).toMatchObject({ origem: 'AVULSA', tipo: 'ENTRADA', titulo: null })
+    expect(state.registrarLancamentoAvulso).toHaveBeenCalledExactlyOnceWith(body, 'admin-1')
+  })
+
+  it('recusa origem controlada pelo cliente e valores com mais de duas casas', async () => {
+    const base = {
+      tipo: 'ENTRADA',
+      valor: 25,
+      data: '2026-11-18',
+      descricao: 'Aporte de capital',
+      idempotencyKey: '00000000-0000-4000-8000-000000000003',
+    }
+    const origem = await app.inject({
+      method: 'POST',
+      url: '/caixa/movimentacoes/avulsas',
+      headers: { 'x-test-role': 'ADMIN', 'content-type': 'application/json' },
+      payload: { ...base, origem: 'ESTORNO' },
+    })
+    const casasDecimais = await app.inject({
+      method: 'POST',
+      url: '/caixa/movimentacoes/avulsas',
+      headers: { 'x-test-role': 'ADMIN', 'content-type': 'application/json' },
+      payload: { ...base, valor: 25.005 },
+    })
+
+    expect(origem.statusCode).toBe(400)
+    expect(casasDecimais.statusCode).toBe(400)
+    expect(state.registrarLancamentoAvulso).not.toHaveBeenCalled()
   })
 
   it('rejeita saldo inicial negativo e campos adicionais', async () => {

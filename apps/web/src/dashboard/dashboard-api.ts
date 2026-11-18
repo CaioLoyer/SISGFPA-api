@@ -59,7 +59,7 @@ function isOverview(body: unknown): body is DashboardOverview {
         number(item.valor) &&
         item.valor > 0 &&
         ['ENTRADA', 'SAIDA'].includes(String(item.tipo)) &&
-        ['LIQUIDACAO', 'ESTORNO'].includes(String(item.origem)) &&
+        ['LIQUIDACAO', 'ESTORNO', 'AVULSA'].includes(String(item.origem)) &&
         nullableString(item.tituloId) &&
         (item.tipoTitulo === null || ['DESPESA', 'RECEBIMENTO'].includes(String(item.tipoTitulo)))
     ) &&

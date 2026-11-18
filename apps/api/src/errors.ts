@@ -36,7 +36,7 @@ export class CaixaNaoConfiguradoError extends ConflictError {
   constructor() {
     super(
       'CAIXA_NAO_CONFIGURADO',
-      'O ADMIN precisa informar o saldo inicial do Caixa Principal antes de liquidar títulos'
+      'O ADMIN precisa informar o saldo inicial do Caixa Principal antes de registrar movimentos'
     )
   }
 }

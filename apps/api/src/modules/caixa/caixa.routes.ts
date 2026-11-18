@@ -5,6 +5,7 @@ import {
   CaixaMovimentacaoSchema,
   CaixaResumoSchema,
   EstornarMovimentacaoBodySchema,
+  LancamentoAvulsoCaixaBodySchema,
   ListCaixaMovimentacoesQuerySchema,
   ListCaixaMovimentacoesResponseSchema,
 } from '@sisgfpa/validation'
@@ -26,6 +27,21 @@ export const caixaRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async () => caixa.consultarCaixa()
+  )
+
+  app.post(
+    '/movimentacoes/avulsas',
+    {
+      schema: {
+        tags: ['Caixa'],
+        summary: 'Registrar entrada ou saída avulsa no Caixa Principal (somente ADMIN)',
+        description:
+          'Registra um movimento sem criar título. Repetições com a mesma chave e os mesmos dados retornam o movimento original.',
+        body: LancamentoAvulsoCaixaBodySchema,
+        response: responses({ 200: CaixaMovimentacaoSchema }, 400, 401, 403, 409),
+      },
+    },
+    async (request) => caixa.registrarLancamentoAvulso(request.body, request.user.id)
   )
 
   app.post(
@@ -61,10 +77,10 @@ export const caixaRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         tags: ['Caixa'],
-        summary: 'Registrar devolução real de uma liquidação de título cancelado (somente ADMIN)',
+        summary: 'Estornar liquidação de título cancelado ou corrigir lançamento avulso (somente ADMIN)',
         params: CaixaMovimentacaoParamsSchema,
         body: EstornarMovimentacaoBodySchema,
-        response: responses({ 200: CaixaMovimentacaoSchema }, 400, 401, 403, 404),
+        response: responses({ 200: CaixaMovimentacaoSchema }, 400, 401, 403, 404, 409),
       },
     },
     async (request) => caixa.registrarEstorno(request.params.id, request.body, request.user.id)
