@@ -2,19 +2,12 @@ import { prisma } from '@sisgfpa/database'
 import type { DashboardResumoQuery } from '@sisgfpa/validation'
 
 import { fromCents, toCents } from '../../domain/parcelas.js'
-import { periodoVencimento } from '../../domain/periodo.js'
+import { periodoMovimentacao, periodoVencimento } from '../../domain/periodo.js'
 
 const CODIGO_CAIXA_PRINCIPAL = 'PRINCIPAL'
 
 function centavos(valor: unknown) {
   return toCents(Number(valor ?? 0))
-}
-
-function dataMovimentacao(dataInicio: string, dataFim: string) {
-  return {
-    gte: new Date(`${dataInicio}T00:00:00.000Z`),
-    lte: new Date(`${dataFim}T23:59:59.999Z`),
-  }
 }
 
 export async function consultarResumo(query: DashboardResumoQuery) {
@@ -34,7 +27,7 @@ export async function consultarResumo(query: DashboardResumoQuery) {
   const movimentos = caixa
     ? await prisma.caixaMovimentacao.groupBy({
         by: ['tipo'],
-        where: { caixaId: caixa.id, data: dataMovimentacao(query.dataInicio, query.dataFim) },
+        where: { caixaId: caixa.id, data: periodoMovimentacao(query.dataInicio, query.dataFim) },
         _sum: { valor: true },
       })
     : []

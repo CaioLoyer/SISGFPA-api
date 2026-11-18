@@ -22,7 +22,7 @@ function formatarMoeda(valor: number) {
 }
 
 function formatarData(data: string) {
-  return new Date(data).toLocaleString('pt-BR')
+  return formatarInstante(data)
 }
 
 export function CaixaPage() {
@@ -423,3 +423,4 @@ export function CaixaPage() {
     </section>
   )
 }
+import { formatarInstante } from '../shared/formatters'

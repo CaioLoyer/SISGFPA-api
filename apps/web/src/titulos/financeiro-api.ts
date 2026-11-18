@@ -409,7 +409,7 @@ export async function registrarLiquidacao(
         method: 'POST',
         body: JSON.stringify({
           valor: input.valor,
-          [campoData]: new Date(input.data).toISOString(),
+          [campoData]: financialInstant(input.data).toISOString(),
           idempotencyKey: input.idempotencyKey,
         }),
       }
@@ -417,3 +417,4 @@ export async function registrarLiquidacao(
     tipo
   )
 }
+import { financialInstant } from '@sisgfpa/types'

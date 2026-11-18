@@ -3,6 +3,7 @@ import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { PrismaClient } from './generated/prisma/client.js'
+import { connectionStringWithUtc } from './connection-config.js'
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -11,7 +12,7 @@ if (!connectionString) {
   )
 }
 
-const adapter = new PrismaPg({ connectionString })
+const adapter = new PrismaPg({ connectionString: connectionStringWithUtc(connectionString) })
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 

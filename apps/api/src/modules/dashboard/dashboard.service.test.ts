@@ -64,8 +64,8 @@ describe('resumo do dashboard', () => {
       where: {
         caixaId: 'caixa-principal',
         data: {
-          gte: new Date('2026-10-01T00:00:00.000Z'),
-          lte: new Date('2026-10-31T23:59:59.999Z'),
+          gte: new Date('2026-10-01T04:00:00.000Z'),
+          lt: new Date('2026-11-01T04:00:00.000Z'),
         },
       },
       _sum: { valor: true },

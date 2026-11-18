@@ -117,7 +117,7 @@ describe('Caixa Principal', () => {
     expect(state.caixaUpdate).not.toHaveBeenCalled()
   })
 
-  it('aplica filtros de data inclusivos ao listar movimentos paginados', async () => {
+  it('aplica dias inclusivos no fuso da papelaria ao listar movimentos paginados', async () => {
     state.caixaFindUnique.mockResolvedValue({ id: 'caixa-1' })
     state.movimentoFindMany.mockResolvedValue([])
     state.movimentoCount.mockResolvedValue(0)
@@ -136,8 +136,8 @@ describe('Caixa Principal', () => {
           caixaId: 'caixa-1',
           tipo: 'SAIDA',
           data: {
-            gte: new Date('2026-10-01T00:00:00.000Z'),
-            lte: new Date('2026-10-31T23:59:59.999Z'),
+            gte: new Date('2026-10-01T04:00:00.000Z'),
+            lt: new Date('2026-11-01T04:00:00.000Z'),
           },
         },
         skip: 20,

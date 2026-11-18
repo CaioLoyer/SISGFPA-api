@@ -1,6 +1,7 @@
 import type { AuthenticatedUser } from '@sisgfpa/auth'
 import { prisma, Prisma } from '@sisgfpa/database'
 import type { DashboardMetric, DashboardOverview } from '@sisgfpa/types'
+import { FINANCIAL_TIME_ZONE, financialDayStart } from '@sisgfpa/types'
 import type { DashboardOverviewQuery } from '@sisgfpa/validation'
 
 import { consultarPermissoesFinanceiras } from '../../authorization/financial-permissions.js'
@@ -73,9 +74,11 @@ export async function consultarVisaoGeral(
   }
   if (!financial.despesas && !financial.recebimentos) return result
 
-  const start = monthStart(query.mes)
-  const end = monthStart(query.mes, 1)
-  const seriesStart = monthStart(query.mes, -6)
+  const civilStart = monthStart(query.mes)
+  const civilEnd = monthStart(query.mes, 1)
+  const start = financialDayStart(civilStart.toISOString().slice(0, 10))
+  const end = financialDayStart(civilEnd.toISOString().slice(0, 10))
+  const seriesStart = financialDayStart(monthStart(query.mes, -6).toISOString().slice(0, 10))
 
   return prisma.$transaction(
     async (tx) => {
@@ -83,13 +86,13 @@ export async function consultarVisaoGeral(
         tx.caixa.findUnique({ where: { codigo: 'PRINCIPAL' }, select: { id: true, saldoInicial: true } }),
         financial.despesas
           ? tx.despesa.aggregate({
-              where: { status: { not: 'CANCELADO' }, dataVencimento: { gte: start, lt: end } },
+              where: { status: { not: 'CANCELADO' }, dataVencimento: { gte: civilStart, lt: civilEnd } },
               _sum: { valor: true, valorPago: true },
             })
           : null,
         financial.recebimentos
           ? tx.recebimento.aggregate({
-              where: { status: { not: 'CANCELADO' }, dataVencimento: { gte: start, lt: end } },
+              where: { status: { not: 'CANCELADO' }, dataVencimento: { gte: civilStart, lt: civilEnd } },
               _sum: { valor: true, valorRecebido: true },
             })
           : null,
@@ -106,7 +109,7 @@ export async function consultarVisaoGeral(
       const access = Prisma.sql`(${admin} OR (${financial.despesas} AND d.id IS NOT NULL) OR (${financial.recebimentos} AND r.id IS NOT NULL))`
       const [monthly, categories, latest, balance] = await Promise.all([
         tx.$queryRaw<MonthlyGroup[]>(Prisma.sql`
-        SELECT to_char(m.data AT TIME ZONE 'UTC', 'YYYY-MM') AS mes, m.tipo, SUM(m.valor) AS valor,
+        SELECT to_char(m.data AT TIME ZONE ${FINANCIAL_TIME_ZONE}, 'YYYY-MM') AS mes, m.tipo, SUM(m.valor) AS valor,
           SUM(CASE WHEN m.origem = 'LIQUIDACAO' AND m.tipo = 'ENTRADA' AND rb.id IS NOT NULL
             THEN m.valor ELSE 0 END) AS "ticketTotal",
           COUNT(CASE WHEN m.origem = 'LIQUIDACAO' AND m.tipo = 'ENTRADA' AND rb.id IS NOT NULL

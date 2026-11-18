@@ -49,6 +49,24 @@ function response(body: unknown, status = 200) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('cliente HTTP de despesas e recebimentos', () => {
+  it.each(['DESPESA', 'RECEBIMENTO'] as const)(
+    'envia datetime-local em %s no fuso da papelaria',
+    async (tipo) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          response({ ...tituloDespesa, cliente: 'Cliente', clienteContatoId: null, valorRecebido: 25 })
+        )
+      vi.stubGlobal('fetch', fetchMock)
+      await registrarLiquidacao(tipo, tituloDespesa.id, {
+        valor: 25,
+        data: '2032-03-10T22:00',
+        idempotencyKey: 'operacao',
+      })
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+      expect(body[tipo === 'DESPESA' ? 'pagoEm' : 'recebidoEm']).toBe('2032-03-11T02:00:00.000Z')
+    }
+  )
   it('consulta despesas com os nomes de filtros da API e normaliza fornecedor', async () => {
     const fetchMock = vi
       .fn()

@@ -7,6 +7,7 @@ import {
   DespesaSchema,
   ListDespesasQuerySchema,
   ListDespesasResponseSchema,
+  LiquidacaoHeadersSchema,
   RegistrarPagamentoDespesaBodySchema,
   UpdateDespesaBodySchema,
 } from '@sisgfpa/validation'
@@ -14,6 +15,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 
 import { requireFinancialPermission } from '../../authorization/financial-permissions.js'
 import * as despesas from './despesas.service.js'
+import { chaveLiquidacao } from '../../domain/idempotencia.js'
 
 export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
   app.addHook('onRequest', requireAuth)
@@ -97,12 +99,22 @@ export const despesasRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ['Despesas'],
         summary: 'Registrar pagamento total ou parcial de despesa',
-        description: 'Use a mesma idempotencyKey ao repetir uma tentativa de pagamento.',
+        description:
+          'Use o mesmo UUID em idempotencyKey ou Idempotency-Key ao repetir uma tentativa de pagamento. Se enviar ambos, devem ser iguais.',
+        headers: LiquidacaoHeadersSchema,
         params: DespesaParamsSchema,
         body: RegistrarPagamentoDespesaBodySchema,
         response: responses({ 200: DespesaSchema }, 400, 401, 403, 404, 409),
       },
     },
-    async (request) => despesas.registrarPagamento(request.params.id, request.body, request.user.id)
+    async (request) =>
+      despesas.registrarPagamento(
+        request.params.id,
+        {
+          ...request.body,
+          idempotencyKey: chaveLiquidacao(request.body.idempotencyKey, request.headers['idempotency-key']),
+        },
+        request.user.id
+      )
   )
 }

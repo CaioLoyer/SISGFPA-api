@@ -334,6 +334,12 @@ export const UpdateDespesaBodySchema = z
     },
   })
 
+export const LiquidacaoHeadersSchema = z.looseObject({
+  'idempotency-key': z.uuid().optional().meta({
+    description: 'UUID estável da tentativa. Se informado também no corpo, deve ser igual a idempotencyKey.',
+  }),
+})
+
 export const RegistrarPagamentoDespesaBodySchema = z
   .object({
     valor: z.number().positive().meta({ example: 500 }),

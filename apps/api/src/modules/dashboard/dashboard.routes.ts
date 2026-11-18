@@ -21,7 +21,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['Dashboard'],
         summary: 'Consultar dashboard mensal conforme as permissões da conta',
         description:
-          'Entradas e saídas efetivas por data da movimentação, incluindo estornos. Funcionários veem apenas os módulos liberados; saldo consolidado e relatórios continuam exclusivos de ADMIN. Ticket médio = soma das baixas recebidas / quantidade de baixas do mês, incluindo pagamentos parciais e excluindo estornos. Meses são delimitados em UTC. Pendências consideram o vencimento do título no mês e excluem cancelados.',
+          'Entradas e saídas efetivas por data da movimentação, incluindo estornos. Funcionários veem apenas os módulos liberados; saldo consolidado continua exclusivo de ADMIN. Ticket médio = soma das baixas recebidas / quantidade de baixas do mês, incluindo pagamentos parciais e excluindo estornos. Meses usam America/Campo_Grande; instantes são transportados em UTC. Pendências consideram o vencimento civil do título no mês e excluem cancelados.',
         querystring: DashboardOverviewQuerySchema,
         response: responses({ 200: DashboardOverviewSchema }, 400, 401, 403),
       },

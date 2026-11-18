@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { financialDateTime } from '@sisgfpa/types'
+import { formatarInstante } from '../shared/formatters'
 
 import { listarContatos } from '../contatos/contatos-api'
 import type { Contato } from '../contatos/contatos-api'
@@ -57,15 +59,11 @@ interface FormularioTitulo {
 }
 
 function dataHoje() {
-  const hoje = new Date()
-  const local = new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 10)
+  return financialDateTime().slice(0, 10)
 }
 
 function dataHoraAgora() {
-  const agora = new Date()
-  const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return financialDateTime().slice(0, 16)
 }
 
 function formularioInicial(): FormularioTitulo {
@@ -1169,7 +1167,7 @@ function DetalheTitulo({
                     <li key={liquidacao.id}>
                       <div>
                         <strong>{formatarMoeda(liquidacao.valor)}</strong>
-                        <span>{formatarData(liquidacao.data)}</span>
+                        <span>{formatarInstante(liquidacao.data)}</span>
                       </div>
                       <span>Usuário {liquidacao.registradoPorId}</span>
                     </li>
@@ -1191,9 +1189,7 @@ function DetalheTitulo({
                       <strong>{nomeAcao(evento.acao)}</strong>
                       <span>{evento.detalhes ?? `Usuário ${evento.alteradoPorId}`}</span>
                     </div>
-                    <time dateTime={evento.createdAt}>
-                      {new Date(evento.createdAt).toLocaleString('pt-BR')}
-                    </time>
+                    <time dateTime={evento.createdAt}>{formatarInstante(evento.createdAt)}</time>
                   </li>
                 ))}
               </ul>

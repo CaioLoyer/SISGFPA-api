@@ -126,7 +126,7 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
     await payment('RECEBIMENTO', 10, '2026-04-30T23:59:59.999Z')
     await payment('RECEBIMENTO', 200, '2026-10-15T12:00:00Z')
     await payment('DESPESA', 50, '2026-10-15T12:00:00Z')
-    await payment('RECEBIMENTO', 100, '2026-11-01T00:00:00Z')
+    await payment('RECEBIMENTO', 100, '2026-11-01T04:00:00Z')
     const receipt = await payment('RECEBIMENTO', 50, '2026-11-10T12:00:00Z')
     const expense = await payment('DESPESA', 100, '2026-11-12T12:00:00Z')
     await payment('RECEBIMENTO', 100, '2026-11-13T12:00:00Z', true)
@@ -154,7 +154,7 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
         },
       ],
     })
-    await payment('RECEBIMENTO', 999, '2026-12-01T00:00:00Z')
+    await payment('RECEBIMENTO', 999, '2026-12-01T04:00:00Z')
   })
 
   afterAll(async () => {
@@ -247,5 +247,40 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
     })
     expect(unconfigured.indicadores.entradas.valor).toBeNull()
     await db.caixa.update({ where: { id: caixaId }, data: { codigo: 'PRINCIPAL' } })
+  })
+
+  it('usa o mesmo dia e mês locais no Caixa, resumo e agrupamento mensal', async () => {
+    for (const [data, valor] of [
+      ['2032-04-01T03:59:59.999Z', 25], // 31/03, 23:59:59.999 na papelaria
+      ['2032-04-01T04:00:00.000Z', 99], // 01/04, 00h na papelaria
+    ] as const) {
+      const baixa = await db.recebimentoBaixa.create({
+        data: { recebimentoId: receiptId, valor, recebidoEm: new Date(data), registradoPorId: admin.id },
+      })
+      await db.caixaMovimentacao.create({
+        data: {
+          caixaId,
+          valor,
+          data: new Date(data),
+          tipo: 'ENTRADA',
+          origem: 'LIQUIDACAO',
+          descricao: 'Limite local',
+          registradoPorId: admin.id,
+          recebimentoBaixaId: baixa.id,
+        },
+      })
+    }
+    const march = await consult({ mes: '2032-03' }, admin)
+    const april = await consult({ mes: '2032-04' }, admin)
+    expect(march.indicadores.entradas.valor).toBe(25)
+    expect(march.serieMensal.at(-1)).toEqual({ mes: '2032-03', entradas: 25, saidas: 0 })
+    expect(march.ultimasMovimentacoes[0].data).toBe('2032-04-01T03:59:59.999Z')
+    expect(april.indicadores.entradas.valor).toBe(99)
+    const { listarMovimentacoes } = await import('../caixa/caixa.service.js')
+    const { consultarResumo } = await import('./dashboard.service.js')
+    const range = { dataInicio: '2032-03-31', dataFim: '2032-03-31' }
+    const movements = await listarMovimentacoes({ ...range, page: 1, pageSize: 20 })
+    expect(movements.items.map((item) => item.valor)).toEqual([25])
+    expect((await consultarResumo(range)).caixa.entradas).toBe(25)
   })
 })

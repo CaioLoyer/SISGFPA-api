@@ -228,7 +228,7 @@ export function DashboardPage() {
                                   {new Intl.DateTimeFormat('pt-BR', {
                                     day: '2-digit',
                                     month: '2-digit',
-                                    timeZone: 'UTC',
+                                    timeZone: FINANCIAL_TIME_ZONE,
                                   }).format(new Date(item.data))}
                                 </time>
                               </td>
@@ -308,3 +308,4 @@ export function DashboardPage() {
     </section>
   )
 }
+import { FINANCIAL_TIME_ZONE } from '@sisgfpa/types'

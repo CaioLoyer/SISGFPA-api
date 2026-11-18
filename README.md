@@ -122,3 +122,23 @@ O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo
 - O parser é baseado em regras: frases muito fora dos padrões serão pedidas de novo em vez de adivinhadas.
 - Relatórios agrupam pelo vencimento do título (= 1ª parcela); ainda não filtram por parcela.
 - Exportação PDF/XLSX prevista no README original do Módulo Financeiro não existe (só CSV).
+
+# Datas e repetição de liquidações
+
+Movimentos de Caixa, dashboard e horários de liquidação usam o fuso da papelaria
+`America/Campo_Grande`, mesmo quando o computador do usuário está em outro fuso.
+Instantes continuam armazenados e transportados em UTC; lançamento e vencimento
+dos títulos são datas civis (`AAAA-MM-DD`). Filtros de dia incluem todo o dia local.
+O pool da aplicação fixa a sessão PostgreSQL em UTC, preservando os instantes mesmo
+se o servidor de banco tiver outro fuso padrão; isso não altera registros existentes.
+
+Para repetir um pagamento ou recebimento após falha de rede, reutilize o mesmo UUID
+em `idempotencyKey` no corpo ou no cabeçalho `Idempotency-Key`. Se enviar ambos,
+os valores devem ser iguais. A API deduplica dentro da transação; reutilizar uma
+chave com valor, data ou executor diferentes retorna conflito. Sem chave, cada
+requisição continua sendo uma nova operação.
+
+Testes opcionais de concorrência: use `LIQUIDACAO_TEST_DATABASE_URL` em um banco
+PostgreSQL local, vazio, descartável e migrado chamado `sisgfpa_liquidacao_test`,
+e execute `pnpm --filter api exec vitest run src/domain/liquidacao.integration.test.ts`.
+Eles nunca usam automaticamente o banco de desenvolvimento.

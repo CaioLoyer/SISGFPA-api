@@ -2,6 +2,13 @@
 // Não depende de nenhuma biblioteca.
 
 export type { DashboardMetric, DashboardOverview, DashboardPermissions } from './dashboard.js'
+export {
+  FINANCIAL_TIME_ZONE,
+  financialDateTime,
+  financialInstant,
+  financialDayStart,
+  nextCivilDay,
+} from './financial-time.js'
 
 export const ROLES = ['ADMIN', 'FUNCIONARIO'] as const
 export type Role = (typeof ROLES)[number]

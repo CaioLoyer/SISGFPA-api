@@ -8,19 +8,12 @@ import type {
 } from '@sisgfpa/validation'
 
 import { EstornoInvalidoError } from '../../errors.js'
+import { periodoMovimentacao } from '../../domain/periodo.js'
 
 const CODIGO_CAIXA_PRINCIPAL = 'PRINCIPAL'
 
 function numero(valor: unknown) {
   return Number(valor ?? 0)
-}
-
-function periodoMovimentacao(dataInicio?: string, dataFim?: string) {
-  if (!dataInicio && !dataFim) return undefined
-  return {
-    gte: dataInicio ? new Date(`${dataInicio}T00:00:00.000Z`) : undefined,
-    lte: dataFim ? new Date(`${dataFim}T23:59:59.999Z`) : undefined,
-  }
 }
 
 export async function consultarCaixa() {
