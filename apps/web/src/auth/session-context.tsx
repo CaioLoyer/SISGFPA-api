@@ -56,8 +56,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const version = generation.current
     const request = ++permissionRequest.current
     try {
-      const current = await getCurrentPermissions()
-      if (version === generation.current && request === permissionRequest.current) setPermissions(current)
+      const currentUser = await getCurrentUser()
+      if (version !== generation.current || request !== permissionRequest.current) return
+      if (!currentUser) {
+        setUser(null)
+        setPermissions(null)
+        setStatus('anonymous')
+        return
+      }
+      const currentPermissions = await getCurrentPermissions()
+      if (version === generation.current && request === permissionRequest.current) {
+        setUser(currentUser)
+        setPermissions(currentPermissions)
+        setStatus('authenticated')
+      }
     } catch (error) {
       if (version !== generation.current || request !== permissionRequest.current) return
       setPermissions(null)

@@ -34,6 +34,8 @@ model User {
   permissoesFuncionario FuncionarioPermissao?
   permissoesAlteradas   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAutor")
   historicoPermissoes   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAlvo")
+  papeisAlterados       UsuarioPapelHistorico[] @relation("UsuarioPapelHistoricoAutor")
+  historicoPapeis       UsuarioPapelHistorico[] @relation("UsuarioPapelHistoricoAlvo")
 
   // Conversas (Chatbot)
   chats    Chat[]
@@ -79,6 +81,21 @@ model FuncionarioPermissaoHistorico {
   @@index([funcionarioId, createdAt])
   @@index([alteradoPorId, createdAt])
   @@map("funcionario_permissao_historico")
+}
+
+model UsuarioPapelHistorico {
+  id            String   @id @default(uuid())
+  usuarioId     String
+  usuario       User     @relation("UsuarioPapelHistoricoAlvo", fields: [usuarioId], references: [id], onDelete: Restrict)
+  alteradoPorId String
+  alteradoPor   User     @relation("UsuarioPapelHistoricoAutor", fields: [alteradoPorId], references: [id], onDelete: Restrict)
+  papelAnterior Role
+  papelNovo     Role
+  createdAt     DateTime @default(now()) @db.Timestamptz()
+
+  @@index([usuarioId, createdAt])
+  @@index([alteradoPorId, createdAt])
+  @@map("usuario_papel_historico")
 }
 
 model Session {

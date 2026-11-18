@@ -79,6 +79,41 @@ export const ListFuncionariosResponseSchema = z
   })
   .meta({ example: { items: [] } })
 
+const UsuarioAdministracaoBaseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.email(),
+  createdAt: z.iso.datetime(),
+})
+
+export const UsuarioAdministracaoSchema = z.discriminatedUnion('role', [
+  UsuarioAdministracaoBaseSchema.extend({ role: z.literal('ADMIN') }),
+  UsuarioAdministracaoBaseSchema.extend({
+    role: z.literal('FUNCIONARIO'),
+    permissoes: FuncionarioPermissoesSchema,
+  }),
+])
+
+export const ListUsuariosAdministracaoResponseSchema = z
+  .object({ items: z.array(UsuarioAdministracaoSchema) })
+  .meta({
+    example: {
+      items: [
+        {
+          id: 'usuario-admin-id',
+          name: 'João Souza',
+          email: 'joao.souza@papelariaexemplo.com',
+          createdAt: '2026-10-21T12:00:00.000Z',
+          role: 'ADMIN',
+        },
+      ],
+    },
+  })
+
+export const PromoverFuncionarioResponseSchema = UsuarioAdministracaoBaseSchema.extend({
+  role: z.literal('ADMIN'),
+})
+
 export const FuncionarioPermissoesResponseSchema = z
   .object({
     funcionarioId: z.string(),

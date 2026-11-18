@@ -12,6 +12,7 @@ const testState = vi.hoisted(() => ({
     { despesas: boolean; recebimentos: boolean; comercial: boolean; relatorios: boolean }
   >(),
   permissionHistory: [] as Array<Record<string, unknown>>,
+  roleHistory: [] as Array<Record<string, unknown>>,
 }))
 
 vi.mock('@sisgfpa/auth', async () => {
@@ -34,9 +35,12 @@ vi.mock('@sisgfpa/database', () => {
   const prisma: any = {
     $queryRaw: async () => [],
     user: {
-      findUnique: async ({ where }: { where: { email: string } }) => {
-        const user = testState.users.get(where.email)
-        return user ? { id: user.id, email: where.email } : null
+      findUnique: async ({ where }: { where: { email: string } | { id: string } }) => {
+        if ('email' in where) {
+          const user = testState.users.get(where.email)
+          return user ? { ...user } : null
+        }
+        return [...testState.users.values()].find((user) => user.id === where.id) ?? null
       },
       findMany: async () =>
         [...testState.users.values()]
@@ -53,6 +57,11 @@ vi.mock('@sisgfpa/database', () => {
       },
     },
     funcionarioPermissao: {
+      findMany: async ({ where }: { where: { funcionarioId: { in: string[] } } }) =>
+        where.funcionarioId.in.flatMap((funcionarioId) => {
+          const permissoes = testState.permissions.get(funcionarioId)
+          return permissoes ? [{ funcionarioId, ...permissoes }] : []
+        }),
       findUnique: async ({ where }: { where: { funcionarioId: string } }) =>
         testState.permissions.get(where.funcionarioId) ?? null,
       upsert: async ({ where, create, update }: any) => {
@@ -64,6 +73,12 @@ vi.mock('@sisgfpa/database', () => {
     funcionarioPermissaoHistorico: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         testState.permissionHistory.push(data)
+        return data
+      },
+    },
+    usuarioPapelHistorico: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        testState.roleHistory.push(data)
         return data
       },
     },
@@ -86,6 +101,7 @@ describe('criação administrativa de contas', () => {
   let unauthenticatedCreateResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let publicSignupResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let genericAdminResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let genericSetRoleResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let funcionarioCreateResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let adminRoleInjectionResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let adminSessionAfterCreation: Awaited<ReturnType<FastifyInstance['inject']>>
@@ -101,6 +117,17 @@ describe('criação administrativa de contas', () => {
   let recebimentosNegadoResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let cancelamentoNegadoResult: Awaited<ReturnType<FastifyInstance['inject']>>
   let relatorioNegadoResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let adminId = ''
+  let promotionFuncionarioId = ''
+  let promotionFuncionarioCookie = ''
+  let noSessionPromotionResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let funcionarioPromotionResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let selfPromotionResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let promotionResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let promotedSessionResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let promotedPermissionsResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let adminAccountsResult: Awaited<ReturnType<FastifyInstance['inject']>>
+  let funcionarioAccountsDeniedResult: Awaited<ReturnType<FastifyInstance['inject']>>
 
   beforeAll(async () => {
     const [{ getTestInstance }, { openAPI }, { createSisgfpaAdminPlugin, emailAndPasswordOptions }] =
@@ -124,6 +151,7 @@ describe('criação administrativa de contas', () => {
     testState.users.clear()
     testState.permissions.clear()
     testState.permissionHistory.length = 0
+    testState.roleHistory.length = 0
 
     const { createApp } = await import('@sisgfpa/http')
     const [
@@ -182,6 +210,22 @@ describe('criação administrativa de contas', () => {
       role: 'FUNCIONARIO',
       createdAt: new Date(),
     })
+    const promotionFuncionario = await instance.auth.api.createUser({
+      body: {
+        name: 'Funcionário para promoção',
+        email: 'promocao@regression.test',
+        password,
+        role: 'FUNCIONARIO',
+      },
+    })
+    promotionFuncionarioId = promotionFuncionario.user.id
+    testState.users.set(promotionFuncionario.user.email, {
+      id: promotionFuncionario.user.id,
+      name: promotionFuncionario.user.name,
+      email: promotionFuncionario.user.email,
+      role: 'FUNCIONARIO',
+      createdAt: new Date(),
+    })
 
     const login = async (email: string) =>
       app.inject({
@@ -199,6 +243,8 @@ describe('criação administrativa de contas', () => {
 
     adminCookie = responseCookie(await login(adminEmail))
     funcionarioCookie = responseCookie(await login(existingFuncionarioEmail))
+    promotionFuncionarioCookie = responseCookie(await login('promocao@regression.test'))
+    adminId = admin.user.id
     expect(adminCookie).not.toBe('')
     expect(funcionarioCookie).not.toBe('')
 
@@ -214,6 +260,12 @@ describe('criação administrativa de contas', () => {
       url: '/api/auth/admin/create-user',
       headers: { host: 'localhost:8080', origin, cookie: adminCookie, 'content-type': 'application/json' },
       payload: { name: 'Outro Admin', email: 'outro-admin@regression.test', password, role: 'ADMIN' },
+    })
+    genericSetRoleResult = await app.inject({
+      method: 'POST',
+      url: '/api/auth/admin/set-role',
+      headers: { host: 'localhost:8080', origin, cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { userId: funcionario.user.id, role: 'ADMIN' },
     })
 
     unauthenticatedCreateResult = await app.inject({
@@ -328,6 +380,47 @@ describe('criação administrativa de contas', () => {
       url: '/relatorios/contas-a-pagar',
       headers: { cookie: funcionarioCookie },
     })
+
+    noSessionPromotionResult = await app.inject({
+      method: 'POST',
+      url: `/usuarios/funcionarios/${promotionFuncionarioId}/promover`,
+    })
+    funcionarioPromotionResult = await app.inject({
+      method: 'POST',
+      url: `/usuarios/funcionarios/${promotionFuncionarioId}/promover`,
+      headers: { cookie: funcionarioCookie },
+    })
+    selfPromotionResult = await app.inject({
+      method: 'POST',
+      url: `/usuarios/funcionarios/${adminId}/promover`,
+      headers: { cookie: adminCookie },
+    })
+    promotionResult = await app.inject({
+      method: 'POST',
+      url: `/usuarios/funcionarios/${promotionFuncionarioId}/promover`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { role: 'FUNCIONARIO' },
+    })
+    promotedSessionResult = await app.inject({
+      method: 'GET',
+      url: '/api/auth/get-session',
+      headers: { host: 'localhost:8080', origin, cookie: promotionFuncionarioCookie },
+    })
+    promotedPermissionsResult = await app.inject({
+      method: 'GET',
+      url: '/usuarios/me/permissoes',
+      headers: { cookie: promotionFuncionarioCookie },
+    })
+    adminAccountsResult = await app.inject({
+      method: 'GET',
+      url: '/usuarios/contas',
+      headers: { cookie: adminCookie },
+    })
+    funcionarioAccountsDeniedResult = await app.inject({
+      method: 'GET',
+      url: '/usuarios/contas',
+      headers: { cookie: funcionarioCookie },
+    })
   }, 30_000)
 
   afterAll(async () => {
@@ -337,6 +430,7 @@ describe('criação administrativa de contas', () => {
   it('nega cadastro público e não expõe o create-user genérico do plugin', () => {
     expect(publicSignupResult.statusCode).toBeGreaterThanOrEqual(400)
     expect(genericAdminResult.statusCode).toBe(404)
+    expect(genericSetRoleResult.statusCode).toBe(404)
   })
 
   it('impede FUNCIONARIO de criar contas', () => {
@@ -415,5 +509,43 @@ describe('criação administrativa de contas', () => {
   it('mantém cancelamento exclusivo de ADMIN e relatórios negados sem permissão', () => {
     expect(cancelamentoNegadoResult.statusCode).toBe(403)
     expect(relatorioNegadoResult.statusCode).toBe(403)
+  })
+
+  it('promove somente outro FUNCIONARIO por ADMIN e registra a mudança de papel', () => {
+    expect(noSessionPromotionResult.statusCode).toBe(401)
+    expect(funcionarioPromotionResult.statusCode).toBe(403)
+    expect(selfPromotionResult.statusCode).toBe(400)
+    expect(promotionResult.statusCode).toBe(200)
+    expect(promotionResult.json()).toMatchObject({
+      id: promotionFuncionarioId,
+      email: 'promocao@regression.test',
+      role: 'ADMIN',
+    })
+    expect(promotionResult.headers['set-cookie']).toBeUndefined()
+    expect(promotedSessionResult.json().user).toMatchObject({
+      id: promotionFuncionarioId,
+      role: 'ADMIN',
+    })
+    expect(promotedPermissionsResult.json()).toEqual({
+      comercial: true,
+      despesas: true,
+      recebimentos: true,
+      relatorios: true,
+      caixa: true,
+      administracao: true,
+    })
+    expect(adminAccountsResult.statusCode).toBe(200)
+    expect(adminAccountsResult.json().items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: promotionFuncionarioId, role: 'ADMIN' })])
+    )
+    expect(funcionarioAccountsDeniedResult.statusCode).toBe(403)
+    expect(testState.roleHistory).toEqual([
+      expect.objectContaining({
+        usuarioId: promotionFuncionarioId,
+        alteradoPorId: adminId,
+        papelAnterior: 'FUNCIONARIO',
+        papelNovo: 'ADMIN',
+      }),
+    ])
   })
 })

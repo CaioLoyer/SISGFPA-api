@@ -85,10 +85,12 @@ const ESPERADOS_API = [
   'POST /api/auth/email-otp/request-password-reset',
   'POST /api/auth/email-otp/reset-password',
   'GET /usuarios/funcionarios',
+  'GET /usuarios/contas',
   'GET /usuarios/me/permissoes',
   'GET /contatos/opcoes',
   'POST /usuarios/funcionarios',
   'PATCH /usuarios/funcionarios/{id}/permissoes',
+  'POST /usuarios/funcionarios/{id}/promover',
   'GET /categorias/',
   'GET /contatos/',
   'POST /contatos/',
@@ -717,6 +719,33 @@ async function main() {
     assert.equal(out.status, 200, out.text)
     assert.equal((await http(API, s, 'GET', '/despesas')).status, 401)
     assert.equal((await http(BOT, s, 'GET', '/chats')).status, 401)
+  })
+
+  await step('ADMIN promove FUNCIONARIO; sessão existente e listagem refletem o novo papel', async () => {
+    const email = `promovido-${Date.now()}@docs-check.test`
+    const created = await http(API, admin, 'POST', '/usuarios/funcionarios', {
+      ...api.body('POST', '/usuarios/funcionarios'),
+      name: 'Usuário promovido',
+      email,
+    })
+    assert.equal(created.status, 201, created.text)
+    const promotedSession = await login({ email, password: 'senha12345' })
+    assert.equal(
+      (await http(API, promotedSession, 'GET', '/api/auth/get-session')).body.user.role,
+      'FUNCIONARIO'
+    )
+    assert.equal(
+      (await http(API, func, 'POST', `/usuarios/funcionarios/${created.body.id}/promover`)).status,
+      403
+    )
+
+    const promoted = await http(API, admin, 'POST', `/usuarios/funcionarios/${created.body.id}/promover`)
+    assert.equal(promoted.status, 200, promoted.text)
+    assert.equal(promoted.body.role, 'ADMIN')
+    assert.equal((await http(API, promotedSession, 'GET', '/api/auth/get-session')).body.user.role, 'ADMIN')
+    const accounts = await http(API, admin, 'GET', '/usuarios/contas')
+    assert.equal(accounts.status, 200, accounts.text)
+    assert.ok(accounts.body.items.some((user: Json) => user.id === created.body.id && user.role === 'ADMIN'))
   })
 
   console.log(`\n${passedCount()} verificações OK`)

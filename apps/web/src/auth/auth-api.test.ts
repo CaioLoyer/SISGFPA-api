@@ -6,7 +6,9 @@ import {
   createFuncionario,
   getCurrentUser,
   getCurrentPermissions,
+  listUsuariosAdministracao,
   listFuncionarios,
+  promoverFuncionario,
   requestPasswordRecoveryCode,
   resetPasswordWithCode,
   signIn,
@@ -284,5 +286,59 @@ describe('permissões efetivas da própria sessão', () => {
   it('recusa respostas incompletas em vez de presumir acesso', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ despesas: true }))))
     await expect(getCurrentPermissions()).rejects.toThrow('permissões em formato inválido')
+  })
+})
+
+describe('gestão de papéis na área ADMIN', () => {
+  it('carrega funcionários e administradores sem presumir papel para registros inválidos', async () => {
+    const accounts = [
+      {
+        id: 'admin-1',
+        name: 'Admin',
+        email: 'admin@example.com',
+        createdAt: '2032-03-01T12:00:00.000Z',
+        role: 'ADMIN',
+      },
+      {
+        id: 'func-1',
+        name: 'Funcionário',
+        email: 'func@example.com',
+        createdAt: '2032-03-02T12:00:00.000Z',
+        role: 'FUNCIONARIO',
+        permissoes: { comercial: true, despesas: true, recebimentos: false, relatorios: false },
+      },
+    ]
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: accounts })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listUsuariosAdministracao()).resolves.toEqual(accounts)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/usuarios/contas',
+      expect.objectContaining({ credentials: 'include' })
+    )
+  })
+
+  it('confirma a promoção pelo endpoint próprio e exige resposta com papel ADMIN', async () => {
+    const promoted = {
+      id: 'func-1',
+      name: 'Funcionário',
+      email: 'func@example.com',
+      createdAt: '2032-03-02T12:00:00.000Z',
+      role: 'ADMIN',
+    }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(promoted)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(promoverFuncionario('func-1')).resolves.toEqual(promoted)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/usuarios/funcionarios/func-1/promover',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...promoted, role: 'FUNCIONARIO' })))
+    )
+    await expect(promoverFuncionario('func-1')).rejects.toThrow('não confirmou a promoção')
   })
 })

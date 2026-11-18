@@ -336,6 +336,51 @@ async function main() {
     )
   })
 
+  await step('ADMIN promove um funcionário e a conta conserva a sessão com papel atualizado', async () => {
+    const email = `promovido-${run}@e2e.test`
+    const created = await http(API, admin, 'POST', '/usuarios/funcionarios', {
+      name: 'Promovido E2E',
+      email,
+      password: 'senha12345',
+    })
+    assert.equal(created.status, 201, JSON.stringify(created.body))
+    const promotedSession = await signIn(email)
+    const before = await http(API, promotedSession, 'GET', '/api/auth/get-session')
+    assert.equal(before.body.user.role, 'FUNCIONARIO')
+    assert.equal(
+      (await http(API, func, 'POST', `/usuarios/funcionarios/${created.body.id}/promover`)).status,
+      403
+    )
+
+    const promoted = await http(API, admin, 'POST', `/usuarios/funcionarios/${created.body.id}/promover`)
+    assert.equal(promoted.status, 200, JSON.stringify(promoted.body))
+    assert.equal(promoted.body.role, 'ADMIN')
+    const after = await http(API, promotedSession, 'GET', '/api/auth/get-session')
+    assert.equal(after.body.user.role, 'ADMIN')
+    assert.deepEqual((await http(API, promotedSession, 'GET', '/usuarios/me/permissoes')).body, {
+      comercial: true,
+      despesas: true,
+      recebimentos: true,
+      relatorios: true,
+      caixa: true,
+      administracao: true,
+    })
+    const accounts = await http(API, admin, 'GET', '/usuarios/contas')
+    assert.equal(accounts.status, 200, accounts.text)
+    assert.ok(
+      accounts.body.items.some((item: Json) => item.id === created.body.id && item.role === 'ADMIN'),
+      'a conta promovida deve continuar visível na listagem da Administração'
+    )
+    const audit = await prisma.usuarioPapelHistorico.findFirst({
+      where: {
+        usuarioId: created.body.id,
+        alteradoPorId: (await http(API, admin, 'GET', '/api/auth/get-session')).body.user.id,
+      },
+    })
+    assert.equal(audit?.papelAnterior, 'FUNCIONARIO')
+    assert.equal(audit?.papelNovo, 'ADMIN')
+  })
+
   console.log(`\n${passedCount()} cenários OK`)
   await prisma.$disconnect()
 }

@@ -212,6 +212,14 @@
   font-size: 9px;
   white-space: nowrap;
 }
+.admin-role-pill-admin {
+  color: #fff;
+  background: #165b37;
+}
+.admin-account-access {
+  color: #21643b;
+  font-weight: 600;
+}
 .admin-switch {
   position: relative;
   display: inline-grid;
@@ -268,6 +276,23 @@
   min-height: 30px;
   padding: 0 10px;
   font-size: 10px;
+}
+.admin-promotion-confirm {
+  display: grid;
+  width: 180px;
+  gap: 6px;
+  justify-items: stretch;
+  padding: 9px;
+  border: 1px solid #d7e5da;
+  border-radius: 8px;
+  background: #f5faf6;
+  text-align: left;
+}
+.admin-promotion-confirm p {
+  margin: 0 0 2px;
+  color: #315640;
+  font-size: 10px;
+  line-height: 1.45;
 }
 .admin-saved {
   color: #21643b;
@@ -376,6 +401,9 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+  .admin-promotion-confirm {
+    width: min(100%, 240px);
   }
   .admin-save-button {
     min-height: 34px;

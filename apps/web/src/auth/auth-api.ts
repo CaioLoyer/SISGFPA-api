@@ -28,6 +28,21 @@ export interface FuncionarioAdmin {
   permissoes: FuncionarioPermissoes
 }
 
+interface UsuarioAdministracaoBase {
+  id: string
+  name: string
+  email: string
+  createdAt: string
+}
+
+export type UsuarioAdministracao =
+  | (UsuarioAdministracaoBase & { role: 'ADMIN' })
+  | (UsuarioAdministracaoBase & { role: 'FUNCIONARIO'; permissoes: FuncionarioPermissoes })
+
+export interface PromotedAdmin extends UsuarioAdministracaoBase {
+  role: 'ADMIN'
+}
+
 export class AuthApiError extends Error {
   constructor(
     message: string,
@@ -259,6 +274,61 @@ export async function listFuncionarios(): Promise<FuncionarioAdmin[]> {
     throw new AuthApiError('A API Financeira retornou a lista de funcionários em formato inválido.')
   }
   return body.items
+}
+
+function isUsuarioAdministracao(value: unknown): value is UsuarioAdministracao {
+  if (typeof value !== 'object' || value === null) return false
+  if (!('id' in value && 'name' in value && 'email' in value && 'createdAt' in value && 'role' in value))
+    return false
+  if (
+    typeof value.id !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.email !== 'string' ||
+    typeof value.createdAt !== 'string'
+  )
+    return false
+  if (value.role === 'ADMIN') return true
+  return value.role === 'FUNCIONARIO' && 'permissoes' in value && isModulePermissions(value.permissoes)
+}
+
+export async function listUsuariosAdministracao(): Promise<UsuarioAdministracao[]> {
+  const body = await request(`${apiBaseUrl}/usuarios/contas`)
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('items' in body) ||
+    !Array.isArray(body.items) ||
+    !body.items.every(isUsuarioAdministracao)
+  ) {
+    throw new AuthApiError('A API Financeira retornou a lista de contas em formato inválido.')
+  }
+  return body.items
+}
+
+export async function promoverFuncionario(funcionarioId: string): Promise<PromotedAdmin> {
+  const body = await request(
+    `${apiBaseUrl}/usuarios/funcionarios/${encodeURIComponent(funcionarioId)}/promover`,
+    { method: 'POST' }
+  )
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('id' in body && 'name' in body && 'email' in body && 'createdAt' in body && 'role' in body) ||
+    typeof body.id !== 'string' ||
+    typeof body.name !== 'string' ||
+    typeof body.email !== 'string' ||
+    typeof body.createdAt !== 'string' ||
+    body.role !== 'ADMIN'
+  ) {
+    throw new AuthApiError('A API Financeira não confirmou a promoção para ADMIN.')
+  }
+  return {
+    id: body.id,
+    name: body.name,
+    email: body.email,
+    createdAt: body.createdAt,
+    role: 'ADMIN',
+  }
 }
 
 export async function updateFuncionarioPermissoes(

@@ -3,8 +3,13 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { canAccessAdmin } from '../auth/protected-route'
-import { createFuncionario, listFuncionarios, updateFuncionarioPermissoes } from '../auth/auth-api'
-import type { FuncionarioAdmin, FuncionarioPermissoes } from '../auth/auth-api'
+import {
+  createFuncionario,
+  listUsuariosAdministracao,
+  promoverFuncionario,
+  updateFuncionarioPermissoes,
+} from '../auth/auth-api'
+import type { FuncionarioPermissoes, UsuarioAdministracao } from '../auth/auth-api'
 import { useSession } from '../auth/session-context'
 import { Icon } from '../shared/Icon'
 import { PageHeader } from '../shared/PageHeader'
@@ -59,7 +64,7 @@ export function AdminPage() {
     <section className="admin-page">
       <PageHeader
         title="Painel de Administração"
-        description="Cadastre funcionários e gerencie o acesso às áreas financeiras."
+        description="Cadastre funcionários, gerencie permissões e conceda acesso administrativo."
       />
       <div className="admin-content">
         <div className="admin-grid">
@@ -139,27 +144,29 @@ export function AdminPage() {
 }
 
 function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
-  const [funcionarios, setFuncionarios] = useState<FuncionarioAdmin[]>([])
+  const [usuarios, setUsuarios] = useState<UsuarioAdministracao[]>([])
   const [loading, setLoading] = useState(true)
   const [retryVersion, setRetryVersion] = useState(0)
   const [loadError, setLoadError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [savedId, setSavedId] = useState('')
   const [savingId, setSavingId] = useState('')
+  const [promotionTargetId, setPromotionTargetId] = useState('')
+  const [promotingId, setPromotingId] = useState('')
+  const [promotionError, setPromotionError] = useState('')
+  const [promotedId, setPromotedId] = useState('')
 
   useEffect(() => {
     let active = true
     setLoading(true)
     setLoadError('')
-    void listFuncionarios()
+    void listUsuariosAdministracao()
       .then((items) => {
-        if (active) setFuncionarios(items)
+        if (active) setUsuarios(items)
       })
       .catch((caught: unknown) => {
         if (active)
-          setLoadError(
-            caught instanceof Error ? caught.message : 'Não foi possível carregar os funcionários.'
-          )
+          setLoadError(caught instanceof Error ? caught.message : 'Não foi possível carregar as contas.')
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -170,25 +177,24 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
     }
   }, [refreshKey, retryVersion])
 
-  function changePermission(funcionarioId: string, key: keyof FuncionarioPermissoes, enabled: boolean) {
-    setFuncionarios((current) =>
-      current.map((funcionario) =>
-        funcionario.id === funcionarioId
-          ? { ...funcionario, permissoes: { ...funcionario.permissoes, [key]: enabled } }
-          : funcionario
-      )
+  function changePermission(usuarioId: string, key: keyof FuncionarioPermissoes, enabled: boolean) {
+    setUsuarios((current) =>
+      current.map((usuario) => {
+        if (usuario.id !== usuarioId || usuario.role !== 'FUNCIONARIO') return usuario
+        return { ...usuario, permissoes: { ...usuario.permissoes, [key]: enabled } }
+      })
     )
     setSavedId('')
     setSaveError('')
   }
 
-  async function savePermissions(funcionario: FuncionarioAdmin) {
+  async function savePermissions(funcionario: Extract<UsuarioAdministracao, { role: 'FUNCIONARIO' }>) {
     setSavingId(funcionario.id)
     setSaveError('')
     setSavedId('')
     try {
       const permissoes = await updateFuncionarioPermissoes(funcionario.id, funcionario.permissoes)
-      setFuncionarios((current) =>
+      setUsuarios((current) =>
         current.map((item) => (item.id === funcionario.id ? { ...item, permissoes } : item))
       )
       setSavedId(funcionario.id)
@@ -196,6 +202,22 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
       setSaveError(caught instanceof Error ? caught.message : 'Não foi possível salvar as permissões.')
     } finally {
       setSavingId('')
+    }
+  }
+
+  async function confirmPromotion(funcionario: Extract<UsuarioAdministracao, { role: 'FUNCIONARIO' }>) {
+    setPromotingId(funcionario.id)
+    setPromotionError('')
+    setPromotedId('')
+    try {
+      const promoted = await promoverFuncionario(funcionario.id)
+      setUsuarios((current) => current.map((item) => (item.id === funcionario.id ? promoted : item)))
+      setPromotionTargetId('')
+      setPromotedId(funcionario.id)
+    } catch (caught) {
+      setPromotionError(caught instanceof Error ? caught.message : 'Não foi possível promover o funcionário.')
+    } finally {
+      setPromotingId('')
     }
   }
 
@@ -210,8 +232,8 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
           <Icon name="settings" />
         </span>
         <div>
-          <h2 id="employee-permissions-title">Funcionários e permissões</h2>
-          <p>O acesso é definido por funcionário para Comercial, Financeiro e Relatórios.</p>
+          <h2 id="employee-permissions-title">Contas da equipe e permissões</h2>
+          <p>Gerencie acessos de funcionários e consulte as contas ADMIN.</p>
         </div>
       </header>
       {loadError && (
@@ -227,19 +249,24 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
           {saveError}
         </p>
       )}
+      {promotionError && (
+        <p className="admin-alert admin-alert-error" role="alert">
+          {promotionError}
+        </p>
+      )}
       {loading ? (
         <p className="admin-list-state" role="status">
           <span className="spinner" aria-hidden="true" />
-          Carregando funcionários…
+          Carregando contas…
         </p>
-      ) : loadError ? null : funcionarios.length === 0 ? (
-        <p className="admin-list-state">Ainda não há funcionários cadastrados.</p>
+      ) : loadError ? null : usuarios.length === 0 ? (
+        <p className="admin-list-state">Ainda não há contas cadastradas.</p>
       ) : (
         <div className="admin-table-scroll">
           <table className="admin-employee-table">
             <thead>
               <tr>
-                <th scope="col">Funcionário</th>
+                <th scope="col">Usuário</th>
                 {['Comercial', 'Financeiro', 'Contas a pagar', 'Contas a receber', 'Relatórios'].map(
                   (label) => (
                     <th scope="col" key={label}>
@@ -253,12 +280,12 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
               </tr>
             </thead>
             <tbody>
-              {funcionarios.map((funcionario) => (
-                <tr key={funcionario.id}>
+              {usuarios.map((usuario) => (
+                <tr key={usuario.id}>
                   <th scope="row">
                     <div className="admin-employee-identity">
                       <span className="admin-employee-avatar" aria-hidden="true">
-                        {funcionario.name
+                        {usuario.name
                           .trim()
                           .split(/\s+/)
                           .slice(0, 2)
@@ -267,63 +294,121 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
                           .toUpperCase()}
                       </span>
                       <span className="admin-employee-copy">
-                        <strong>{funcionario.name}</strong>
-                        <span>{funcionario.email}</span>
+                        <strong>{usuario.name}</strong>
+                        <span>{usuario.email}</span>
                       </span>
-                      <span className="admin-role-pill">Funcionário</span>
+                      <span
+                        className={`admin-role-pill${usuario.role === 'ADMIN' ? ' admin-role-pill-admin' : ''}`}
+                      >
+                        {usuario.role === 'ADMIN' ? 'ADMIN' : 'Funcionário'}
+                      </span>
                     </div>
                   </th>
-                  {(
-                    [
-                      ['comercial', 'Comercial'],
-                      ['financeiro', 'Financeiro'],
-                      ['despesas', 'Contas a pagar'],
-                      ['recebimentos', 'Contas a receber'],
-                      ['relatorios', 'Relatórios'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <td data-label={label} key={key}>
-                      <label className="admin-switch">
-                        <span className="admin-screen-reader">
-                          Permitir {label.toLowerCase()} para {funcionario.name}
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={
-                            key === 'financeiro'
-                              ? funcionario.permissoes.despesas && funcionario.permissoes.recebimentos
-                              : funcionario.permissoes[key]
-                          }
-                          disabled={savingId === funcionario.id}
-                          onChange={(event) => {
-                            const enabled = event.target.checked
-                            if (key === 'financeiro') {
-                              changePermission(funcionario.id, 'despesas', enabled)
-                              changePermission(funcionario.id, 'recebimentos', enabled)
-                            } else changePermission(funcionario.id, key, enabled)
-                          }}
-                        />
-                        <span className="admin-switch-track" aria-hidden="true" />
-                      </label>
-                    </td>
-                  ))}
-                  <td data-label="Ações">
-                    <div className="admin-row-action">
-                      <button
-                        className="button button-primary admin-save-button"
-                        disabled={savingId === funcionario.id}
-                        onClick={() => void savePermissions(funcionario)}
-                        type="button"
-                      >
-                        {savingId === funcionario.id ? 'Salvando…' : 'Salvar'}
-                      </button>
-                      {savedId === funcionario.id && (
-                        <span className="admin-saved" role="status">
-                          Salvo
-                        </span>
-                      )}
-                    </div>
-                  </td>
+                  {usuario.role === 'FUNCIONARIO' ? (
+                    <>
+                      {(
+                        [
+                          ['comercial', 'Comercial'],
+                          ['financeiro', 'Financeiro'],
+                          ['despesas', 'Contas a pagar'],
+                          ['recebimentos', 'Contas a receber'],
+                          ['relatorios', 'Relatórios'],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <td data-label={label} key={key}>
+                          <label className="admin-switch">
+                            <span className="admin-screen-reader">
+                              Permitir {label.toLowerCase()} para {usuario.name}
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={
+                                key === 'financeiro'
+                                  ? usuario.permissoes.despesas && usuario.permissoes.recebimentos
+                                  : usuario.permissoes[key]
+                              }
+                              disabled={savingId === usuario.id || promotingId === usuario.id}
+                              onChange={(event) => {
+                                const enabled = event.target.checked
+                                if (key === 'financeiro') {
+                                  changePermission(usuario.id, 'despesas', enabled)
+                                  changePermission(usuario.id, 'recebimentos', enabled)
+                                } else changePermission(usuario.id, key, enabled)
+                              }}
+                            />
+                            <span className="admin-switch-track" aria-hidden="true" />
+                          </label>
+                        </td>
+                      ))}
+                      <td data-label="Ações">
+                        <div className="admin-row-action">
+                          <button
+                            className="button button-primary admin-save-button"
+                            disabled={savingId === usuario.id || promotingId === usuario.id}
+                            onClick={() => void savePermissions(usuario)}
+                            type="button"
+                          >
+                            {savingId === usuario.id ? 'Salvando…' : 'Salvar'}
+                          </button>
+                          {savedId === usuario.id && (
+                            <span className="admin-saved" role="status">
+                              Salvo
+                            </span>
+                          )}
+                          {promotedId === usuario.id && (
+                            <span className="admin-saved" role="status">
+                              Papel ADMIN salvo
+                            </span>
+                          )}
+                          {promotionTargetId === usuario.id ? (
+                            <div
+                              className="admin-promotion-confirm"
+                              role="group"
+                              aria-label={`Confirmar promoção de ${usuario.name}`}
+                            >
+                              <p>ADMIN terá acesso completo à plataforma. Confirma?</p>
+                              <button
+                                className="button button-primary admin-save-button"
+                                disabled={promotingId === usuario.id}
+                                onClick={() => void confirmPromotion(usuario)}
+                                type="button"
+                              >
+                                {promotingId === usuario.id ? 'Promovendo…' : 'Confirmar promoção'}
+                              </button>
+                              <button
+                                className="button button-secondary admin-save-button"
+                                disabled={promotingId === usuario.id}
+                                onClick={() => setPromotionTargetId('')}
+                                type="button"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              className="button button-secondary admin-save-button admin-promote-button"
+                              disabled={savingId === usuario.id || promotingId !== ''}
+                              onClick={() => {
+                                setPromotionTargetId(usuario.id)
+                                setPromotionError('')
+                                setPromotedId('')
+                              }}
+                              type="button"
+                            >
+                              Tornar ADMIN
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="admin-account-access" colSpan={5} data-label="Acesso">
+                        Acesso completo de ADMIN
+                      </td>
+                      <td data-label="Ações">—</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -331,9 +416,9 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
         </div>
       )}
       <p className="admin-permission-note">
-        Relatórios mostram somente os tipos financeiros autorizados. Comercial gerencia clientes e
-        fornecedores; Financeiro alterna pagar e receber em conjunto. Caixa, cancelamentos e administração
-        continuam exclusivos de ADMIN.
+        ADMIN possui acesso completo. Relatórios de funcionários mostram somente os tipos financeiros
+        autorizados. Comercial gerencia clientes e fornecedores; Financeiro alterna pagar e receber em
+        conjunto. Caixa e cancelamentos continuam exclusivos de ADMIN.
       </p>
     </section>
   )

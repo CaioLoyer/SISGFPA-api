@@ -10,7 +10,8 @@ import { SessionProvider } from './session-context'
 import {
   getCurrentPermissions,
   getCurrentUser,
-  listFuncionarios,
+  listUsuariosAdministracao,
+  promoverFuncionario,
   updateFuncionarioPermissoes,
 } from './auth-api'
 import { listarCategorias, listarTitulos } from '../titulos/financeiro-api'
@@ -20,7 +21,8 @@ vi.mock('./auth-api', async (original) => ({
   ...(await original<object>()),
   getCurrentUser: vi.fn(),
   getCurrentPermissions: vi.fn(),
-  listFuncionarios: vi.fn(),
+  listUsuariosAdministracao: vi.fn(),
+  promoverFuncionario: vi.fn(),
   updateFuncionarioPermissoes: vi.fn(),
 }))
 vi.mock('../titulos/financeiro-api', async (original) => ({
@@ -80,12 +82,13 @@ describe('permissões da sessão nas telas reais', () => {
       role: 'ADMIN',
     })
     vi.mocked(getCurrentPermissions).mockResolvedValue(effectivePermissions('ADMIN'))
-    vi.mocked(listFuncionarios).mockResolvedValue([
+    vi.mocked(listUsuariosAdministracao).mockResolvedValue([
       {
         id: 'func',
         name: 'Funcionário',
         email: 'func@teste.local',
         createdAt: '2032-03-01T12:00:00Z',
+        role: 'FUNCIONARIO',
         permissoes: { comercial: true, despesas: true, recebimentos: true, relatorios: false },
       },
     ])
@@ -161,6 +164,72 @@ describe('permissões da sessão nas telas reais', () => {
     await act(async () => resolveOld(previous))
     expect(container.textContent).toContain('Acesso não permitido')
     expect(container.querySelector('a[href="/recebimentos"]')).toBeNull()
+  })
+  it('atualiza o papel da sessão existente depois que ADMIN promove o usuário', async () => {
+    const employee = {
+      id: 'func',
+      name: 'Funcionário',
+      email: 'func@teste.local',
+      role: 'FUNCIONARIO' as const,
+    }
+    const admin = { ...employee, role: 'ADMIN' as const }
+    vi.mocked(getCurrentUser).mockResolvedValue(employee)
+    vi.mocked(getCurrentPermissions).mockResolvedValue(effectivePermissions('FUNCIONARIO'))
+    vi.mocked(listUsuariosAdministracao).mockResolvedValue([])
+    await render('/admin')
+    expect(container.textContent).toContain('Acesso não permitido')
+
+    vi.mocked(getCurrentUser).mockResolvedValue(admin)
+    vi.mocked(getCurrentPermissions).mockResolvedValue(effectivePermissions('ADMIN'))
+    await act(async () => window.dispatchEvent(new Event('focus')))
+
+    expect(getCurrentUser).toHaveBeenCalledTimes(3)
+    expect(container.textContent).toContain('Contas da equipe e permissões')
+  })
+
+  it('confirma a promoção no painel e mantém o usuário listado como ADMIN', async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 'admin',
+      name: 'Admin',
+      email: 'admin@teste.local',
+      role: 'ADMIN',
+    })
+    vi.mocked(getCurrentPermissions).mockResolvedValue(effectivePermissions('ADMIN'))
+    vi.mocked(listUsuariosAdministracao).mockResolvedValue([
+      {
+        id: 'func',
+        name: 'Funcionário',
+        email: 'func@teste.local',
+        createdAt: '2032-03-01T12:00:00Z',
+        role: 'FUNCIONARIO',
+        permissoes: { comercial: true, despesas: true, recebimentos: true, relatorios: false },
+      },
+    ])
+    vi.mocked(promoverFuncionario).mockResolvedValue({
+      id: 'func',
+      name: 'Funcionário',
+      email: 'func@teste.local',
+      createdAt: '2032-03-01T12:00:00Z',
+      role: 'ADMIN',
+    })
+    await render('/admin')
+
+    const promoteButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Tornar ADMIN'
+    )
+    await act(async () => promoteButton?.click())
+    expect(container.textContent).toContain('ADMIN terá acesso completo à plataforma. Confirma?')
+
+    const confirmButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Confirmar promoção'
+    )
+    await act(async () => confirmButton?.click())
+
+    expect(promoverFuncionario).toHaveBeenCalledExactlyOnceWith('func')
+    expect(container.querySelector('.admin-role-pill-admin')?.textContent).toBe('ADMIN')
+    expect(container.textContent).toContain('func@teste.local')
+    expect(container.textContent).toContain('Acesso completo de ADMIN')
+    expect(container.querySelector('.admin-promote-button')).toBeNull()
   })
   it('abre apenas o tipo autorizado no relatório e impede selecionar o outro', async () => {
     vi.mocked(getCurrentPermissions).mockResolvedValue(

@@ -5,13 +5,15 @@ import {
   FuncionarioParamsSchema,
   FuncionarioPermissoesResponseSchema,
   ListFuncionariosResponseSchema,
+  ListUsuariosAdministracaoResponseSchema,
+  PromoverFuncionarioResponseSchema,
   UpdateFuncionarioPermissoesBodySchema,
   PermissoesEfetivasSchema,
 } from '@sisgfpa/validation'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 
 import { atualizarPermissoesFuncionario, listarFuncionarios } from './permissoes.service.js'
-import { criarFuncionario } from './usuarios.service.js'
+import { criarFuncionario, listarContasAdministrativas, promoverFuncionario } from './usuarios.service.js'
 import { permissoesDaRequisicao } from '../../authorization/module-permissions.js'
 
 /** Operações administrativas de usuários. */
@@ -41,6 +43,19 @@ export const usuariosRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async () => listarFuncionarios()
+  )
+
+  app.get(
+    '/contas',
+    {
+      onRequest: requireAdmin,
+      schema: {
+        tags: ['Usuários'],
+        summary: 'Listar contas da equipe (somente ADMIN)',
+        response: responses({ 200: ListUsuariosAdministracaoResponseSchema }, 401, 403),
+      },
+    },
+    async (request) => listarContasAdministrativas(request.headers)
   )
 
   app.patch(
@@ -75,5 +90,21 @@ export const usuariosRoutes: FastifyPluginAsyncZod = async (app) => {
       const funcionario = await criarFuncionario(request.body, request.headers)
       return reply.code(201).send(funcionario)
     }
+  )
+
+  app.post(
+    '/funcionarios/:id/promover',
+    {
+      onRequest: requireAdmin,
+      schema: {
+        tags: ['Usuários'],
+        summary: 'Promover funcionário a ADMIN (somente ADMIN)',
+        description:
+          'Altera o papel de um funcionário existente para ADMIN. A operação não cria usuários, não permite autopromoção e registra o papel anterior e o novo em auditoria.',
+        params: FuncionarioParamsSchema,
+        response: responses({ 200: PromoverFuncionarioResponseSchema }, 400, 401, 403, 404),
+      },
+    },
+    async (request) => promoverFuncionario(request.params.id, request.user.id, request.headers)
   )
 }
