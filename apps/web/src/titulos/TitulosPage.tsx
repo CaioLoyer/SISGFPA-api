@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -144,6 +144,10 @@ function normalizarErro(error: unknown, fallback: string) {
 }
 
 export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
+  return <TitulosConteudo key={tipo} tipo={tipo} />
+}
+
+function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
   const { user } = useSession()
   const [titulos, setTitulos] = useState<TituloFinanceiro[]>([])
   const [total, setTotal] = useState(0)
@@ -189,33 +193,39 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
   const valorLiquidadoLabel = tituloDeDespesa ? 'Pago' : 'Recebido'
   const valorEmAbertoLabel = tituloDeDespesa ? 'Em aberto' : 'A receber'
 
-  const carregarTitulos = useCallback(async () => {
+  useEffect(() => {
+    const controller = new AbortController()
     setCarregando(true)
     setErroLista(null)
-    try {
-      const resultado = await listarTitulos(tipo, {
+    void listarTitulos(
+      tipo,
+      {
         ...filtrosAplicados,
         page: pagina,
         pageSize,
+      },
+      controller.signal
+    )
+      .then((resultado) => {
+        if (controller.signal.aborted) return
+        setTitulos(resultado.items)
+        setTotal(resultado.total)
       })
-      setTitulos(resultado.items)
-      setTotal(resultado.total)
-    } catch (error) {
-      setErroLista(
-        error instanceof FinanceiroApiError
-          ? error
-          : new FinanceiroApiError(normalizarErro(error, 'Não foi possível carregar os títulos.'))
-      )
-      setTitulos([])
-      setTotal(0)
-    } finally {
-      setCarregando(false)
-    }
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setErroLista(
+          error instanceof FinanceiroApiError
+            ? error
+            : new FinanceiroApiError(normalizarErro(error, 'Não foi possível carregar os títulos.'))
+        )
+        setTitulos([])
+        setTotal(0)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCarregando(false)
+      })
+    return () => controller.abort()
   }, [filtrosAplicados, pagina, recarregarLista, tipo])
-
-  useEffect(() => {
-    void carregarTitulos()
-  }, [carregarTitulos])
 
   useEffect(() => {
     let ativo = true
@@ -845,7 +855,7 @@ export function TitulosPage({ tipo }: { tipo: FinanceiroTipo }) {
               )}
               <button
                 className="button button-secondary"
-                onClick={() => void carregarTitulos()}
+                onClick={() => setRecarregarLista((atual) => atual + 1)}
                 type="button"
               >
                 Tentar novamente

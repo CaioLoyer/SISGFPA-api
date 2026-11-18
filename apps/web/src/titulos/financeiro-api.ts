@@ -214,7 +214,8 @@ function queryParams(input: FiltrosTitulos) {
 
 export async function listarTitulos(
   tipo: FinanceiroTipo,
-  filtros: FiltrosTitulos = {}
+  filtros: FiltrosTitulos = {},
+  signal?: AbortSignal
 ): Promise<ListaTitulosFinanceiros> {
   const params = queryParams({ page: 1, pageSize: 20, ...filtros })
   const endpoint = tipo === 'DESPESA' ? 'despesas' : 'recebimentos'
@@ -224,7 +225,7 @@ export async function listarTitulos(
   query.delete('pessoa')
   if (pessoa) query.set(campoPessoa, pessoa)
 
-  const body = await request(`${apiBaseUrl}/${endpoint}?${query.toString()}`)
+  const body = await request(`${apiBaseUrl}/${endpoint}?${query.toString()}`, { signal })
   if (
     !isRecord(body) ||
     !Array.isArray(body.items) ||
