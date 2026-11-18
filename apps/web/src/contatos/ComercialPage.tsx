@@ -1,3 +1,4 @@
+import { useSession } from '../auth/session-context'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { PapelContato, TipoPessoa } from '@sisgfpa/types'
@@ -74,6 +75,7 @@ function textoErro(error: unknown, fallback: string) {
 }
 
 export function ComercialPage() {
+  const { permissions } = useSession()
   const [aba, setAba] = useState<AbaComercial>('CADASTROS')
   const [papeisPermitidos, setPapeisPermitidos] = useState<PapelContato[]>([])
   const [contatos, setContatos] = useState<Contato[]>([])
@@ -109,7 +111,9 @@ export function ComercialPage() {
   const [salvandoVinculos, setSalvandoVinculos] = useState(false)
 
   const papeisDoTipoSelecionado: PapelContato[] = tipoTitulo === 'DESPESA' ? ['FORNECEDOR'] : ['CLIENTE']
-  const papelDisponivelParaVinculo = papeisPermitidos.includes(papeisDoTipoSelecionado[0]!)
+  const papelDisponivelParaVinculo =
+    papeisPermitidos.includes(papeisDoTipoSelecionado[0]!) &&
+    (tipoTitulo === 'DESPESA' ? permissions?.despesas === true : permissions?.recebimentos === true)
   const paginasContatos = Math.max(1, Math.ceil(totalContatos / tamanhoPagina))
   const paginasTitulosAntigos = Math.max(1, Math.ceil(totalTitulosAntigos / tamanhoPagina))
   const todosDaPaginaSelecionados =
@@ -170,10 +174,8 @@ export function ComercialPage() {
   }, [carregarContatos])
 
   useEffect(() => {
-    if (papeisPermitidos.length === 1) {
-      setTipoTitulo(papeisPermitidos[0] === 'FORNECEDOR' ? 'DESPESA' : 'RECEBIMENTO')
-    }
-  }, [papeisPermitidos])
+    if (!permissions?.despesas && permissions?.recebimentos) setTipoTitulo('RECEBIMENTO')
+  }, [permissions?.despesas, permissions?.recebimentos])
 
   useEffect(() => {
     if (aba === 'VINCULOS') void carregarTitulosAntigos()
@@ -415,14 +417,16 @@ export function ComercialPage() {
           >
             Cadastro de contatos
           </button>
-          <button
-            aria-pressed={aba === 'VINCULOS'}
-            className={aba === 'VINCULOS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
-            onClick={() => setAba('VINCULOS')}
-            type="button"
-          >
-            Associar títulos antigos
-          </button>
+          {(permissions?.despesas || permissions?.recebimentos) && (
+            <button
+              aria-pressed={aba === 'VINCULOS'}
+              className={aba === 'VINCULOS' ? 'commercial-tab commercial-tab-active' : 'commercial-tab'}
+              onClick={() => setAba('VINCULOS')}
+              type="button"
+            >
+              Associar títulos antigos
+            </button>
+          )}
         </div>
 
         {mensagem && (
@@ -750,7 +754,11 @@ export function ComercialPage() {
             <div className="commercial-link-type" role="group" aria-label="Tipo de título">
               {(['DESPESA', 'RECEBIMENTO'] as const).map((tipo) => {
                 const papel: PapelContato = tipo === 'DESPESA' ? 'FORNECEDOR' : 'CLIENTE'
-                if (!papeisPermitidos.includes(papel)) return null
+                if (
+                  !papeisPermitidos.includes(papel) ||
+                  !(tipo === 'DESPESA' ? permissions?.despesas : permissions?.recebimentos)
+                )
+                  return null
                 return (
                   <button
                     aria-pressed={tipoTitulo === tipo}

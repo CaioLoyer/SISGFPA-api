@@ -1,14 +1,9 @@
 import { prisma } from '@sisgfpa/database'
 import { NotFoundError } from '@sisgfpa/http'
-import type { FuncionarioPermissoesSchema } from '@sisgfpa/validation'
-import type { z } from 'zod'
+import { DEFAULT_EMPLOYEE_PERMISSIONS, MODULE_PERMISSION_KEYS, employeePermissions } from '@sisgfpa/types'
+import type { ModulePermissions } from '@sisgfpa/types'
 
-type FuncionarioPermissoes = z.infer<typeof FuncionarioPermissoesSchema>
-
-export const PERMISSOES_FUNCIONARIO_PADRAO: FuncionarioPermissoes = {
-  despesas: true,
-  recebimentos: true,
-}
+export const PERMISSOES_FUNCIONARIO_PADRAO = DEFAULT_EMPLOYEE_PERMISSIONS
 
 export async function listarFuncionarios() {
   const funcionarios = await prisma.user.findMany({
@@ -18,7 +13,9 @@ export async function listarFuncionarios() {
       name: true,
       email: true,
       createdAt: true,
-      permissoesFuncionario: { select: { despesas: true, recebimentos: true } },
+      permissoesFuncionario: {
+        select: { comercial: true, despesas: true, recebimentos: true, relatorios: true },
+      },
     },
     orderBy: [{ name: 'asc' }, { email: 'asc' }],
   })
@@ -27,7 +24,7 @@ export async function listarFuncionarios() {
     items: funcionarios.map(({ permissoesFuncionario, ...funcionario }) => ({
       ...funcionario,
       createdAt: funcionario.createdAt.toISOString(),
-      permissoes: permissoesFuncionario ?? PERMISSOES_FUNCIONARIO_PADRAO,
+      permissoes: employeePermissions(permissoesFuncionario),
     })),
   }
 }
@@ -35,9 +32,10 @@ export async function listarFuncionarios() {
 export async function atualizarPermissoesFuncionario(
   funcionarioId: string,
   alteradoPorId: string,
-  novasPermissoes: FuncionarioPermissoes
+  alteracoes: Partial<ModulePermissions>
 ) {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${funcionarioId} FOR UPDATE`
     const funcionario = await tx.user.findFirst({
       where: { id: funcionarioId, role: 'FUNCIONARIO' },
       select: { id: true },
@@ -45,12 +43,9 @@ export async function atualizarPermissoesFuncionario(
     if (!funcionario) throw new NotFoundError('Funcionário não encontrado')
 
     const atual = await tx.funcionarioPermissao.findUnique({ where: { funcionarioId } })
-    const permissoesAnteriores = atual
-      ? { despesas: atual.despesas, recebimentos: atual.recebimentos }
-      : PERMISSOES_FUNCIONARIO_PADRAO
-    const mudou =
-      permissoesAnteriores.despesas !== novasPermissoes.despesas ||
-      permissoesAnteriores.recebimentos !== novasPermissoes.recebimentos
+    const permissoesAnteriores = employeePermissions(atual)
+    const novasPermissoes = { ...permissoesAnteriores, ...alteracoes }
+    const mudou = MODULE_PERMISSION_KEYS.some((key) => permissoesAnteriores[key] !== novasPermissoes[key])
 
     if (mudou) {
       await tx.funcionarioPermissao.upsert({

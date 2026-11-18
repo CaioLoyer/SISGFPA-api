@@ -36,14 +36,24 @@ export const FuncionarioPermissoesSchema = z
   .strictObject({
     despesas: z.boolean(),
     recebimentos: z.boolean(),
+    comercial: z.boolean(),
+    relatorios: z.boolean(),
   })
-  .meta({ example: { despesas: true, recebimentos: true } })
+  .meta({ example: { comercial: true, despesas: true, recebimentos: true, relatorios: false } })
+
+export const PermissoesEfetivasSchema = FuncionarioPermissoesSchema.extend({
+  caixa: z.boolean(),
+  administracao: z.boolean(),
+})
 
 export const FuncionarioParamsSchema = z.object({
   id: z.string().min(1).max(128).meta({ example: 'funcionario-id' }),
 })
 
-export const UpdateFuncionarioPermissoesBodySchema = FuncionarioPermissoesSchema
+// Clientes anteriores podem continuar alterando só os campos financeiros.
+export const UpdateFuncionarioPermissoesBodySchema = FuncionarioPermissoesSchema.partial()
+  .refine((value) => Object.keys(value).length > 0, 'Informe pelo menos uma permissão')
+  .meta({ example: { comercial: true, despesas: true, recebimentos: false, relatorios: true } })
 
 export const FuncionarioAdminSchema = z
   .object({
@@ -59,7 +69,7 @@ export const FuncionarioAdminSchema = z
       name: 'Maria Souza',
       email: 'maria.souza@papelariaexemplo.com',
       createdAt: '2026-10-21T12:00:00.000Z',
-      permissoes: { despesas: true, recebimentos: true },
+      permissoes: { comercial: true, despesas: true, recebimentos: true, relatorios: false },
     },
   })
 
@@ -111,6 +121,14 @@ const ContatoFieldsSchema = {
 }
 
 export const ContatoParamsSchema = z.object({ id: z.uuid().meta({ example: EXEMPLOS.contatoId }) })
+
+export const OpcoesContatosQuerySchema = z.object({
+  tipo: z.enum(TIPOS_CATEGORIA).meta({ example: 'DESPESA' }),
+  busca: z.string().trim().min(2).max(160).meta({ example: 'Distribuidora' }),
+})
+export const OpcoesContatosResponseSchema = z.object({
+  items: z.array(z.object({ id: z.uuid(), nome: z.string() })),
+})
 
 export const ContatoSchema = z.object({
   id: z.uuid(),
@@ -337,6 +355,7 @@ export const UpdateDespesaBodySchema = z
 export const LiquidacaoHeadersSchema = z.looseObject({
   'idempotency-key': z.uuid().optional().meta({
     description: 'UUID estável da tentativa. Se informado também no corpo, deve ser igual a idempotencyKey.',
+    example: '00000000-0000-4000-8000-000000000001',
   }),
 })
 
@@ -485,14 +504,14 @@ export const RegistrarBaixaRecebimentoBodySchema = z
     recebidoEm: z.iso.datetime().optional().meta({ example: '2026-10-10T12:00:00.000Z' }),
     idempotencyKey: z.uuid().optional().meta({
       description: 'Identificador estável da tentativa para impedir baixa duplicada ao repetir a requisição',
-      example: '00000000-0000-4000-8000-000000000002',
+      example: '00000000-0000-4000-8000-000000000001',
     }),
   })
   .meta({
     example: {
       valor: 150,
       recebidoEm: '2026-10-10T12:00:00.000Z',
-      idempotencyKey: '00000000-0000-4000-8000-000000000002',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001',
     },
   })
 

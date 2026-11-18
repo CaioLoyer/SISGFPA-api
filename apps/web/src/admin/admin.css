@@ -134,6 +134,7 @@
   overflow-x: auto;
 }
 .admin-employee-table {
+  min-width: 850px;
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
@@ -318,6 +319,9 @@
 @media (max-width: 600px) {
   .admin-content {
     padding: 16px;
+  }
+  .admin-employee-table {
+    min-width: 0;
   }
   .admin-employee-table,
   .admin-employee-table tbody,

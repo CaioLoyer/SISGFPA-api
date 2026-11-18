@@ -1,3 +1,4 @@
+import { notifyPermissionDenied } from '../auth/module-access'
 export type FinanceiroTipo = 'DESPESA' | 'RECEBIMENTO'
 export type StatusTitulo = 'PENDENTE' | 'PARCIAL' | 'PAGO' | 'CANCELADO'
 
@@ -137,6 +138,7 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
   }
 
   if (!response.ok) {
+    notifyPermissionDenied(response.status)
     const message =
       isRecord(body) && typeof body.error === 'string'
         ? body.error

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -156,8 +156,11 @@ function LoginPage() {
 }
 
 function ProtectedLayout() {
-  const { status, user, refresh, logout } = useSession()
+  const { status, user, permissions, refreshPermissions, refresh, logout } = useSession()
   const location = useLocation()
+  useEffect(() => {
+    if (status === 'authenticated') void refreshPermissions()
+  }, [location.pathname, refreshPermissions, status])
   const decision = decideProtectedRoute(status, `${location.pathname}${location.search}${location.hash}`)
 
   if (decision.kind === 'loading') return <LoadingScreen />
@@ -166,7 +169,7 @@ function ProtectedLayout() {
   if (decision.kind === 'redirect') return <Navigate to={decision.to} replace />
   if (!user) return <LoadingScreen label="Carregando sua conta…" />
 
-  return <AppShell user={user} onLogout={logout} />
+  return <AppShell user={user} permissions={permissions} onLogout={logout} />
 }
 
 function NotFoundPage() {

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 
 const state = vi.hoisted(() => ({
   permission: vi.fn(),
+  listarOpcoesContatos: vi.fn(),
   listarContatos: vi.fn(),
   criarContato: vi.fn(),
   atualizarContato: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('@sisgfpa/database', () => ({
 
 vi.mock('./contatos.service.js', () => ({
   listarContatos: state.listarContatos,
+  listarOpcoesContatos: state.listarOpcoesContatos,
   criarContato: state.criarContato,
   atualizarContato: state.atualizarContato,
   alterarSituacaoContato: state.alterarSituacaoContato,
@@ -65,7 +67,12 @@ describe('autorização das rotas comerciais', () => {
 
   beforeEach(() => {
     for (const mock of Object.values(state)) mock.mockReset()
-    state.permission.mockResolvedValue({ despesas: true, recebimentos: false })
+    state.permission.mockResolvedValue({
+      comercial: true,
+      despesas: true,
+      recebimentos: false,
+      relatorios: false,
+    })
     state.listarContatos.mockImplementation(async (query, papeisPermitidos) => ({
       items: [],
       total: 0,
@@ -98,6 +105,35 @@ describe('autorização das rotas comerciais', () => {
     expect((await get('/contatos/')).statusCode).toBe(401)
   })
 
+  it('sem Comercial permite somente seleção mínima do tipo financeiro autorizado', async () => {
+    state.permission.mockResolvedValue({
+      comercial: false,
+      despesas: false,
+      recebimentos: true,
+      relatorios: false,
+    })
+    state.listarOpcoesContatos.mockResolvedValue({
+      items: [
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          nome: 'Cliente ativo',
+          documento: 'nao-expor',
+          telefone: 'nao-expor',
+        },
+      ],
+    })
+    expect((await get('/contatos/', 'FUNCIONARIO')).statusCode).toBe(403)
+    expect((await get('/contatos/sugestoes?papel=CLIENTE&nome=Maria', 'FUNCIONARIO')).statusCode).toBe(403)
+    expect((await get('/contatos/vinculos-pendentes?tipo=RECEBIMENTO', 'FUNCIONARIO')).statusCode).toBe(403)
+    expect((await get('/contatos/opcoes?tipo=DESPESA&busca=Maria', 'FUNCIONARIO')).statusCode).toBe(403)
+    const minimal = await get('/contatos/opcoes?tipo=RECEBIMENTO&busca=Maria', 'FUNCIONARIO')
+    expect(minimal.statusCode).toBe(200)
+    expect(minimal.json()).toEqual({
+      items: [{ id: '00000000-0000-4000-8000-000000000001', nome: 'Cliente ativo' }],
+    })
+    expect(state.listarOpcoesContatos).toHaveBeenCalledExactlyOnceWith('RECEBIMENTO', 'Maria')
+  })
+
   it('publica exemplos para as rotas comerciais e seus filtros', () => {
     const spec = app.swagger() as {
       paths: Record<string, Record<string, any>>
@@ -117,15 +153,15 @@ describe('autorização das rotas comerciais', () => {
     )
   })
 
-  it('limita funcionários aos contatos da permissão financeira correspondente', async () => {
+  it('permite os dois papéis comerciais independentemente da permissão financeira', async () => {
     const fornecedores = await get('/contatos/?papel=FORNECEDOR', 'FUNCIONARIO')
     const clientes = await get('/contatos/?papel=CLIENTE', 'FUNCIONARIO')
     const sugestaoCliente = await get('/contatos/sugestoes?papel=CLIENTE&nome=Maria', 'FUNCIONARIO')
 
     expect(fornecedores.statusCode).toBe(200)
-    expect(fornecedores.json().papeisPermitidos).toEqual(['FORNECEDOR'])
-    expect(clientes.statusCode).toBe(403)
-    expect(sugestaoCliente.statusCode).toBe(403)
+    expect(fornecedores.json().papeisPermitidos).toEqual(['CLIENTE', 'FORNECEDOR'])
+    expect(clientes.statusCode).toBe(200)
+    expect(sugestaoCliente.statusCode).toBe(200)
   })
 
   it('bloqueia associação de recebimentos ao funcionário sem permissão, mas permite fornecedores', async () => {

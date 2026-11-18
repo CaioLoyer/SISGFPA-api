@@ -1,4 +1,4 @@
-import { requireAdmin, responses } from '@sisgfpa/http'
+import { requireAuth, responses } from '@sisgfpa/http'
 import {
   RelatorioContasAPagarSchema,
   RelatorioContasAReceberSchema,
@@ -8,16 +8,20 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import z from 'zod'
 
 import * as relatorios from './relatorios.service.js'
+import { requireModulePermission } from '../../authorization/module-permissions.js'
+import { requireFinancialPermission } from '../../authorization/financial-permissions.js'
 
 export const relatoriosRoutes: FastifyPluginAsyncZod = async (app) => {
-  app.addHook('onRequest', requireAdmin)
+  app.addHook('onRequest', requireAuth)
+  app.addHook('preHandler', requireModulePermission('relatorios'))
 
   app.get(
     '/contas-a-pagar',
     {
+      preHandler: requireFinancialPermission('despesas'),
       schema: {
         tags: ['Relatórios'],
-        summary: 'Relatório de contas a pagar - somente ADMIN',
+        summary: 'Relatório de contas a pagar - requer Relatórios e Contas a pagar',
         querystring: RelatorioQuerySchema,
         // formato=json -> relatório estruturado; formato=csv -> arquivo CSV (text/csv)
         response: responses({ 200: z.union([RelatorioContasAPagarSchema, z.string()]) }, 401, 403),
@@ -37,9 +41,10 @@ export const relatoriosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/contas-a-receber',
     {
+      preHandler: requireFinancialPermission('recebimentos'),
       schema: {
         tags: ['Relatórios'],
-        summary: 'Relatório de contas a receber - somente ADMIN',
+        summary: 'Relatório de contas a receber - requer Relatórios e Contas a receber',
         querystring: RelatorioQuerySchema,
         response: responses({ 200: z.union([RelatorioContasAReceberSchema, z.string()]) }, 401, 403),
       },

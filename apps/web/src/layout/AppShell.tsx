@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
+import type { EffectivePermissions } from '@sisgfpa/types'
+import { canAccessPath } from '../auth/module-access'
 import type { AuthenticatedUser } from '../auth/auth-api'
 import { canAccessAdmin } from '../auth/protected-route'
 import { Icon } from '../shared/Icon'
@@ -25,7 +27,15 @@ function initials(name: string) {
     .join('')
 }
 
-export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout: () => Promise<void> }) {
+export function AppShell({
+  user,
+  permissions,
+  onLogout,
+}: {
+  user: AuthenticatedUser
+  permissions: EffectivePermissions | null
+  onLogout: () => Promise<void>
+}) {
   const location = useLocation()
   const navigate = useNavigate()
   const financialActive = isFinancialRoute(location.pathname)
@@ -115,6 +125,7 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
   }
 
   function navigationLink(to: string, icon: IconName, label: string, end = false) {
+    if (!canAccessPath(to, permissions)) return null
     return (
       <NavLink
         className={({ isActive }) => `workspace-nav-link${isActive ? ' workspace-nav-link-active' : ''}`}
@@ -200,34 +211,40 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
           <p className="workspace-nav-caption">Menu</p>
           {navigationLink('/dashboard', 'home', 'Dashboard', true)}
           {navigationLink('/comercial', 'mail', 'Comercial')}
-          <button
-            aria-controls="workspace-finance"
-            aria-expanded={financeExpanded}
-            className={`workspace-nav-link workspace-finance-toggle${financialActive ? ' workspace-nav-link-active' : ''}`}
-            onClick={() => setFinanceExpanded((expanded) => !expanded)}
-            type="button"
-          >
-            <Icon name="book" />
-            Financeiro
-            <Icon
-              className={`workspace-chevron${financeExpanded ? ' workspace-chevron-open' : ''}`}
-              name="chevron"
-            />
-          </button>
+          {(permissions?.despesas || permissions?.recebimentos || admin) && (
+            <button
+              aria-controls="workspace-finance"
+              aria-expanded={financeExpanded}
+              className={`workspace-nav-link workspace-finance-toggle${financialActive ? ' workspace-nav-link-active' : ''}`}
+              onClick={() => setFinanceExpanded((expanded) => !expanded)}
+              type="button"
+            >
+              <Icon name="book" />
+              Financeiro
+              <Icon
+                className={`workspace-chevron${financeExpanded ? ' workspace-chevron-open' : ''}`}
+                name="chevron"
+              />
+            </button>
+          )}
           <div className="workspace-subnav" hidden={!financeExpanded} id="workspace-finance">
             {admin && (
               <NavLink onClick={handleNavigation} to="/caixa">
                 Controle de Caixa
               </NavLink>
             )}
-            <NavLink onClick={handleNavigation} to="/despesas">
-              Contas a pagar
-            </NavLink>
-            <NavLink onClick={handleNavigation} to="/recebimentos">
-              Contas a receber
-            </NavLink>
+            {permissions?.despesas && (
+              <NavLink onClick={handleNavigation} to="/despesas">
+                Contas a pagar
+              </NavLink>
+            )}
+            {permissions?.recebimentos && (
+              <NavLink onClick={handleNavigation} to="/recebimentos">
+                Contas a receber
+              </NavLink>
+            )}
           </div>
-          {admin && navigationLink('/relatorios', 'paperclip', 'Relatórios')}
+          {navigationLink('/relatorios', 'paperclip', 'Relatórios')}
           {navigationLink('/chatbot', 'bot', 'Chatbot')}
           {navigationLink('/perfil', 'user', 'Perfil')}
           {admin && navigationLink('/admin', 'settings', 'Administração')}
@@ -256,7 +273,19 @@ export function AppShell({ user, onLogout }: { user: AuthenticatedUser; onLogout
       </aside>
 
       <main className="workspace-main" id="workspace-content" inert={drawerOpen} ref={main} tabIndex={-1}>
-        <Outlet />
+        <>
+          {canAccessPath(location.pathname, permissions) ? (
+            <Outlet key={JSON.stringify(permissions)} />
+          ) : (
+            <section className="welcome-page" role="alert">
+              <h1>Acesso não permitido</h1>
+              <p>Seu usuário não tem acesso a este módulo. Solicite a alteração ao administrador.</p>
+              <Link className="text-link" to="/dashboard">
+                Voltar para a visão geral
+              </Link>
+            </section>
+          )}
+        </>
       </main>
       {logoutError && (
         <div className="workspace-logout-error" role="alert">

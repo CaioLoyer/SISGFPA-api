@@ -49,6 +49,7 @@ import {
   alterarSituacaoContato,
   criarContato,
   listarContatos,
+  listarOpcoesContatos,
   sugerirContatos,
   vincularTitulos,
 } from './contatos.service.js'
@@ -74,6 +75,25 @@ beforeEach(() => {
 })
 
 describe('cadastro e vínculo de contatos comerciais', () => {
+  it.each(['DESPESA', 'RECEBIMENTO'] as const)(
+    'consulta somente id e nome de contatos ativos para %s',
+    async (tipo) => {
+      database.contatoFindMany.mockResolvedValue([{ id: contact.id, nome: contact.nome }])
+      await expect(listarOpcoesContatos(tipo, 'Papel')).resolves.toEqual({
+        items: [{ id: contact.id, nome: contact.nome }],
+      })
+      expect(database.contatoFindMany).toHaveBeenCalledExactlyOnceWith({
+        where: {
+          ativo: true,
+          papeis: { has: tipo === 'DESPESA' ? 'FORNECEDOR' : 'CLIENTE' },
+          nome: { contains: 'Papel', mode: 'insensitive' },
+        },
+        select: { id: true, nome: true },
+        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+        take: 10,
+      })
+    }
+  )
   it('retorna somente os papéis permitidos para o funcionário', async () => {
     database.contatoFindMany.mockResolvedValue([contact])
     database.contatoCount.mockResolvedValue(1)

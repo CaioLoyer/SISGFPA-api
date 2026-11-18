@@ -59,6 +59,8 @@ model FuncionarioPermissao {
   funcionario   User     @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
   despesas      Boolean  @default(true)
   recebimentos  Boolean  @default(true)
+  comercial     Boolean  @default(true)
+  relatorios    Boolean  @default(false)
   updatedAt     DateTime @updatedAt @db.Timestamptz()
 
   @@map("funcionario_permissao")

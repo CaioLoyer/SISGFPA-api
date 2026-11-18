@@ -1,3 +1,4 @@
+import { notifyPermissionDenied } from '../auth/module-access'
 const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
 export type TipoRelatorio = 'PAGAR' | 'RECEBER'
@@ -44,6 +45,7 @@ async function fetchResponse(url: string): Promise<Response> {
   try {
     const response = await fetch(url, { credentials: 'include' })
     if (!response.ok) {
+      notifyPermissionDenied(response.status)
       let body: unknown
       try {
         body = await response.json()
@@ -56,7 +58,7 @@ async function fetchResponse(url: string): Promise<Response> {
           : response.status === 401
             ? 'Sua sessão expirou. Entre novamente.'
             : response.status === 403
-              ? 'Somente ADMIN pode consultar relatórios financeiros.'
+              ? 'Seu usuário não tem permissão para consultar este relatório.'
               : 'Não foi possível carregar o relatório.'
       throw new RelatoriosApiError(message, response.status)
     }

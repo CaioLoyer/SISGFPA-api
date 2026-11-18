@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom'
 import { financialDateTime } from '@sisgfpa/types'
 import { formatarInstante } from '../shared/formatters'
 
-import { listarContatos } from '../contatos/contatos-api'
-import type { Contato } from '../contatos/contatos-api'
+import { listarOpcoesContatos } from '../contatos/contatos-api'
+import type { OpcaoContato } from '../contatos/contatos-api'
 import { useSession } from '../auth/session-context'
 import {
   atualizarTitulo,
@@ -172,7 +172,7 @@ function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
   const [cancelandoId, setCancelandoId] = useState<string | null>(null)
   const [liquidandoId, setLiquidandoId] = useState<string | null>(null)
   const [mensagem, setMensagem] = useState('')
-  const [contatosSugeridos, setContatosSugeridos] = useState<Contato[]>([])
+  const [contatosSugeridos, setContatosSugeridos] = useState<OpcaoContato[]>([])
   const [erroBuscaContato, setErroBuscaContato] = useState('')
   const [contatoEmFoco, setContatoEmFoco] = useState(false)
   const [tituloSelecionadoId, setTituloSelecionadoId] = useState<string | null>(null)
@@ -250,15 +250,9 @@ function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
     let ativo = true
     const consulta = setTimeout(() => {
       setErroBuscaContato('')
-      void listarContatos({
-        papel: tituloDeDespesa ? 'FORNECEDOR' : 'CLIENTE',
-        busca: formulario.pessoa.trim(),
-        situacao: 'ATIVOS',
-        page: 1,
-        pageSize: 10,
-      })
+      void listarOpcoesContatos(tipo, formulario.pessoa.trim())
         .then((resultado) => {
-          if (ativo) setContatosSugeridos(resultado.items)
+          if (ativo) setContatosSugeridos(resultado)
         })
         .catch((error: unknown) => {
           if (ativo) {
@@ -272,7 +266,7 @@ function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
       ativo = false
       clearTimeout(consulta)
     }
-  }, [formAberto, formulario.contatoId, formulario.pessoa, tituloDeDespesa])
+  }, [formAberto, formulario.contatoId, formulario.pessoa, tipo])
 
   useEffect(() => {
     if (!tituloSelecionadoId) {
@@ -354,7 +348,7 @@ function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
     setFormulario((atual) => ({ ...atual, [campo]: valor }))
   }
 
-  function selecionarContato(contato: Contato) {
+  function selecionarContato(contato: OpcaoContato) {
     setFormulario((atual) => ({ ...atual, pessoa: contato.nome, contatoId: contato.id }))
     setContatosSugeridos([])
     setContatoEmFoco(false)
@@ -579,9 +573,7 @@ function TitulosConteudo({ tipo }: { tipo: FinanceiroTipo }) {
                         <li key={contato.id}>
                           <button onMouseDown={() => selecionarContato(contato)} type="button">
                             <strong>{contato.nome}</strong>
-                            <span>
-                              {contato.tipoPessoa === 'FISICA' ? 'Pessoa física' : 'Pessoa jurídica'}
-                            </span>
+                            <span>Cadastro ativo</span>
                           </button>
                         </li>
                       ))}

@@ -1,4 +1,4 @@
-import { requireAdmin, responses } from '@sisgfpa/http'
+import { requireAdmin, requireAuth, responses } from '@sisgfpa/http'
 import {
   CreateFuncionarioBodySchema,
   CreateFuncionarioResponseSchema,
@@ -6,19 +6,34 @@ import {
   FuncionarioPermissoesResponseSchema,
   ListFuncionariosResponseSchema,
   UpdateFuncionarioPermissoesBodySchema,
+  PermissoesEfetivasSchema,
 } from '@sisgfpa/validation'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 
 import { atualizarPermissoesFuncionario, listarFuncionarios } from './permissoes.service.js'
 import { criarFuncionario } from './usuarios.service.js'
+import { permissoesDaRequisicao } from '../../authorization/module-permissions.js'
 
 /** Operações administrativas de usuários. */
 export const usuariosRoutes: FastifyPluginAsyncZod = async (app) => {
-  app.addHook('onRequest', requireAdmin)
+  app.addHook('onRequest', requireAuth)
+
+  app.get(
+    '/me/permissoes',
+    {
+      schema: {
+        tags: ['Usuários'],
+        summary: 'Consultar as próprias permissões efetivas',
+        response: responses({ 200: PermissoesEfetivasSchema }, 401),
+      },
+    },
+    async (request) => permissoesDaRequisicao(request)
+  )
 
   app.get(
     '/funcionarios',
     {
+      onRequest: requireAdmin,
       schema: {
         tags: ['Usuários'],
         summary: 'Listar funcionários e permissões (somente ADMIN)',
@@ -31,6 +46,7 @@ export const usuariosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/funcionarios/:id/permissoes',
     {
+      onRequest: requireAdmin,
       schema: {
         tags: ['Usuários'],
         summary: 'Alterar permissões de um funcionário (somente ADMIN)',
@@ -45,6 +61,7 @@ export const usuariosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/funcionarios',
     {
+      onRequest: requireAdmin,
       schema: {
         tags: ['Usuários'],
         summary: 'Cadastrar funcionário (somente ADMIN)',

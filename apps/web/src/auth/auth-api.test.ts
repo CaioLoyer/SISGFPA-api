@@ -5,6 +5,7 @@ import {
   changeCurrentUserPassword,
   createFuncionario,
   getCurrentUser,
+  getCurrentPermissions,
   listFuncionarios,
   requestPasswordRecoveryCode,
   resetPasswordWithCode,
@@ -220,14 +221,17 @@ describe('cliente de autenticação da API Financeira', () => {
       name: 'Funcionária',
       email: 'func@example.com',
       createdAt: '2026-10-21T12:00:00.000Z',
-      permissoes: { despesas: true, recebimentos: false },
+      permissoes: { comercial: true, despesas: true, recebimentos: false, relatorios: false },
     }
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ items: [item] }), { status: 200 }))
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ funcionarioId: item.id, permissoes: { despesas: false, recebimentos: false } }),
+          JSON.stringify({
+            funcionarioId: item.id,
+            permissoes: { comercial: false, despesas: false, recebimentos: false, relatorios: false },
+          }),
           {
             status: 200,
           }
@@ -237,8 +241,13 @@ describe('cliente de autenticação da API Financeira', () => {
 
     await expect(listFuncionarios()).resolves.toEqual([item])
     await expect(
-      updateFuncionarioPermissoes(item.id, { despesas: false, recebimentos: false })
-    ).resolves.toEqual({ despesas: false, recebimentos: false })
+      updateFuncionarioPermissoes(item.id, {
+        comercial: false,
+        despesas: false,
+        recebimentos: false,
+        relatorios: false,
+      })
+    ).resolves.toEqual({ comercial: false, despesas: false, recebimentos: false, relatorios: false })
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/usuarios/funcionarios')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' })
@@ -248,8 +257,32 @@ describe('cliente de autenticação da API Financeira', () => {
       expect.objectContaining({
         method: 'PATCH',
         credentials: 'include',
-        body: JSON.stringify({ despesas: false, recebimentos: false }),
+        body: JSON.stringify({ comercial: false, despesas: false, recebimentos: false, relatorios: false }),
       })
     )
+  })
+})
+
+describe('permissões efetivas da própria sessão', () => {
+  it('consulta o catálogo completo autenticado', async () => {
+    const permissions = {
+      comercial: false,
+      despesas: false,
+      recebimentos: true,
+      relatorios: true,
+      caixa: false,
+      administracao: false,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(permissions)))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(getCurrentPermissions()).resolves.toEqual(permissions)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/usuarios/me/permissoes',
+      expect.objectContaining({ credentials: 'include' })
+    )
+  })
+  it('recusa respostas incompletas em vez de presumir acesso', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ despesas: true }))))
+    await expect(getCurrentPermissions()).rejects.toThrow('permissões em formato inválido')
   })
 })

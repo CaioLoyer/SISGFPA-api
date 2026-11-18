@@ -16,6 +16,21 @@ import type { ContatoPapelPermitido } from '../../authorization/financial-permis
 
 type DbContato = Awaited<ReturnType<typeof prisma.contato.findUniqueOrThrow>>
 
+/** Consulta mínima para selecionar uma contraparte ativa em um título autorizado. */
+export async function listarOpcoesContatos(tipo: 'DESPESA' | 'RECEBIMENTO', busca: string) {
+  const items = await prisma.contato.findMany({
+    where: {
+      ativo: true,
+      papeis: { has: tipo === 'DESPESA' ? 'FORNECEDOR' : 'CLIENTE' },
+      nome: { contains: busca, mode: 'insensitive' },
+    },
+    select: { id: true, nome: true },
+    orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+    take: 10,
+  })
+  return { items }
+}
+
 function toContatoDto(contato: DbContato, papeisPermitidos: ContatoPapelPermitido[]): ContatoDto {
   return {
     id: contato.id,

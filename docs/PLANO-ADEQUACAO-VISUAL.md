@@ -256,3 +256,13 @@ A sequência visual principal está concluída. Uma possível ampliação do Cai
 - **Decisões pendentes do autor:** manter somente o Caixa Principal ou permitir vários caixas; quem pode consultar/configurar caixas e fazer baixas; como reconciliar liquidações anteriores sem vínculo de caixa; se transferências e lançamentos avulsos fazem parte do escopo; e em quais condições uma devolução comprovada deve gerar estorno. Não presumir saldos nem estornos passados.
 - **Verificações necessárias:** validar permissões na API, atomicidade e repetição de liquidações, cálculo de saldos, preservação dos históricos e responsividade. Qualquer mudança de schema deve ter migration e testes de regressão. A entrega permanece independente do Chatbot.
 - **Entrega:** depois da revisão das regras, apresentar um plano fechado da alteração e aguardar autorização para implementar. Manter commits locais com identidade Shishura; push exige aprovação separada.
+
+## Atualização das permissões por módulo — 18/11/2026
+
+O painel Administração mantém os componentes e switches existentes, acrescentando
+Comercial, Financeiro (agrupamento) e Relatórios. Os tipos pagar/receber continuam
+individuais. Relatórios podem ser concedidos a funcionários, limitados aos tipos
+financeiros autorizados; Caixa e cancelamentos permanecem ADMIN. O menu, o acesso
+direto às telas e os tópicos do Chatbot usam as permissões efetivas da API.
+Comercial administra ambos os papéis de contato independentemente do Financeiro;
+a consulta mínima para títulos não expõe dados do cadastro completo.

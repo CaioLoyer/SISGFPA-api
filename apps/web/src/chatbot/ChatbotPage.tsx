@@ -31,8 +31,8 @@ function mensagemErro(error: unknown) {
 }
 
 export function ChatbotPage() {
-  const { user } = useSession()
-  const topics = useMemo(() => getChatbotTopics(user?.role), [user?.role])
+  const { user, permissions } = useSession()
+  const topics = useMemo(() => getChatbotTopics(permissions), [permissions])
   const [conversas, setConversas] = useState<ChatSummary[]>([])
   const [conversaId, setConversaId] = useState<string | null>(null)
   const [mensagens, setMensagens] = useState<ChatMessage[]>([])

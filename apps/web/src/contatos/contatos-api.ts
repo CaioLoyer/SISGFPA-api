@@ -1,9 +1,35 @@
+import { notifyPermissionDenied } from '../auth/module-access'
 import type { PapelContato, TipoPessoa } from '@sisgfpa/types'
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
 export type SituacaoContato = 'ATIVOS' | 'INATIVOS' | 'TODOS'
 export type TipoTituloContato = 'DESPESA' | 'RECEBIMENTO'
+export interface OpcaoContato {
+  id: string
+  nome: string
+}
+
+export async function listarOpcoesContatos(tipo: TipoTituloContato, busca: string): Promise<OpcaoContato[]> {
+  const body = await request(`${apiBaseUrl}/contatos/opcoes?${new URLSearchParams({ tipo, busca })}`)
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('items' in body) ||
+    !Array.isArray(body.items) ||
+    !body.items.every(
+      (item: unknown) =>
+        typeof item === 'object' &&
+        item !== null &&
+        'id' in item &&
+        typeof item.id === 'string' &&
+        'nome' in item &&
+        typeof item.nome === 'string'
+    )
+  )
+    throw new ContatosApiError('A API Financeira retornou opções de contato em formato inválido.')
+  return body.items.map(({ id, nome }) => ({ id, nome }))
+}
 
 export interface Contato {
   id: string
@@ -82,6 +108,7 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
     }
   }
   if (!response.ok) {
+    notifyPermissionDenied(response.status)
     const message =
       typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
         ? body.error

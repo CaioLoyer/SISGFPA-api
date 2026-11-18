@@ -70,11 +70,14 @@ describe('permissões individuais nos módulos financeiros', () => {
     })
   })
 
-  it('mapeia permissões financeiras para fornecedores e clientes', async () => {
-    database.findUnique.mockResolvedValue({ despesas: true, recebimentos: false })
+  it('separa Comercial dos tipos financeiros autorizados', async () => {
+    database.findUnique.mockResolvedValue({ comercial: true, despesas: true, recebimentos: false })
 
-    await expect(papeisContatoPermitidos(request(funcionario))).resolves.toEqual(['FORNECEDOR'])
+    await expect(papeisContatoPermitidos(request(funcionario))).resolves.toEqual(['CLIENTE', 'FORNECEDOR'])
     await expect(exigirPapeisContato(request(funcionario), ['FORNECEDOR'])).resolves.toBeUndefined()
+    await expect(exigirPapeisContato(request(funcionario), ['CLIENTE'])).resolves.toBeUndefined()
+    database.findUnique.mockResolvedValue({ comercial: false, despesas: true, recebimentos: true })
+    await expect(papeisContatoPermitidos(request(funcionario))).resolves.toEqual([])
     await expect(exigirPapeisContato(request(funcionario), ['CLIENTE'])).rejects.toMatchObject({
       statusCode: 403,
     })

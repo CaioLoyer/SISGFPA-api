@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
-import { canAccessAdmin } from '../auth/protected-route'
 import { useSession } from '../auth/session-context'
 import { Icon } from '../shared/Icon'
 import { PageHeader } from '../shared/PageHeader'
@@ -22,10 +21,18 @@ function rotuloStatus(status: string) {
 }
 
 export function RelatoriosPage() {
-  const { user } = useSession()
-  const admin = canAccessAdmin(user?.role)
+  const { permissions } = useSession()
+  const autorizado = permissions?.relatorios === true
   const [periodoInicial] = useState(periodoDoMesAtual)
-  const [tipo, setTipo] = useState<TipoRelatorio>('PAGAR')
+  const [tipoEscolhido, setTipo] = useState<TipoRelatorio>('PAGAR')
+  const tipo: TipoRelatorio =
+    tipoEscolhido === 'PAGAR'
+      ? permissions?.despesas
+        ? 'PAGAR'
+        : 'RECEBER'
+      : permissions?.recebimentos
+        ? 'RECEBER'
+        : 'PAGAR'
   const [inicio, setInicio] = useState(periodoInicial.dataInicio)
   const [fim, setFim] = useState(periodoInicial.dataFim)
   const [periodoAplicado, setPeriodoAplicado] = useState<Required<FiltroRelatorio>>(periodoInicial)
@@ -37,7 +44,7 @@ export function RelatoriosPage() {
   const [tentativa, setTentativa] = useState(0)
 
   useEffect(() => {
-    if (!admin) return
+    if (!autorizado) return
     let ativo = true
     setCarregando(true)
     setErro('')
@@ -64,9 +71,9 @@ export function RelatoriosPage() {
     return () => {
       ativo = false
     }
-  }, [admin, periodoAplicado, tentativa, tipo])
+  }, [autorizado, periodoAplicado, tentativa, tipo])
 
-  if (!admin) {
+  if (!autorizado) {
     return (
       <section className="reports-page" aria-label="Relatórios financeiros">
         <PageHeader
@@ -76,7 +83,7 @@ export function RelatoriosPage() {
         <div className="reports-content">
           <section className="reports-access-denied" role="alert">
             <h2>Acesso não permitido</h2>
-            <p>Os relatórios financeiros estão disponíveis somente para ADMIN.</p>
+            <p>Seu usuário não tem acesso a relatórios financeiros.</p>
             <Link className="text-link" to="/dashboard">
               Voltar para a visão geral
             </Link>
@@ -155,7 +162,7 @@ export function RelatoriosPage() {
             <button
               aria-pressed={tipo === 'PAGAR'}
               className={`reports-tab${tipo === 'PAGAR' ? ' reports-tab-active' : ''}`}
-              disabled={carregando}
+              disabled={carregando || !permissions?.despesas}
               onClick={() => selecionarTipo('PAGAR')}
               type="button"
             >
@@ -164,7 +171,7 @@ export function RelatoriosPage() {
             <button
               aria-pressed={tipo === 'RECEBER'}
               className={`reports-tab${tipo === 'RECEBER' ? ' reports-tab-active' : ''}`}
-              disabled={carregando}
+              disabled={carregando || !permissions?.recebimentos}
               onClick={() => selecionarTipo('RECEBER')}
               type="button"
             >

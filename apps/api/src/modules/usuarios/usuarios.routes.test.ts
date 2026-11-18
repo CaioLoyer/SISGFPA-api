@@ -7,7 +7,10 @@ const testState = vi.hoisted(() => ({
     string,
     { id: string; name: string; email: string; role: 'ADMIN' | 'FUNCIONARIO'; createdAt: Date }
   >(),
-  permissions: new Map<string, { despesas: boolean; recebimentos: boolean }>(),
+  permissions: new Map<
+    string,
+    { despesas: boolean; recebimentos: boolean; comercial: boolean; relatorios: boolean }
+  >(),
   permissionHistory: [] as Array<Record<string, unknown>>,
 }))
 
@@ -29,6 +32,7 @@ vi.mock('@sisgfpa/auth', async () => {
 
 vi.mock('@sisgfpa/database', () => {
   const prisma: any = {
+    $queryRaw: async () => [],
     user: {
       findUnique: async ({ where }: { where: { email: string } }) => {
         const user = testState.users.get(where.email)
@@ -364,7 +368,7 @@ describe('criação administrativa de contas', () => {
       expect.arrayContaining([
         expect.objectContaining({
           email: createdFuncionarioEmail,
-          permissoes: { despesas: true, recebimentos: true },
+          permissoes: { comercial: true, despesas: true, recebimentos: true, relatorios: false },
         }),
       ])
     )
@@ -375,8 +379,8 @@ describe('criação administrativa de contas', () => {
     expect(testState.permissionHistory).toHaveLength(2)
     expect(testState.permissionHistory[0]).toMatchObject({
       alteradoPorId: expect.any(String),
-      permissoesAnteriores: { despesas: true, recebimentos: true },
-      permissoesNovas: { despesas: false, recebimentos: true },
+      permissoesAnteriores: { comercial: true, despesas: true, recebimentos: true, relatorios: false },
+      permissoesNovas: { comercial: true, despesas: false, recebimentos: true, relatorios: false },
     })
   })
 
@@ -387,12 +391,28 @@ describe('criação administrativa de contas', () => {
     expect(adminPermissionTargetResult.statusCode).toBe(404)
   })
 
+  it('expõe somente as permissões da própria sessão, sem liberar a administração', async () => {
+    expect((await app.inject({ url: '/usuarios/me/permissoes' })).statusCode).toBe(401)
+    const own = await app.inject({ url: '/usuarios/me/permissoes', headers: { cookie: funcionarioCookie } })
+    expect(own.statusCode).toBe(200)
+    expect(own.json()).toEqual({
+      comercial: true,
+      despesas: true,
+      recebimentos: false,
+      relatorios: false,
+      caixa: false,
+      administracao: false,
+    })
+    const admin = await app.inject({ url: '/usuarios/me/permissoes', headers: { cookie: adminCookie } })
+    expect(Object.values(admin.json()).every((value) => value === true)).toBe(true)
+  })
+
   it('aplica as permissões individuais na API para funcionários já autenticados', () => {
     expect(despesasNegadaResult.statusCode).toBe(403)
     expect(recebimentosNegadoResult.statusCode).toBe(403)
   })
 
-  it('mantém cancelamento e relatórios exclusivos de ADMIN', () => {
+  it('mantém cancelamento exclusivo de ADMIN e relatórios negados sem permissão', () => {
     expect(cancelamentoNegadoResult.statusCode).toBe(403)
     expect(relatorioNegadoResult.statusCode).toBe(403)
   })

@@ -1,4 +1,5 @@
-import type { Role } from '@sisgfpa/types'
+import type { EffectivePermissions } from '@sisgfpa/types'
+import { canAccessPath } from '../auth/module-access'
 
 export interface ChatbotTopic {
   id: string
@@ -45,7 +46,6 @@ const topics: ChatbotTopic[] = [
     description: 'Consultar e exportar relatórios financeiros.',
     to: '/relatorios',
     icon: '▤',
-    adminOnly: true,
   },
   {
     id: 'administration',
@@ -64,6 +64,6 @@ const topics: ChatbotTopic[] = [
   },
 ]
 
-export function getChatbotTopics(role: Role | undefined): ChatbotTopic[] {
-  return topics.filter((topic) => !topic.adminOnly || role === 'ADMIN')
+export function getChatbotTopics(permissions: EffectivePermissions | null): ChatbotTopic[] {
+  return topics.filter((topic) => canAccessPath(topic.to, permissions))
 }

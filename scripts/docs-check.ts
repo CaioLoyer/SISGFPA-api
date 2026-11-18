@@ -85,6 +85,8 @@ const ESPERADOS_API = [
   'POST /api/auth/email-otp/request-password-reset',
   'POST /api/auth/email-otp/reset-password',
   'GET /usuarios/funcionarios',
+  'GET /usuarios/me/permissoes',
+  'GET /contatos/opcoes',
   'POST /usuarios/funcionarios',
   'PATCH /usuarios/funcionarios/{id}/permissoes',
   'GET /categorias/',
@@ -317,7 +319,12 @@ async function main() {
     assert.equal(funcionarios.status, 200)
     const created = funcionarios.body.items.find((item: Json) => item.email === funcionarioEmail)
     assert.ok(created, `funcionário ${funcionarioEmail} não apareceu na lista administrativa`)
-    assert.deepEqual(created.permissoes, { despesas: true, recebimentos: true })
+    assert.deepEqual(created.permissoes, {
+      comercial: true,
+      despesas: true,
+      recebimentos: true,
+      relatorios: false,
+    })
 
     const revokeDespesas = await http(
       API,
@@ -681,6 +688,26 @@ async function main() {
     assert.equal((await http(BOT, admin, 'POST', `/chats/${chatId}/messages`, {})).status, 400)
     assert.equal((await http(BOT, null, 'GET', '/chats')).status, 401)
   })
+
+  await step(
+    'Permissões próprias e seleção mínima de contatos estão documentadas e autorizadas',
+    async () => {
+      const permissions = await http(API, func, 'GET', '/usuarios/me/permissoes')
+      assert.equal(permissions.status, 200)
+      assert.deepEqual(permissions.body, {
+        comercial: true,
+        despesas: true,
+        recebimentos: true,
+        relatorios: false,
+        caixa: false,
+        administracao: false,
+      })
+      const options = await http(API, func, 'GET', `/contatos/opcoes${api.query('GET', '/contatos/opcoes')}`)
+      assert.equal(options.status, 200, options.text)
+      assert.ok(options.body.items.length > 0)
+      assert.ok(options.body.items.every((item: Json) => Object.keys(item).sort().join(',') === 'id,nome'))
+    }
+  )
 
   console.log('\nLogout')
   await step('Logout encerra a sessão: rotas protegidas passam a dar 401', async () => {

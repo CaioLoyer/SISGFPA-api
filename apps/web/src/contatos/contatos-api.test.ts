@@ -110,3 +110,20 @@ describe('cliente HTTP do módulo Comercial', () => {
     })
   })
 })
+import { listarOpcoesContatos } from './contatos-api'
+
+it('consulta apenas opções mínimas no financeiro sem exigir o cadastro completo', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ items: [{ id: 'contato', nome: 'Cliente', documento: 'nao-expor' }] }))
+    )
+  vi.stubGlobal('fetch', fetchMock)
+  await expect(listarOpcoesContatos('RECEBIMENTO', 'Cliente')).resolves.toEqual([
+    { id: 'contato', nome: 'Cliente' },
+  ])
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://localhost:8080/contatos/opcoes?tipo=RECEBIMENTO&busca=Cliente',
+    expect.objectContaining({ credentials: 'include' })
+  )
+})

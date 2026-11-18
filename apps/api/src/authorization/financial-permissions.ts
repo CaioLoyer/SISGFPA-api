@@ -1,22 +1,9 @@
-import { prisma } from '@sisgfpa/database'
 import { ForbiddenError, UnauthorizedError } from '@sisgfpa/http'
 import type { FastifyRequest } from 'fastify'
-import type { AuthenticatedUser } from '@sisgfpa/auth'
+import { permissoesDaRequisicao, requireModulePermission } from './module-permissions.js'
 
 export type FinancialModulePermission = 'despesas' | 'recebimentos'
 export type ContatoPapelPermitido = 'CLIENTE' | 'FORNECEDOR'
-
-export async function consultarPermissoesFinanceiras(user: AuthenticatedUser) {
-  if (user.role === 'ADMIN') return { despesas: true, recebimentos: true }
-  const configuracao = await prisma.funcionarioPermissao.findUnique({
-    where: { funcionarioId: user.id },
-    select: { despesas: true, recebimentos: true },
-  })
-  return {
-    despesas: configuracao?.despesas ?? true,
-    recebimentos: configuracao?.recebimentos ?? true,
-  }
-}
 
 async function funcionarioPode(
   request: FastifyRequest,
@@ -24,21 +11,19 @@ async function funcionarioPode(
   exigirTodas = false
 ) {
   if (!request.user) throw new UnauthorizedError()
-  const configuracao = await consultarPermissoesFinanceiras(request.user)
+  const configuracao = await permissoesDaRequisicao(request)
   const verifica = (permissao: FinancialModulePermission) => configuracao[permissao]
   return exigirTodas ? permissoes.every(verifica) : permissoes.some(verifica)
 }
 
 export async function papeisContatoPermitidos(request: FastifyRequest): Promise<ContatoPapelPermitido[]> {
   if (!request.user) throw new UnauthorizedError()
-  const { despesas, recebimentos } = await consultarPermissoesFinanceiras(request.user)
-  const papeis: ContatoPapelPermitido[] = []
-  if (recebimentos) papeis.push('CLIENTE')
-  if (despesas) papeis.push('FORNECEDOR')
-  return papeis
+  const { comercial } = await permissoesDaRequisicao(request)
+  return comercial ? ['CLIENTE', 'FORNECEDOR'] : []
 }
 
 export async function exigirPapeisContato(request: FastifyRequest, papeis: ContatoPapelPermitido[]) {
+  await requireModulePermission('comercial')(request)
   const permitidos = await papeisContatoPermitidos(request)
   if (!papeis.every((papel) => permitidos.includes(papel))) {
     throw new ForbiddenError('Seu usuário não tem permissão para acessar este tipo de contato')
@@ -46,11 +31,7 @@ export async function exigirPapeisContato(request: FastifyRequest, papeis: Conta
 }
 
 export function requireFinancialPermission(permissao: FinancialModulePermission) {
-  return async (request: FastifyRequest) => {
-    if (!(await funcionarioPode(request, [permissao]))) {
-      throw new ForbiddenError('Seu usuário não tem acesso a este módulo financeiro')
-    }
-  }
+  return requireModulePermission(permissao)
 }
 
 export async function requireAnyFinancialPermission(request: FastifyRequest) {

@@ -254,7 +254,7 @@ async function main() {
     assert.equal((await http(API, admin, 'GET', '/caixa')).body.caixa.saldoAtual, saldoAntesDevolucao + 300)
   })
 
-  await step('relatório continua restrito a ADMIN', async () => {
+  await step('relatório exige permissão explícita e ADMIN mantém acesso', async () => {
     assert.equal((await http(API, func, 'GET', '/relatorios/contas-a-pagar')).status, 403)
     assert.equal((await http(API, admin, 'GET', '/relatorios/contas-a-pagar')).status, 200)
   })
@@ -285,6 +285,55 @@ async function main() {
     const exec = chat.body.messages.filter((m: Json) => m.status === 'EXECUTADA')
     assert.ok(exec.length >= 6)
     assert.ok(exec.every((m: Json) => m.intent && m.parsedData && (m.despesaId || m.recebimentoId)))
+  })
+
+  await step('ADMIN concede e revoga módulos na sessão existente sem ampliar outros acessos', async () => {
+    const path = `/usuarios/funcionarios/${createdFuncionario.body.id}/permissoes`
+    const grant = await http(API, admin, 'PATCH', path, {
+      comercial: false,
+      despesas: false,
+      recebimentos: true,
+      relatorios: true,
+    })
+    assert.equal(grant.status, 200, grant.text)
+    assert.deepEqual((await http(API, func, 'GET', '/usuarios/me/permissoes')).body, {
+      comercial: false,
+      despesas: false,
+      recebimentos: true,
+      relatorios: true,
+      caixa: false,
+      administracao: false,
+    })
+    assert.equal((await http(API, func, 'GET', '/contatos')).status, 403)
+    assert.equal((await http(API, func, 'GET', '/contatos/opcoes?tipo=RECEBIMENTO&busca=Maria')).status, 200)
+    assert.equal((await http(API, func, 'GET', '/contatos/opcoes?tipo=DESPESA&busca=ABC')).status, 403)
+    assert.equal((await http(API, func, 'PATCH', path, { despesas: true })).status, 403)
+    for (const formato of ['json', 'csv']) {
+      assert.equal(
+        (await http(API, func, 'GET', `/relatorios/contas-a-pagar?formato=${formato}`)).status,
+        403
+      )
+      assert.equal(
+        (await http(API, func, 'GET', `/relatorios/contas-a-receber?formato=${formato}`)).status,
+        200
+      )
+    }
+    const revoke = await http(API, admin, 'PATCH', path, { relatorios: false })
+    assert.equal(revoke.status, 200)
+    assert.equal(revoke.body.permissoes.recebimentos, true)
+    assert.equal(revoke.body.permissoes.comercial, false)
+    assert.equal((await http(API, func, 'GET', '/relatorios/contas-a-receber?formato=csv')).status, 403)
+    assert.equal(
+      (
+        await http(API, admin, 'PATCH', path, {
+          comercial: true,
+          despesas: true,
+          recebimentos: true,
+          relatorios: false,
+        })
+      ).status,
+      200
+    )
   })
 
   console.log(`\n${passedCount()} cenários OK`)

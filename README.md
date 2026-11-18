@@ -61,7 +61,7 @@ A recuperação de senha usa um código de seis dígitos enviado por SMTP, váli
 
 O primeiro administrador de cada banco é criado uma única vez por um operador confiável, depois das migrations, com `pnpm db:create-admin` e as variáveis `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` injetadas no ambiente (use o gerenciador de segredos da implantação; não versione a senha). O comando recusa executar se já existir um `ADMIN` e cria a credencial pelo Better Auth. Não há endpoint público de bootstrap.
 
-Somente um `ADMIN` autenticado pode usar `POST /usuarios/funcionarios` para criar conta com nome, e-mail e senha inicial. Essa operação sempre cria `FUNCIONARIO`; o servidor define o papel e rejeita campos extras como `role`. O registro usa o fluxo de criação e hash de senha do Better Auth e não cria uma sessão para o funcionário. O padrão preserva os acessos financeiros atuais. O ADMIN pode listar funcionários (`GET /usuarios/funcionarios`) e alterar individualmente o acesso aos módulos de despesas e recebimentos (`PATCH /usuarios/funcionarios/:id/permissoes`). As alterações são consultadas pela API em cada requisição e registradas em auditoria. Cancelamentos, relatórios e gestão de contas continuam exclusivos de ADMIN.
+Somente um `ADMIN` autenticado pode usar `POST /usuarios/funcionarios` para criar conta com nome, e-mail e senha inicial. Essa operação sempre cria `FUNCIONARIO`; o servidor define o papel e rejeita campos extras como `role`. O registro usa o fluxo de criação e hash de senha do Better Auth e não cria uma sessão para o funcionário. O padrão preserva os acessos financeiros atuais. O ADMIN pode listar funcionários (`GET /usuarios/funcionarios`) e alterar individualmente o acesso a Comercial, contas a pagar, contas a receber e Relatórios (`PATCH /usuarios/funcionarios/:id/permissoes`). As alterações são consultadas pela API em cada requisição e registradas em auditoria. Caixa, cancelamentos e gestão de contas continuam exclusivos de ADMIN. Relatórios exigem a permissão própria e acesso ao tipo financeiro consultado, igualmente em JSON e CSV.
 
 Na operação de cadastro considerada no escopo de RF001/RF012, o tipo criado é sempre `FUNCIONARIO`, definido pelo servidor. A decisão de permitir que somente `ADMIN` execute a operação diverge do diagrama de casos de uso do PDF, que associa “Manter Funcionários” ao ator Funcionário.
 
@@ -82,17 +82,17 @@ Validação: `pnpm typecheck && pnpm test && pnpm build && pnpm lint` (e `pnpm f
 
 ## Domínio financeiro (API)
 
-| Recurso            | Endpoints                                                                                                                                                             |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Despesas           | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)                                               |
-| Recebimentos       | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN)                                   |
-| Caixa (ADMIN)      | `GET /caixa`, `POST /caixa/abertura`, `GET /caixa/movimentacoes`, `POST /caixa/movimentacoes/:id/estornos`                                                            |
-| Dashboard (ADMIN)  | `GET /dashboard/resumo?dataInicio=AAAA-MM-DD&dataFim=AAAA-MM-DD`                                                                                                      |
-| Relatórios (ADMIN) | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                                                                |
-| Comercial          | `GET/POST /contatos`, `PATCH /contatos/:id`, `PATCH /contatos/:id/situacao`, `GET /contatos/sugestoes`, `GET /contatos/vinculos-pendentes`, `POST /contatos/vinculos` |
-| Categorias         | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                                                           |
-| Usuários (ADMIN)   | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)                                        |
-| Autenticação       | `POST /api/auth/email-otp/request-password-reset`, `POST /api/auth/email-otp/reset-password` (código enviado por e-mail)                                              |
+| Recurso                | Endpoints                                                                                                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Despesas               | `POST/GET /despesas`, `GET/PATCH /despesas/:id`, `POST /despesas/:id/pagamentos`, `POST /despesas/:id/cancelar` (ADMIN)                                               |
+| Recebimentos           | `POST/GET /recebimentos`, `GET/PATCH /recebimentos/:id`, `POST /recebimentos/:id/baixas`, `POST /recebimentos/:id/cancelar` (ADMIN)                                   |
+| Caixa (ADMIN)          | `GET /caixa`, `POST /caixa/abertura`, `GET /caixa/movimentacoes`, `POST /caixa/movimentacoes/:id/estornos`                                                            |
+| Dashboard (ADMIN)      | `GET /dashboard/resumo?dataInicio=AAAA-MM-DD&dataFim=AAAA-MM-DD`                                                                                                      |
+| Relatórios autorizados | `GET /relatorios/contas-a-pagar`, `/contas-a-receber` (`?formato=csv`)                                                                                                |
+| Comercial              | `GET/POST /contatos`, `PATCH /contatos/:id`, `PATCH /contatos/:id/situacao`, `GET /contatos/sugestoes`, `GET /contatos/vinculos-pendentes`, `POST /contatos/vinculos` |
+| Categorias             | `GET /categorias?tipo=DESPESA\|RECEBIMENTO`                                                                                                                           |
+| Usuários (ADMIN)       | `GET/POST /usuarios/funcionarios`, `PATCH /usuarios/funcionarios/:id/permissoes` (papel `FUNCIONARIO` atribuído pelo servidor)                                        |
+| Autenticação           | `POST /api/auth/email-otp/request-password-reset`, `POST /api/auth/email-otp/reset-password` (código enviado por e-mail)                                              |
 
 Novidades desta unificação: `Categoria`, `Parcela` (despesa e recebimento), `observacoes`, `dataLancamento`, filtros de listagem (fornecedor/cliente, categoria, período) e `liquidarNoAto` (cria o título e registra o pagamento/baixa e o movimento no Caixa Principal na **mesma transação**, para fatos já ocorridos como "Pagamos R$ 800 de energia"). Uma liquidação feita depois também atualiza o Caixa automaticamente. A operação exige que o ADMIN tenha configurado o saldo inicial.
 
@@ -123,7 +123,7 @@ O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo
 - Relatórios agrupam pelo vencimento do título (= 1ª parcela); ainda não filtram por parcela.
 - Exportação PDF/XLSX prevista no README original do Módulo Financeiro não existe (só CSV).
 
-# Datas e repetição de liquidações
+## Datas e repetição de liquidações
 
 Movimentos de Caixa, dashboard e horários de liquidação usam o fuso da papelaria
 `America/Campo_Grande`, mesmo quando o computador do usuário está em outro fuso.
@@ -142,3 +142,38 @@ Testes opcionais de concorrência: use `LIQUIDACAO_TEST_DATABASE_URL` em um banc
 PostgreSQL local, vazio, descartável e migrado chamado `sisgfpa_liquidacao_test`,
 e execute `pnpm --filter api exec vitest run src/domain/liquidacao.integration.test.ts`.
 Eles nunca usam automaticamente o banco de desenvolvimento.
+
+## Permissões por módulo
+
+O ADMIN tem acesso completo e configura quatro permissões por funcionário:
+
+| Permissão        | Regra                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| Comercial        | Cadastro completo de clientes e fornecedores, nos dois papéis, independente do Financeiro.                |
+| Contas a pagar   | Consulta, criação, edição e pagamento de despesas; categorias correspondentes.                            |
+| Contas a receber | Consulta, criação, edição e baixa de recebimentos; categorias correspondentes.                            |
+| Relatórios       | JSON/CSV apenas dos tipos financeiros também autorizados. Sem pagar/receber, nenhum relatório é liberado. |
+
+O agrupamento Financeiro na Administração alterna pagar e receber juntos; os
+controles individuais continuam disponíveis. A associação de títulos históricos
+exige Comercial e a permissão do tipo financeiro. Caixa, cancelamentos e gestão
+de funcionários permanecem ADMIN. Esta etapa não promove contas para ADMIN.
+
+`GET /usuarios/me/permissoes` retorna o acesso efetivo da sessão autenticada.
+A API relê as permissões em cada requisição, inclusive nas chamadas do Chatbot;
+menu, URL direta e tópicos usam esse catálogo. A interface atualiza ao navegar,
+retomar o foco, receber recusa de acesso ou a cada 30 segundos com a página visível.
+Uma alteração de permissões remove da tela dados e formulários do acesso anterior.
+
+Sem Comercial, `GET /contatos/opcoes?tipo=DESPESA|RECEBIMENTO&busca=nome`
+permite selecionar até dez contatos ativos do tipo financeiro autorizado, retornando
+somente `id` e `nome`, sem documento, telefone ou operações de cadastro.
+
+Novas contas FUNCIONARIO mantêm Comercial, pagar e receber habilitados e Relatórios
+desabilitado. A migration `20261118193000_permissoes_por_modulo` preserva os acessos
+financeiros existentes, inicializa Comercial conforme o acesso anterior
+(`despesas OU recebimentos`) e não concede Relatórios. Contas sem configuração
+individual mantêm os padrões anteriores. Alterações são auditadas com executor,
+alvo, valores anteriores/novos e data; PATCH aceita campos parciais e não altera
+os campos omitidos. Aplique `pnpm db:deploy` no banco do ambiente antes de iniciar
+a versão nova da API.

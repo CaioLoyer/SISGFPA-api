@@ -1,4 +1,6 @@
-import type { Role } from '@sisgfpa/types'
+import { MODULE_PERMISSION_KEYS } from '@sisgfpa/types'
+import type { Role, ModulePermissions, EffectivePermissions } from '@sisgfpa/types'
+import { notifyPermissionDenied } from './module-access'
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
@@ -16,10 +18,7 @@ export interface CreatedFuncionario {
   role: 'FUNCIONARIO'
 }
 
-export interface FuncionarioPermissoes {
-  despesas: boolean
-  recebimentos: boolean
-}
+export type FuncionarioPermissoes = ModulePermissions
 
 export interface FuncionarioAdmin {
   id: string
@@ -76,6 +75,7 @@ async function request(
   }
 
   if (!response.ok) {
+    notifyPermissionDenied(response.status)
     const message =
       response.status === 401
         ? options.invalidCredentials
@@ -203,6 +203,29 @@ export async function createFuncionario(input: {
   return { id: body.id, name: body.name, email: body.email, role: body.role }
 }
 
+function isModulePermissions(value: unknown): value is ModulePermissions {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    MODULE_PERMISSION_KEYS.every(
+      (key) => key in value && typeof value[key as keyof typeof value] === 'boolean'
+    )
+  )
+}
+
+export async function getCurrentPermissions(): Promise<EffectivePermissions> {
+  const body = await request(`${apiBaseUrl}/usuarios/me/permissoes`)
+  if (
+    !isModulePermissions(body) ||
+    !('caixa' in body) ||
+    typeof body.caixa !== 'boolean' ||
+    !('administracao' in body) ||
+    typeof body.administracao !== 'boolean'
+  )
+    throw new AuthApiError('A API Financeira retornou as permissões em formato inválido.')
+  return { ...body, caixa: body.caixa, administracao: body.administracao }
+}
+
 function isFuncionarioAdmin(value: unknown): value is FuncionarioAdmin {
   if (typeof value !== 'object' || value === null) return false
   if (!(
@@ -214,16 +237,13 @@ function isFuncionarioAdmin(value: unknown): value is FuncionarioAdmin {
   )) {
     return false
   }
-  if (typeof value.permissoes !== 'object' || value.permissoes === null) return false
-  if (!('despesas' in value.permissoes && 'recebimentos' in value.permissoes)) return false
+  if (!isModulePermissions(value.permissoes)) return false
 
   return (
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.email === 'string' &&
-    typeof value.createdAt === 'string' &&
-    typeof value.permissoes.despesas === 'boolean' &&
-    typeof value.permissoes.recebimentos === 'boolean'
+    typeof value.createdAt === 'string'
   )
 }
 
@@ -254,14 +274,10 @@ export async function updateFuncionarioPermissoes(
     typeof body !== 'object' ||
     body === null ||
     !('permissoes' in body) ||
-    typeof body.permissoes !== 'object' ||
-    body.permissoes === null ||
-    !('despesas' in body.permissoes && 'recebimentos' in body.permissoes) ||
-    typeof body.permissoes.despesas !== 'boolean' ||
-    typeof body.permissoes.recebimentos !== 'boolean'
+    !isModulePermissions(body.permissoes)
   ) {
     throw new AuthApiError('A API Financeira retornou as permissões em formato inválido.')
   }
 
-  return { despesas: body.permissoes.despesas, recebimentos: body.permissoes.recebimentos }
+  return body.permissoes
 }

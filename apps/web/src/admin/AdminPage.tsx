@@ -211,7 +211,7 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
         </span>
         <div>
           <h2 id="employee-permissions-title">Funcionários e permissões</h2>
-          <p>O acesso é definido por funcionário para cada módulo financeiro.</p>
+          <p>O acesso é definido por funcionário para Comercial, Financeiro e Relatórios.</p>
         </div>
       </header>
       {loadError && (
@@ -240,8 +240,13 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
             <thead>
               <tr>
                 <th scope="col">Funcionário</th>
-                <th scope="col">Contas a pagar</th>
-                <th scope="col">Contas a receber</th>
+                {['Comercial', 'Financeiro', 'Contas a pagar', 'Contas a receber', 'Relatórios'].map(
+                  (label) => (
+                    <th scope="col" key={label}>
+                      {label}
+                    </th>
+                  )
+                )}
                 <th scope="col">
                   <span className="admin-screen-reader">Ações</span>
                 </th>
@@ -268,38 +273,40 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
                       <span className="admin-role-pill">Funcionário</span>
                     </div>
                   </th>
-                  <td data-label="Contas a pagar">
-                    <label className="admin-switch">
-                      <span className="admin-screen-reader">
-                        Permitir contas a pagar para {funcionario.name}
-                      </span>
-                      <input
-                        checked={funcionario.permissoes.despesas}
-                        disabled={savingId === funcionario.id}
-                        onChange={(event) =>
-                          changePermission(funcionario.id, 'despesas', event.target.checked)
-                        }
-                        type="checkbox"
-                      />
-                      <span className="admin-switch-track" aria-hidden="true" />
-                    </label>
-                  </td>
-                  <td data-label="Contas a receber">
-                    <label className="admin-switch">
-                      <span className="admin-screen-reader">
-                        Permitir contas a receber para {funcionario.name}
-                      </span>
-                      <input
-                        checked={funcionario.permissoes.recebimentos}
-                        disabled={savingId === funcionario.id}
-                        onChange={(event) =>
-                          changePermission(funcionario.id, 'recebimentos', event.target.checked)
-                        }
-                        type="checkbox"
-                      />
-                      <span className="admin-switch-track" aria-hidden="true" />
-                    </label>
-                  </td>
+                  {(
+                    [
+                      ['comercial', 'Comercial'],
+                      ['financeiro', 'Financeiro'],
+                      ['despesas', 'Contas a pagar'],
+                      ['recebimentos', 'Contas a receber'],
+                      ['relatorios', 'Relatórios'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <td data-label={label} key={key}>
+                      <label className="admin-switch">
+                        <span className="admin-screen-reader">
+                          Permitir {label.toLowerCase()} para {funcionario.name}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={
+                            key === 'financeiro'
+                              ? funcionario.permissoes.despesas && funcionario.permissoes.recebimentos
+                              : funcionario.permissoes[key]
+                          }
+                          disabled={savingId === funcionario.id}
+                          onChange={(event) => {
+                            const enabled = event.target.checked
+                            if (key === 'financeiro') {
+                              changePermission(funcionario.id, 'despesas', enabled)
+                              changePermission(funcionario.id, 'recebimentos', enabled)
+                            } else changePermission(funcionario.id, key, enabled)
+                          }}
+                        />
+                        <span className="admin-switch-track" aria-hidden="true" />
+                      </label>
+                    </td>
+                  ))}
                   <td data-label="Ações">
                     <div className="admin-row-action">
                       <button
@@ -324,7 +331,9 @@ function EmployeePermissionsPanel({ refreshKey }: { refreshKey: number }) {
         </div>
       )}
       <p className="admin-permission-note">
-        Cancelamentos, relatórios e administração continuam exclusivos de ADMIN.
+        Relatórios mostram somente os tipos financeiros autorizados. Comercial gerencia clientes e
+        fornecedores; Financeiro alterna pagar e receber em conjunto. Caixa, cancelamentos e administração
+        continuam exclusivos de ADMIN.
       </p>
     </section>
   )

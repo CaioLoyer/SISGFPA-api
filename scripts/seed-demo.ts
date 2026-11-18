@@ -60,7 +60,7 @@ export async function seedDemo() {
 
   const admin = await garantirUsuario(EXEMPLOS.admin, 'ADMIN')
   const funcionario = await garantirUsuario(EXEMPLOS.funcionario, 'FUNCIONARIO')
-  // A conta demo volta ao perfil inicial (acesso financeiro atual) a cada restauração.
+  // A conta demo volta ao perfil inicial (Comercial e Financeiro liberados, Relatórios desabilitado) a cada restauração.
   await prisma.funcionarioPermissao.deleteMany({ where: { funcionarioId: funcionario.id } })
 
   // O seed pode abrir um caixa de demonstração vazio, sem atribuir a ele liquidações antigas.

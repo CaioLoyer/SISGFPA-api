@@ -52,21 +52,21 @@ describe.skipIf(!testUrl)('liquidação idempotente em PostgreSQL isolado', () =
           })
       const instant = new Date('2032-03-11T02:00:00Z')
       const key = crypto.randomUUID()
-      const pay = (valor: number, idempotencyKey = key) =>
+      const pay = (valor: number, idempotencyKey = key, date = instant, usuarioId = actor) =>
         db.$transaction((tx) =>
           despesa
             ? aplicarPagamentoDespesa(tx, {
                 despesaId: title.id,
                 valor,
-                pagoEm: instant,
-                usuarioId: actor,
+                pagoEm: date,
+                usuarioId,
                 idempotencyKey,
               })
             : aplicarBaixaRecebimento(tx, {
                 recebimentoId: title.id,
                 valor,
-                recebidoEm: instant,
-                usuarioId: actor,
+                recebidoEm: date,
+                usuarioId,
                 idempotencyKey,
               })
         )
@@ -74,6 +74,12 @@ describe.skipIf(!testUrl)('liquidação idempotente em PostgreSQL isolado', () =
       await pay(25)
       await pay(25)
       await expect(pay(26)).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+      await expect(pay(25, key, new Date(instant.getTime() + 1))).rejects.toMatchObject({
+        code: 'IDEMPOTENCY_KEY_REUSED',
+      })
+      await expect(pay(25, key, instant, 'outro-executor')).rejects.toMatchObject({
+        code: 'IDEMPOTENCY_KEY_REUSED',
+      })
       const second = crypto.randomUUID()
       await Promise.all([pay(30, second), pay(30, second)])
       const current = despesa
@@ -92,6 +98,9 @@ describe.skipIf(!testUrl)('liquidação idempotente em PostgreSQL isolado', () =
           })
       expect(payments).toHaveLength(2)
       expect(payments.every((payment) => payment.movimentacaoCaixa !== null)).toBe(true)
+      expect(
+        payments.every((payment) => payment.movimentacaoCaixa?.data.toISOString() === instant.toISOString())
+      ).toBe(true)
       expect(
         await (despesa
           ? db.despesaHistorico.count({ where: { despesaId: title.id } })

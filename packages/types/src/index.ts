@@ -3,6 +3,13 @@
 
 export type { DashboardMetric, DashboardOverview, DashboardPermissions } from './dashboard.js'
 export {
+  MODULE_PERMISSION_KEYS,
+  DEFAULT_EMPLOYEE_PERMISSIONS,
+  employeePermissions,
+  effectivePermissions,
+} from './permissions.js'
+export type { ModulePermission, ModulePermissions, EffectivePermissions } from './permissions.js'
+export {
   FINANCIAL_TIME_ZONE,
   financialDateTime,
   financialInstant,

@@ -1,6 +1,8 @@
 import { ForbiddenError, requireAuth, responses } from '@sisgfpa/http'
 import {
   ContatoParamsSchema,
+  OpcoesContatosQuerySchema,
+  OpcoesContatosResponseSchema,
   ContatoSchema,
   ContatoSugestoesQuerySchema,
   ContatoSugestoesResponseSchema,
@@ -21,6 +23,8 @@ import {
   papeisContatoPermitidos,
   type ContatoPapelPermitido,
 } from '../../authorization/financial-permissions.js'
+import { requireModulePermission } from '../../authorization/module-permissions.js'
+import { requireFinancialPermission } from '../../authorization/financial-permissions.js'
 import * as contatos from './contatos.service.js'
 
 function papelDoTitulo(tipo: 'DESPESA' | 'RECEBIMENTO'): ContatoPapelPermitido {
@@ -31,8 +35,24 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.addHook('onRequest', requireAuth)
 
   app.get(
+    '/opcoes',
+    {
+      schema: {
+        tags: ['Comercial'],
+        summary: 'Selecionar contato ativo para um título autorizado (somente id e nome)',
+        querystring: OpcoesContatosQuerySchema,
+        response: responses({ 200: OpcoesContatosResponseSchema }, 400, 401, 403),
+      },
+      preHandler: async (request) =>
+        requireFinancialPermission(request.query.tipo === 'DESPESA' ? 'despesas' : 'recebimentos')(request),
+    },
+    async (request) => contatos.listarOpcoesContatos(request.query.tipo, request.query.busca)
+  )
+
+  app.get(
     '/vinculos-pendentes',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Listar títulos históricos sem vínculo com contato',
@@ -41,6 +61,9 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request) => {
+      await requireFinancialPermission(request.query.tipo === 'DESPESA' ? 'despesas' : 'recebimentos')(
+        request
+      )
       const papel = papelDoTitulo(request.query.tipo)
       await exigirPapeisContato(request, [papel])
       return contatos.listarVinculosPendentes(
@@ -55,6 +78,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/sugestoes',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Sugerir contatos para associação de títulos históricos',
@@ -75,6 +99,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/vinculos',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Vincular títulos antigos aos contatos selecionados',
@@ -83,6 +108,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request) => {
+      await requireFinancialPermission(request.body.tipo === 'DESPESA' ? 'despesas' : 'recebimentos')(request)
       await exigirPapeisContato(request, [papelDoTitulo(request.body.tipo)])
       return contatos.vincularTitulos(request.body, request.user.id)
     }
@@ -91,6 +117,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Listar clientes e fornecedores',
@@ -109,6 +136,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Cadastrar cliente ou fornecedor',
@@ -125,6 +153,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/:id/situacao',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Ativar ou inativar contato sem apagar seu histórico',
@@ -144,6 +173,7 @@ export const contatosRoutes: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/:id',
     {
+      preHandler: requireModulePermission('comercial'),
       schema: {
         tags: ['Comercial'],
         summary: 'Editar dados de cliente ou fornecedor',

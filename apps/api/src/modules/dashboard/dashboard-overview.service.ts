@@ -4,7 +4,7 @@ import type { DashboardMetric, DashboardOverview } from '@sisgfpa/types'
 import { FINANCIAL_TIME_ZONE, financialDayStart } from '@sisgfpa/types'
 import type { DashboardOverviewQuery } from '@sisgfpa/validation'
 
-import { consultarPermissoesFinanceiras } from '../../authorization/financial-permissions.js'
+import { consultarPermissoes } from '../../authorization/module-permissions.js'
 import { fromCents, toCents } from '../../domain/parcelas.js'
 
 function cents(value: unknown) {
@@ -55,11 +55,16 @@ export async function consultarVisaoGeral(
   query: DashboardOverviewQuery,
   user: AuthenticatedUser
 ): Promise<DashboardOverview> {
-  const financial = await consultarPermissoesFinanceiras(user)
+  const financial = await consultarPermissoes(user)
   const admin = user.role === 'ADMIN'
   const result: DashboardOverview = {
     mes: query.mes,
-    permissoes: { ...financial, caixa: admin, relatorios: admin },
+    permissoes: {
+      despesas: financial.despesas,
+      recebimentos: financial.recebimentos,
+      caixa: financial.caixa,
+      relatorios: financial.relatorios,
+    },
     caixaConfigurado: null,
     indicadores: {
       entradas: metric(null, null),
