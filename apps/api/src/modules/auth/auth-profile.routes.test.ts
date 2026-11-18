@@ -155,6 +155,30 @@ describe('perfil e segurança da própria conta', () => {
   })
 
   it('altera a própria senha, mantém a sessão atual e encerra as demais', async () => {
+    const unauthenticatedVerification = await post('/api/auth/verify-password', { password })
+    expect(unauthenticatedVerification.statusCode).toBe(401)
+
+    const invalidVerification = await post(
+      '/api/auth/verify-password',
+      { password: 'incorreta' },
+      originalSession
+    )
+    expect(invalidVerification.statusCode).toBe(400)
+
+    const verified = await post('/api/auth/verify-password', { password }, originalSession)
+    expect(verified.statusCode).toBe(200)
+    expect(verified.json()).toEqual({ status: true })
+    expect((await getSession(originalSession)).json().user).toMatchObject({ id: userId })
+    expect((await getSession(otherSession)).json().user).toMatchObject({ id: userId })
+
+    const bypassedSecondStep = await post(
+      '/api/auth/change-password',
+      { currentPassword: 'incorreta', newPassword: changedPassword, revokeOtherSessions: true },
+      originalSession
+    )
+    expect(bypassedSecondStep.statusCode).toBe(400)
+    expect((await getSession(originalSession)).json().user).toMatchObject({ id: userId })
+
     const unauthenticated = await post('/api/auth/change-password', {
       currentPassword: password,
       newPassword: changedPassword,

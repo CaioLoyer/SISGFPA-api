@@ -15,6 +15,7 @@ import {
   signOut,
   updateCurrentUserName,
   updateFuncionarioPermissoes,
+  verifyCurrentUserPassword,
 } from './auth-api'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -116,6 +117,23 @@ describe('cliente de autenticação da API Financeira', () => {
           newPassword: 'senha-nova-123',
           revokeOtherSessions: true,
         }),
+      })
+    )
+  })
+
+  it('confirma a senha atual pelo endpoint sensível do Better Auth', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ status: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(verifyCurrentUserPassword('senha-atual')).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/api/auth/verify-password',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ password: 'senha-atual' }),
       })
     )
   })

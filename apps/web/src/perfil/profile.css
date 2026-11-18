@@ -198,8 +198,116 @@
   line-height: 1.5;
 }
 
-.profile-password-form {
-  gap: 13px;
+.profile-security-actions {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.profile-security-actions .form-success {
+  margin: 0;
+}
+
+.profile-password-modal-backdrop {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  overflow-y: auto;
+  place-items: center;
+  inset: 0;
+  padding: 24px;
+  background: #102318a6;
+  backdrop-filter: blur(3px);
+}
+
+.profile-password-modal {
+  display: grid;
+  width: min(100%, 480px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #dce2de;
+  border-radius: 14px;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 22px 70px #081b1080;
+}
+
+.profile-password-modal:focus-visible {
+  outline: 3px solid #78ad8b;
+  outline-offset: 3px;
+}
+
+.profile-password-modal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-password-modal-heading .profile-overline {
+  margin-bottom: 7px;
+}
+
+.profile-password-modal-heading h2 {
+  margin: 0;
+  color: #20382a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.profile-password-modal-close {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #dce2de;
+  border-radius: 8px;
+  color: #4f6256;
+  background: #f8faf8;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-password-modal-close:hover:not(:disabled) {
+  color: #183b27;
+  background: #edf6f0;
+}
+
+.profile-password-modal-close:focus-visible {
+  outline: 3px solid #78ad8b;
+  outline-offset: 2px;
+}
+
+.profile-password-modal-description {
+  margin: -7px 0 0;
+  color: #68796e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.profile-password-modal-form {
+  gap: 16px;
+}
+
+.profile-password-modal-actions,
+.profile-password-modal-actions-end {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.profile-password-modal-actions {
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.profile-password-modal-actions .button {
+  min-height: 40px;
+  width: auto;
 }
 
 @media (max-width: 1080px) {
@@ -249,5 +357,26 @@
 
   .profile-form .button {
     width: 100%;
+  }
+
+  .profile-password-modal-backdrop {
+    place-items: end center;
+    padding: 12px;
+  }
+
+  .profile-password-modal {
+    max-height: calc(100vh - 24px);
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .profile-password-modal-actions,
+  .profile-password-modal-actions-end {
+    width: 100%;
+  }
+
+  .profile-password-modal-actions .button {
+    flex: 1;
+    width: auto;
   }
 }

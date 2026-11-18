@@ -155,6 +155,17 @@ export async function updateCurrentUserName(name: string): Promise<void> {
   }
 }
 
+export async function verifyCurrentUserPassword(password: string): Promise<void> {
+  const body = await request(`${apiBaseUrl}/api/auth/verify-password`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+
+  if (typeof body !== 'object' || body === null || !('status' in body) || body.status !== true) {
+    throw new AuthApiError('A API Financeira não confirmou a senha atual.')
+  }
+}
+
 export async function changeCurrentUserPassword(input: {
   currentPassword: string
   newPassword: string
