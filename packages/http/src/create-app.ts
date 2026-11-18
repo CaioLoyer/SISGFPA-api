@@ -38,7 +38,11 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
   app.decorateRequest('user', null as never)
 
   await app.register(fastifyRateLimit, { max: options.rateLimitMax, timeWindow: '1 minute' })
-  await app.register(fastifyCors, { origin: options.trustedOrigins, credentials: true })
+  await app.register(fastifyCors, {
+    origin: options.trustedOrigins,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PATCH'],
+  })
 
   await app.register(fastifySwagger, {
     openapi: {

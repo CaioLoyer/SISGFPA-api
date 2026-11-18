@@ -26,6 +26,7 @@ async function buildTestApp(): Promise<FastifyInstance> {
     scope.addHook('onRequest', requireAuth)
     scope.get('/eu', async (request) => ({ id: request.user.id }))
     scope.get('/admin', { onRequest: requireAdmin }, async () => ({ ok: true }))
+    scope.patch('/editar', async () => ({ ok: true }))
     scope.post('/validar', { schema: { body: z.object({ valor: z.number().positive() }) } }, async () => ({}))
   })
   app.get('/nao-achou', async () => {
@@ -44,6 +45,67 @@ async function buildTestApp(): Promise<FastifyInstance> {
 }
 
 beforeEach(() => getAuthenticatedUser.mockReset())
+
+describe('CORS das edicoes no frontend', () => {
+  it('autoriza PATCH com cookies na origem confiavel sem exigir sessao no preflight', async () => {
+    const app = await buildTestApp()
+    try {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/editar',
+        headers: {
+          origin: 'http://localhost:3000',
+          'access-control-request-method': 'PATCH',
+          'access-control-request-headers': 'content-type',
+        },
+      })
+
+      expect(response.statusCode).toBe(204)
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000')
+      expect(response.headers['access-control-allow-credentials']).toBe('true')
+      expect(String(response.headers['access-control-allow-methods']).split(/,\s*/)).toContain('PATCH')
+      expect(response.headers['access-control-allow-headers']).toContain('content-type')
+      expect(getAuthenticatedUser).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('mantem autenticacao e cabecalhos CORS na requisicao PATCH efetiva', async () => {
+    getAuthenticatedUser.mockResolvedValue(funcionario)
+    const app = await buildTestApp()
+    try {
+      const headers = { origin: 'http://localhost:3000' }
+      const authenticated = await app.inject({ method: 'PATCH', url: '/editar', headers })
+      expect(authenticated.statusCode).toBe(200)
+      expect(authenticated.json()).toEqual({ ok: true })
+      expect(authenticated.headers['access-control-allow-origin']).toBe(headers.origin)
+      expect(authenticated.headers['access-control-allow-credentials']).toBe('true')
+
+      getAuthenticatedUser.mockResolvedValue(null)
+      expect((await app.inject({ method: 'PATCH', url: '/editar', headers })).statusCode).toBe(401)
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('nao libera outra origem no preflight de PATCH', async () => {
+    const app = await buildTestApp()
+    try {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/editar',
+        headers: {
+          origin: 'http://origem-nao-confiavel.test',
+          'access-control-request-method': 'PATCH',
+        },
+      })
+      expect(response.headers['access-control-allow-origin']).toBeUndefined()
+    } finally {
+      await app.close()
+    }
+  })
+})
 
 describe('tratamento central de erros ({ error, code })', () => {
   it('erros de domínio usam o status e o código definidos', async () => {

@@ -3,7 +3,7 @@ import {
   prisma,
   TipoPessoaContato as TipoPessoaContatoDb,
 } from '@sisgfpa/database'
-import { BusinessRuleError, ConflictError, NotFoundError } from '@sisgfpa/http'
+import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '@sisgfpa/http'
 import type {
   ContatoDto,
   CreateContatoInput,
@@ -146,6 +146,9 @@ export async function atualizarContato(
   if (!atual) throw new NotFoundError('Contato não encontrado')
 
   const papeisPermitidosAtuais = atual.papeis.filter((papel) => papeisPermitidos.includes(papel))
+  if (papeisPermitidosAtuais.length === 0) {
+    throw new ForbiddenError('Seu usuário não tem permissão para acessar este contato')
+  }
   const papeisRecebidos = input.papeis ?? papeisPermitidosAtuais
   validarPapeis(papeisRecebidos, papeisPermitidos)
   const papeisAtualizados = [

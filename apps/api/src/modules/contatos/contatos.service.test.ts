@@ -162,6 +162,53 @@ describe('cadastro e vínculo de contatos comerciais', () => {
     })
   })
 
+  it.each([
+    { papelAtual: 'FORNECEDOR', papelPermitido: 'CLIENTE' },
+    { papelAtual: 'CLIENTE', papelPermitido: 'FORNECEDOR' },
+  ] as const)(
+    'impede editar $papelAtual adicionando o papel permitido $papelPermitido',
+    async ({ papelAtual, papelPermitido }) => {
+      database.contatoFindUnique.mockResolvedValue({ ...contact, papeis: [papelAtual] })
+      database.contatoUpdate.mockResolvedValue({ ...contact, nome: 'Alterado sem acesso' })
+
+      await expect(
+        atualizarContato(contact.id, { nome: 'Alterado sem acesso', papeis: [papelPermitido] }, [
+          papelPermitido,
+        ])
+      ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' })
+
+      expect(database.contatoUpdate).not.toHaveBeenCalled()
+      expect(database.despesaCount).not.toHaveBeenCalled()
+      expect(database.recebimentoCount).not.toHaveBeenCalled()
+    }
+  )
+
+  it('recusa edicao de contato quando o funcionario perdeu todos os acessos', async () => {
+    database.contatoFindUnique.mockResolvedValue(contact)
+
+    await expect(atualizarContato(contact.id, { nome: 'Sem acesso' }, [])).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'FORBIDDEN',
+    })
+    expect(database.contatoUpdate).not.toHaveBeenCalled()
+  })
+
+  it('permite ao ADMIN adicionar outro papel a um contato existente', async () => {
+    database.contatoFindUnique.mockResolvedValue({ ...contact, papeis: ['FORNECEDOR'] })
+    database.contatoUpdate.mockResolvedValue(contact)
+
+    const result = await atualizarContato(contact.id, { papeis: ['CLIENTE', 'FORNECEDOR'] }, [
+      'CLIENTE',
+      'FORNECEDOR',
+    ])
+
+    expect(result.papeis).toEqual(['CLIENTE', 'FORNECEDOR'])
+    expect(database.contatoUpdate).toHaveBeenCalledWith({
+      where: { id: contact.id },
+      data: expect.objectContaining({ papeis: ['CLIENTE', 'FORNECEDOR'] }),
+    })
+  })
+
   it('inativa o contato sem apagar os dados nem alterar seus papéis', async () => {
     database.contatoFindUnique.mockResolvedValue(contact)
     database.contatoUpdate.mockResolvedValue({ ...contact, ativo: false })
