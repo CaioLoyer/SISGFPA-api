@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import { describe, expect, it } from 'vitest'
+import { effectivePermissions } from '@sisgfpa/types'
 
 import type { FinancialApiClient } from '../financial-api/financial-api-client.js'
 import { interpretar } from './planner.js'
@@ -25,6 +26,68 @@ const apiComDespesas = (items: unknown[]) =>
   }) as unknown as FinancialApiClient
 
 describe('interpretar: criação', () => {
+  it('sugere somente módulos financeiros autorizados para pedido de navegação', async () => {
+    const client = {
+      getCurrentPermissions: async () =>
+        effectivePermissions('FUNCIONARIO', {
+          comercial: false,
+          despesas: false,
+          recebimentos: true,
+          relatorios: true,
+        }),
+    } as unknown as FinancialApiClient
+
+    expect(await interpretar('Quero ver o que tenho a receber', client, {}, hoje)).toMatchObject({
+      kind: 'navegacao',
+      topicos: ['receipts'],
+    })
+  })
+
+  it('reconhece consulta de relatório antes de interpretar “despesas” como novo lançamento', async () => {
+    const client = {
+      getCurrentPermissions: async () => effectivePermissions('ADMIN'),
+    } as unknown as FinancialApiClient
+
+    expect(await interpretar('Onde consulto o relatório de despesas?', client, {}, hoje)).toMatchObject({
+      kind: 'navegacao',
+      topicos: ['reports'],
+    })
+  })
+
+  it('omite tópico sem permissão e mantém perfil disponível para usuário autenticado', async () => {
+    const client = {
+      getCurrentPermissions: async () =>
+        effectivePermissions('FUNCIONARIO', {
+          comercial: false,
+          despesas: false,
+          recebimentos: false,
+          relatorios: false,
+        }),
+    } as unknown as FinancialApiClient
+
+    expect(await interpretar('Quero abrir Administração', client, {}, hoje)).toMatchObject({
+      kind: 'navegacao',
+      topicos: [],
+    })
+    expect(await interpretar('Quero ver meu perfil', client, {}, hoje)).toMatchObject({
+      kind: 'navegacao',
+      topicos: ['profile'],
+    })
+  })
+
+  it('não consulta navegação quando a mensagem já descreve uma operação financeira', async () => {
+    const getCurrentPermissions = async () => {
+      throw new Error('não deveria consultar permissões para interpretar operação financeira')
+    }
+    const r = await interpretar(
+      'Pagamos R$ 300 ao fornecedor Kalunga',
+      { ...apiComDespesas([despesa('d1', 'Kalunga', 1000)]), getCurrentPermissions } as FinancialApiClient,
+      {},
+      hoje
+    )
+    expect(r.kind).toBe('plano')
+  })
+
   it('compra pendente vira CRIAR_DESPESA sem consultar títulos', async () => {
     const r = await interpretar(
       'Compramos 500 cadernos do fornecedor ABC por R$ 2500',

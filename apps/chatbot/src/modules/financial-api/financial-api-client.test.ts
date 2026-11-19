@@ -28,6 +28,30 @@ describe('FinancialApiClient', () => {
     expect(JSON.parse(init.body as string).fornecedor).toBe('ABC')
   })
 
+  it('consulta as permissões efetivas usando a sessão encaminhada', async () => {
+    const fetchMock = vi.fn(async () =>
+      json(200, {
+        comercial: false,
+        despesas: false,
+        recebimentos: true,
+        relatorios: true,
+        caixa: false,
+        administracao: false,
+      })
+    )
+    const client = new FinancialApiClient(
+      { cookie: 'sessao=abc' },
+      'http://api',
+      fetchMock as unknown as typeof fetch
+    )
+
+    await expect(client.getCurrentPermissions()).resolves.toMatchObject({ recebimentos: true })
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('http://api/usuarios/me/permissoes')
+    expect(init.method).toBe('GET')
+    expect((init.headers as Record<string, string>).cookie).toBe('sessao=abc')
+  })
+
   it('403 da API vira FinancialApiError preservando status e código', async () => {
     const client = new FinancialApiClient({}, 'http://api', (async () =>
       json(403, { error: 'Sem permissão', code: 'FORBIDDEN' })) as unknown as typeof fetch)

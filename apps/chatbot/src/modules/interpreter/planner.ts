@@ -3,6 +3,8 @@ import dayjs from 'dayjs'
 import type { CreateDespesaBody, CreateRecebimentoBody } from '@sisgfpa/validation'
 
 import type { FinancialApiClient } from '../financial-api/financial-api-client.js'
+import type { EffectivePermissions } from '@sisgfpa/types'
+import { classificarIntencoesDeNavegacao, type NavigationTopicId } from './navigation-intents.js'
 import { type ParsedMessage, parseMessage } from './message-parser.js'
 
 export interface Alvo {
@@ -31,6 +33,7 @@ export interface Escolha {
 
 export type Interpretacao =
   | { kind: 'desconhecida' }
+  | { kind: 'navegacao'; parsed: ParsedMessage; topicos: NavigationTopicId[] }
   | { kind: 'faltando'; parsed: ParsedMessage }
   | { kind: 'nao-encontrado'; parsed: ParsedMessage; texto: string }
   | { kind: 'escolher'; parsed: ParsedMessage; candidatos: Alvo[] }
@@ -38,6 +41,19 @@ export type Interpretacao =
 
 const NAO_INFORMADO = 'Não informado'
 const cents = (n: number) => Math.round(n * 100)
+
+const permissaoPorTopico: Record<Exclude<NavigationTopicId, 'profile'>, keyof EffectivePermissions> = {
+  commercial: 'comercial',
+  expenses: 'despesas',
+  receipts: 'recebimentos',
+  cash: 'caixa',
+  reports: 'relatorios',
+  administration: 'administracao',
+}
+
+function podeAcessarTopico(topico: NavigationTopicId, permissions: EffectivePermissions) {
+  return topico === 'profile' || permissions[permissaoPorTopico[topico]]
+}
 
 async function despesasAbertas(client: FinancialApiClient, fornecedor: string): Promise<Alvo[]> {
   const { items } = await client.listDespesas({ fornecedor })
@@ -80,6 +96,24 @@ export async function interpretar(
   hoje = dayjs()
 ): Promise<Interpretacao> {
   const parsed = parseMessage(texto, hoje)
+
+  const intencoes = classificarIntencoesDeNavegacao(texto)
+  const pedidoExplicitoDeConsulta =
+    /\b(onde|ver|mostrar|consultar|acessar|abrir|me leva|me leve|ir para)\b/.test(
+      texto.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
+    )
+  const eNavegacao =
+    intencoes.length > 0 &&
+    (parsed.intent === 'DESCONHECIDA' || (parsed.faltando.length > 0 && pedidoExplicitoDeConsulta))
+
+  if (eNavegacao) {
+    const permissions = await client.getCurrentPermissions()
+    return {
+      kind: 'navegacao',
+      parsed,
+      topicos: intencoes.filter((topico) => podeAcessarTopico(topico, permissions)),
+    }
+  }
 
   if (parsed.intent === 'DESCONHECIDA') return { kind: 'desconhecida' }
   if (parsed.faltando.length > 0) return { kind: 'faltando', parsed }

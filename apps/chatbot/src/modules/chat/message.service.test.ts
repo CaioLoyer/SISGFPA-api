@@ -130,6 +130,25 @@ describe('título automático da conversa ao receber mensagem', () => {
     })
   })
 
+  it('persiste sugestões estruturadas para renderizar os módulos depois de recarregar', async () => {
+    mocks.interpretar.mockResolvedValueOnce({
+      kind: 'navegacao',
+      parsed: { intent: 'DESCONHECIDA' },
+      topicos: ['receipts'],
+    })
+
+    const resposta = await processarMensagem({
+      chatId,
+      userId,
+      content: 'Quero ver o que tenho a receber',
+      client: {} as never,
+    })
+
+    expect(resposta.userMessage.parsedData).toMatchObject({ topicos: ['receipts'] })
+    expect(resposta.assistantMessage.content).toBe('Encontrei este módulo para você:')
+    expect(resposta.confirmacao).toBeNull()
+  })
+
   it('usa o contexto completo sem duplicar uma resposta que complementa a mensagem anterior', async () => {
     mocks.prisma.message.findFirst.mockResolvedValueOnce({
       status: 'INFORMACAO_INSUFICIENTE',

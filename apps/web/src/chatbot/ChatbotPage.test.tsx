@@ -180,3 +180,46 @@ describe('exclusão de conversa no Chatbot', () => {
     ).toBe(false)
   })
 })
+
+describe('sugestões de navegação no Chatbot', () => {
+  it('mostra os módulos retornados pelo serviço junto à resposta do assistente', async () => {
+    state.buscarConversa.mockResolvedValueOnce({
+      ...firstChat,
+      messages: [
+        {
+          id: 'user-message',
+          chatId: firstChat.id,
+          papel: 'USUARIO',
+          content: 'Quero consultar o financeiro',
+          intent: 'DESCONHECIDA',
+          status: 'INFORMATIVA',
+          parsedData: { topicos: ['expenses', 'receipts'] },
+          resultado: null,
+          despesaId: null,
+          recebimentoId: null,
+          createdAt: '2026-11-18T12:00:00.000Z',
+        },
+        {
+          id: 'assistant-message',
+          chatId: firstChat.id,
+          papel: 'ASSISTENTE',
+          content: 'Escolha um dos módulos que podem ajudar:',
+          intent: null,
+          status: 'INFORMATIVA',
+          parsedData: null,
+          resultado: null,
+          despesaId: null,
+          recebimentoId: null,
+          createdAt: '2026-11-18T12:00:01.000Z',
+        },
+      ],
+    })
+
+    await render()
+
+    const sugestoes = container.querySelector('[aria-label="Módulos sugeridos"]')
+    expect(sugestoes?.querySelectorAll('a')).toHaveLength(2)
+    expect(sugestoes?.querySelector('a[href="/despesas"]')?.textContent).toContain('Contas a pagar')
+    expect(sugestoes?.querySelector('a[href="/recebimentos"]')?.textContent).toContain('Contas a receber')
+  })
+})

@@ -8,6 +8,7 @@ import type {
   RecebimentoComParcelasDto,
   RecebimentoDto,
 } from '@sisgfpa/validation'
+import type { EffectivePermissions } from '@sisgfpa/types'
 
 /**
  * Erro devolvido pela API Financeira (formato padrão { error, code }).
@@ -81,6 +82,10 @@ export class FinancialApiClient {
 
   listCategorias(tipo: 'DESPESA' | 'RECEBIMENTO') {
     return this.request<ListResult<CategoriaDto>>('GET', `/categorias?tipo=${tipo}`)
+  }
+
+  getCurrentPermissions() {
+    return this.request<EffectivePermissions>('GET', '/usuarios/me/permissoes')
   }
 
   listDespesas(params: { fornecedor: string }) {

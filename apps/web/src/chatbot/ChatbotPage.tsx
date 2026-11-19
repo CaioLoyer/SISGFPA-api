@@ -31,6 +31,12 @@ function mensagemErro(error: unknown) {
     : 'Não foi possível concluir a solicitação no Chatbot.'
 }
 
+function lerIdsDosTopicos(parsedData: unknown): string[] {
+  if (typeof parsedData !== 'object' || parsedData === null || !('topicos' in parsedData)) return []
+  const topicos = (parsedData as { topicos?: unknown }).topicos
+  return Array.isArray(topicos) ? topicos.filter((id): id is string => typeof id === 'string') : []
+}
+
 export function ChatbotPage() {
   const { user, permissions } = useSession()
   const topics = useMemo(() => getChatbotTopics(permissions), [permissions])
@@ -280,6 +286,10 @@ export function ChatbotPage() {
                 <div className="chatbot-message-list">
                   {mensagens.map((mensagem, indice) => {
                     const anterior = mensagens[indice - 1]
+                    const topicosSugeridos =
+                      mensagem.papel === 'ASSISTENTE' && anterior?.papel === 'USUARIO'
+                        ? topics.filter((topic) => lerIdsDosTopicos(anterior.parsedData).includes(topic.id))
+                        : []
                     const pendenciaAnterior =
                       mensagem.papel === 'ASSISTENTE' &&
                       anterior?.papel === 'USUARIO' &&
@@ -298,6 +308,17 @@ export function ChatbotPage() {
                           <p>{mensagem.content}</p>
                           <time dateTime={mensagem.createdAt}>{horaDaMensagem(mensagem.createdAt)}</time>
                         </article>
+                        {topicosSugeridos.length > 0 && (
+                          <nav aria-label="Módulos sugeridos" className="chatbot-message-suggestions">
+                            {topicosSugeridos.map((topic) => (
+                              <Link className="chatbot-message-suggestion" key={topic.id} to={topic.to}>
+                                <span aria-hidden="true">{topic.icon}</span>
+                                {topic.title}
+                                <span aria-hidden="true">→</span>
+                              </Link>
+                            ))}
+                          </nav>
+                        )}
                         {mensagem.status === 'PROCESSANDO' && (
                           <p className="chatbot-message-state" role="status">
                             Operação em processamento. Aguarde antes de excluir esta conversa.

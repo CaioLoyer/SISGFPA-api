@@ -13,6 +13,7 @@ import {
 } from '../interpreter/replies.js'
 import { gerarTituloAutomatico } from './chat-title.js'
 import { buscarChatDoUsuario } from './chat.service.js'
+import type { NavigationTopicId } from '../interpreter/navigation-intents.js'
 
 const json = (value: unknown) => value as Prisma.InputJsonValue
 
@@ -25,6 +26,7 @@ interface ParsedData {
   parsed?: unknown
   candidatos?: Alvo[]
   plano?: Plano
+  topicos?: NavigationTopicId[]
 }
 
 function assistente(chatId: string, userId: string, content: string, status: MensagemStatus = 'INFORMATIVA') {
@@ -93,6 +95,17 @@ export async function processarMensagem(input: {
   let assistantContent: string
   let confirmationPlan: Plano | null = null
   switch (interpretacao.kind) {
+    case 'navegacao': {
+      status = 'INFORMATIVA'
+      intent = 'DESCONHECIDA'
+      parsedData = { textoBase, parsed: interpretacao.parsed, topicos: interpretacao.topicos }
+      assistantContent = interpretacao.topicos.length
+        ? interpretacao.topicos.length === 1
+          ? 'Encontrei este módulo para você:'
+          : 'Escolha um dos módulos que podem ajudar:'
+        : 'Não encontrei módulos disponíveis para este pedido. Peça ao administrador acesso ao módulo correspondente.'
+      break
+    }
     case 'desconhecida': {
       status = 'INFORMATIVA'
       intent = 'DESCONHECIDA'

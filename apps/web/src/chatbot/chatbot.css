@@ -476,6 +476,43 @@
   justify-items: start;
 }
 
+.chatbot-message-suggestions {
+  display: flex;
+  max-width: 85%;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 0 40px;
+}
+
+.chatbot-message-suggestion {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid #d8e6db;
+  border-radius: 9px;
+  color: #285c3d;
+  background: #f4f8f5;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chatbot-message-suggestion:hover {
+  border-color: #b9d4c0;
+  background: #edf6ef;
+  text-decoration: none;
+}
+
+.chatbot-message-suggestion > span:first-child {
+  color: #1b7548;
+  font-size: 15px;
+}
+
+.chatbot-message-suggestion > span:last-child {
+  color: #718077;
+}
+
 .chatbot-confirmation-controls {
   max-width: min(85%, 680px);
   padding: 12px;
