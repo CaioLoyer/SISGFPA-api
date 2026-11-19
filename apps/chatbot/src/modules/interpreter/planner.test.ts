@@ -23,9 +23,82 @@ const apiComDespesas = (items: unknown[]) =>
   ({
     listDespesas: async () => ({ items, total: items.length }),
     listRecebimentos: async () => ({ items: [], total: 0 }),
+    listContactOptions: async (_tipo: string, busca: string) => ({
+      items: [{ id: 'contact-1', nome: busca }],
+    }),
   }) as unknown as FinancialApiClient
 
 describe('interpretar: criação', () => {
+  it('exige escolher um fornecedor ativo e associa o id confirmado à despesa', async () => {
+    const client = {
+      listContactOptions: async () => ({
+        items: [
+          { id: 'supplier-1', nome: 'Papelaria ABC' },
+          { id: 'supplier-2', nome: 'ABC Distribuidora' },
+        ],
+      }),
+    } as unknown as FinancialApiClient
+    const texto = 'Compramos cadernos do fornecedor ABC por R$ 250'
+
+    const escolhaContato = await interpretar(texto, client, {}, hoje)
+    expect(escolhaContato).toMatchObject({
+      kind: 'escolher-contato',
+      tipo: 'DESPESA',
+      contatos: [
+        { id: 'supplier-1', nome: 'Papelaria ABC' },
+        { id: 'supplier-2', nome: 'ABC Distribuidora' },
+      ],
+    })
+
+    const plano = await interpretar(
+      texto,
+      client,
+      { contato: { id: 'supplier-2', nome: 'ABC Distribuidora', tipo: 'DESPESA' } },
+      hoje
+    )
+    expect(plano).toMatchObject({
+      kind: 'plano',
+      plano: {
+        tipo: 'CRIAR_DESPESA',
+        body: { fornecedor: 'ABC Distribuidora', fornecedorContatoId: 'supplier-2' },
+      },
+    })
+  })
+
+  it('associa recebimento ao cliente ativo selecionado', async () => {
+    const client = {
+      listContactOptions: async () => ({ items: [{ id: 'client-1', nome: 'Maria da Silva' }] }),
+    } as unknown as FinancialApiClient
+    const texto = 'Cliente Maria da Silva deve R$ 120 por material escolar'
+
+    const escolhaContato = await interpretar(texto, client, {}, hoje)
+    expect(escolhaContato).toMatchObject({ kind: 'escolher-contato', tipo: 'RECEBIMENTO' })
+
+    const plano = await interpretar(
+      texto,
+      client,
+      { contato: { id: 'client-1', nome: 'Maria da Silva', tipo: 'RECEBIMENTO' } },
+      hoje
+    )
+    expect(plano).toMatchObject({
+      kind: 'plano',
+      plano: {
+        tipo: 'CRIAR_RECEBIMENTO',
+        body: { cliente: 'Maria da Silva', clienteContatoId: 'client-1' },
+      },
+    })
+  })
+
+  it('não cria título quando não existe contato ativo correspondente', async () => {
+    const client = {
+      listContactOptions: async () => ({ items: [] }),
+    } as unknown as FinancialApiClient
+
+    expect(
+      await interpretar('Compramos cadernos do fornecedor ABC por R$ 250', client, {}, hoje)
+    ).toMatchObject({ kind: 'contato-nao-encontrado', tipo: 'DESPESA', nome: 'ABC' })
+  })
+
   it('sugere somente módulos financeiros autorizados para pedido de navegação', async () => {
     const client = {
       getCurrentPermissions: async () =>
@@ -89,12 +162,11 @@ describe('interpretar: criação', () => {
   })
 
   it('compra pendente vira CRIAR_DESPESA sem consultar títulos', async () => {
-    const r = await interpretar(
-      'Compramos 500 cadernos do fornecedor ABC por R$ 2500',
-      apiComDespesas([]),
-      {},
-      hoje
-    )
+    const texto = 'Compramos 500 cadernos do fornecedor ABC por R$ 2500'
+    const api = apiComDespesas([])
+    const contato = await interpretar(texto, api, {}, hoje)
+    if (contato.kind !== 'escolher-contato') throw new Error('seleção do fornecedor esperada')
+    const r = await interpretar(texto, api, { contato: contato.contatos[0] }, hoje)
     expect(r.kind).toBe('plano')
     if (r.kind !== 'plano' || r.plano.tipo !== 'CRIAR_DESPESA') throw new Error('plano inesperado')
     expect(r.plano.body).toMatchObject({ valor: 2500, fornecedor: 'ABC', parcelas: 1, liquidarNoAto: false })
@@ -130,7 +202,10 @@ describe('interpretar: pagamento de título existente', () => {
 
   it('título com saldo menor que o valor não é usado: cria novo lançamento já pago', async () => {
     const api = apiComDespesas([despesa('d1', 'Kalunga', 1000, 900)]) // saldo 100
-    const r = await interpretar('Pagamos R$ 300 ao fornecedor Kalunga', api, {}, hoje)
+    const texto = 'Pagamos R$ 300 ao fornecedor Kalunga'
+    const contato = await interpretar(texto, api, {}, hoje)
+    if (contato.kind !== 'escolher-contato') throw new Error('seleção do fornecedor esperada')
+    const r = await interpretar(texto, api, { contato: contato.contatos[0] }, hoje)
     if (r.kind !== 'plano') throw new Error('plano esperado')
     expect(r.plano.tipo).toBe('CRIAR_DESPESA')
   })
@@ -139,7 +214,11 @@ describe('interpretar: pagamento de título existente', () => {
     const api = apiComDespesas([despesa('d1', 'ABC', 500), despesa('d2', 'ABC', 500)])
     const r = await interpretar('Pagamos R$ 500 ao fornecedor ABC', api, {}, hoje)
     expect(r.kind).toBe('escolher')
-    const novo = await interpretar('Pagamos R$ 500 ao fornecedor ABC', api, { novo: true }, hoje)
+    const texto = 'Pagamos R$ 500 ao fornecedor ABC'
+    const escolhaNovo = await interpretar(texto, api, { novo: true }, hoje)
+    expect(escolhaNovo.kind).toBe('escolher-contato')
+    if (escolhaNovo.kind !== 'escolher-contato') throw new Error('seleção do fornecedor esperada')
+    const novo = await interpretar(texto, api, { novo: true, contato: escolhaNovo.contatos[0] }, hoje)
     expect(novo.kind === 'plano' && novo.plano.tipo).toBe('CRIAR_DESPESA')
   })
 

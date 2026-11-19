@@ -2,6 +2,7 @@ import type { CreateDespesaBody, CreateRecebimentoBody } from '@sisgfpa/validati
 
 import type { ParsedMessage } from './message-parser.js'
 import type { Alvo, Plano } from './planner.js'
+import type { ContatoSelecionavel } from '../financial-api/financial-api-client.js'
 
 /** Textos que o Chatbot devolve ao usuário (resumo para confirmação, perguntas e avisos). */
 
@@ -84,6 +85,14 @@ export function perguntaEscolha(candidatos: Alvo[]): string {
     `Encontrei ${candidatos.length} títulos em aberto. Responda com o número do título:`,
     ...linhas,
     'ou responda "novo" para registrar como um novo lançamento.',
+  ].join('\n')
+}
+
+export function perguntaEscolhaContato(contatos: ContatoSelecionavel[]): string {
+  const linhas = contatos.map((contato, indice) => `${indice + 1}) ${contato.nome}`)
+  return [
+    'Confirme qual contato ativo deve ser vinculado ao título respondendo com o número:',
+    ...linhas,
   ].join('\n')
 }
 

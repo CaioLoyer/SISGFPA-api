@@ -2,11 +2,16 @@ import { type Prisma, prisma } from '@sisgfpa/database'
 import type { MensagemIntencao, MensagemStatus } from '@sisgfpa/database'
 import { ConflictError, NotFoundError } from '@sisgfpa/http'
 
-import { type FinancialApiClient, FinancialApiError } from '../financial-api/financial-api-client.js'
+import {
+  type ContatoSelecionavel,
+  type FinancialApiClient,
+  FinancialApiError,
+} from '../financial-api/financial-api-client.js'
 import { type Escolha, interpretar, type Alvo, type Plano } from '../interpreter/planner.js'
 import {
   brl,
   MENSAGEM_NAO_ENTENDIDA,
+  perguntaEscolhaContato,
   perguntaEscolha,
   perguntaFaltando,
   resumoDoPlano,
@@ -25,6 +30,7 @@ interface ParsedData {
   textoBase: string
   parsed?: unknown
   candidatos?: Alvo[]
+  contatos?: ContatoSelecionavel[]
   plano?: Plano
   topicos?: NavigationTopicId[]
 }
@@ -42,6 +48,11 @@ function lerEscolha(texto: string, candidatos: Alvo[]): Escolha | 'invalida' {
     if (alvo) return { alvo }
   }
   return 'invalida'
+}
+
+function lerEscolhaContato(texto: string, contatos: ContatoSelecionavel[]): ContatoSelecionavel | null {
+  const numero = /^\s*(\d+)\s*$/.exec(texto)?.[1]
+  return numero ? (contatos[Number(numero) - 1] ?? null) : null
 }
 
 export async function processarMensagem(input: {
@@ -64,7 +75,12 @@ export async function processarMensagem(input: {
   let textoBase = content
   let escolha: Escolha = {}
 
-  if (pendenteData?.candidatos) {
+  if (pendenteData?.contatos) {
+    // A seleção de contato também usa número, mas deve produzir a associação ao título.
+    const contato = lerEscolhaContato(content, pendenteData.contatos)
+    if (contato) escolha = { contato }
+    textoBase = pendenteData.textoBase
+  } else if (pendenteData?.candidatos) {
     // Respondendo à lista de títulos.
     const lida = lerEscolha(content, pendenteData.candidatos)
     if (lida !== 'invalida') {
@@ -131,6 +147,24 @@ export async function processarMensagem(input: {
         parsed: interpretacao.parsed,
       }
       assistantContent = interpretacao.texto
+      break
+    }
+    case 'escolher-contato': {
+      status = 'INFORMACAO_INSUFICIENTE'
+      intent = interpretacao.parsed.intent
+      parsedData = {
+        textoBase,
+        parsed: interpretacao.parsed,
+        contatos: interpretacao.contatos,
+      }
+      assistantContent = perguntaEscolhaContato(interpretacao.contatos)
+      break
+    }
+    case 'contato-nao-encontrado': {
+      status = 'INFORMACAO_INSUFICIENTE'
+      intent = interpretacao.parsed.intent
+      parsedData = { textoBase, parsed: interpretacao.parsed }
+      assistantContent = `Não encontrei um contato ativo com o nome “${interpretacao.nome}”. Cadastre ou ative esse contato no Comercial e responda aqui para continuar. Nenhum título foi criado.`
       break
     }
     case 'escolher': {

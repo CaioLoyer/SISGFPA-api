@@ -36,6 +36,12 @@ interface ListResult<T> {
   total: number
 }
 
+export interface ContatoSelecionavel {
+  id: string
+  nome: string
+  tipo: 'DESPESA' | 'RECEBIMENTO'
+}
+
 type FetchLike = typeof fetch
 
 /**
@@ -86,6 +92,11 @@ export class FinancialApiClient {
 
   getCurrentPermissions() {
     return this.request<EffectivePermissions>('GET', '/usuarios/me/permissoes')
+  }
+
+  listContactOptions(tipo: 'DESPESA' | 'RECEBIMENTO', busca: string) {
+    const query = new URLSearchParams({ tipo, busca })
+    return this.request<{ items: Array<{ id: string; nome: string }> }>('GET', `/contatos/opcoes?${query}`)
   }
 
   listDespesas(params: { fornecedor: string }) {

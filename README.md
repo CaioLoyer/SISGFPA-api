@@ -116,12 +116,12 @@ O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo
 - **Toda** operação passa por confirmação antes de chamar a API.
 - A tela web oferece tópicos que encaminham aos módulos do sistema e conversas persistidas. As mensagens de operação continuam interpretadas por regras, sem IA generativa; o Chatbot é opcional para os demais módulos.
 - "Pagamos/Cliente X pagou" com título em aberto do mesmo fornecedor/cliente vira pagamento/baixa nesse título (se houver mais de um, o bot lista e pergunta); sem título, cria um título já liquidado.
-- Fornecedor/cliente ausentes ficam como "Não informado" (aparece no resumo de confirmação).
-- Permissões: o Chatbot não checa perfil; a API responde 403 e o bot repassa a recusa.
+- Quando a mensagem informa um fornecedor ou cliente, o Chatbot busca contatos ativos autorizados e pede confirmação do contato antes de propor a criação do título. Sem correspondência ativa, orienta cadastrar ou ativar o contato; nenhum título é criado. Quando a mensagem não informa uma contraparte, o resumo mostra "Não informado".
+- Permissões: as sugestões de módulos usam as permissões efetivas consultadas na API Financeira. Operações continuam sujeitas à autorização da API no momento da confirmação.
 
 ## Pendências conhecidas
 
-- O Chatbot ainda preenche o nome livre de fornecedor/cliente. Sua integração com os cadastros de contato será feita na etapa final do Chatbot; títulos já criados podem ser associados pela tela Comercial.
+- Títulos já criados sem vínculo podem ser associados manualmente pela tela Comercial.
 - O parser é baseado em regras: frases muito fora dos padrões serão pedidas de novo em vez de adivinhadas.
 - Relatórios agrupam pelo vencimento do título (= 1ª parcela); ainda não filtram por parcela.
 - Exportação PDF/XLSX prevista no README original do Módulo Financeiro não existe (só CSV).

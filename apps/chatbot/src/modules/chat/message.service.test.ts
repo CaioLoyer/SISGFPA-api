@@ -149,6 +149,85 @@ describe('título automático da conversa ao receber mensagem', () => {
     expect(resposta.confirmacao).toBeNull()
   })
 
+  it('exige confirmar o contato ativo antes de preparar a despesa no Chatbot', async () => {
+    const textoBase = 'Compramos cadernos do fornecedor ABC por R$ 250'
+    const contatos = [{ id: 'supplier-1', nome: 'Papelaria ABC', tipo: 'DESPESA' as const }]
+    mocks.interpretar.mockResolvedValueOnce({
+      kind: 'escolher-contato',
+      parsed: { intent: 'CRIAR_DESPESA' },
+      tipo: 'DESPESA',
+      contatos,
+    })
+
+    const resposta = await processarMensagem({
+      chatId,
+      userId,
+      content: textoBase,
+      client: {} as never,
+    })
+
+    expect(resposta.userMessage.status).toBe('INFORMACAO_INSUFICIENTE')
+    expect(resposta.userMessage.parsedData).toMatchObject({ textoBase, contatos })
+    expect(resposta.assistantMessage.content).toContain('Papelaria ABC')
+    expect(resposta.confirmacao).toBeNull()
+  })
+
+  it('continua a confirmação usando o contato escolhido pelo número da lista', async () => {
+    const textoBase = 'Compramos cadernos do fornecedor ABC por R$ 250'
+    const contato = { id: 'supplier-1', nome: 'Papelaria ABC', tipo: 'DESPESA' as const }
+    mocks.prisma.message.findFirst.mockResolvedValueOnce({
+      status: 'INFORMACAO_INSUFICIENTE',
+      parsedData: { textoBase, contatos: [contato] },
+    })
+    mocks.interpretar.mockResolvedValueOnce({
+      kind: 'plano',
+      parsed: { intent: 'CRIAR_DESPESA' },
+      plano: {
+        tipo: 'CRIAR_DESPESA',
+        body: {
+          descricao: 'Compra de cadernos',
+          fornecedor: contato.nome,
+          fornecedorContatoId: contato.id,
+          valor: 250,
+          dataVencimento: '2026-11-30',
+          parcelas: 1,
+          liquidarNoAto: false,
+        },
+      },
+    })
+
+    const resposta = await processarMensagem({
+      chatId,
+      userId,
+      content: '1',
+      client: {} as never,
+    })
+
+    expect(mocks.interpretar).toHaveBeenCalledWith(textoBase, expect.anything(), { contato })
+    expect(resposta.userMessage.status).toBe('PENDENTE_CONFIRMACAO')
+    expect(resposta.confirmacao).toMatchObject({ resumo: expect.any(String) })
+  })
+
+  it('não cria título quando o nome informado não tem contato ativo', async () => {
+    mocks.interpretar.mockResolvedValueOnce({
+      kind: 'contato-nao-encontrado',
+      parsed: { intent: 'CRIAR_DESPESA' },
+      tipo: 'DESPESA',
+      nome: 'ABC',
+    })
+
+    const resposta = await processarMensagem({
+      chatId,
+      userId,
+      content: 'Compramos do fornecedor ABC',
+      client: {} as never,
+    })
+
+    expect(resposta.userMessage.status).toBe('INFORMACAO_INSUFICIENTE')
+    expect(resposta.confirmacao).toBeNull()
+    expect(resposta.assistantMessage.content).toContain('Nenhum título foi criado')
+  })
+
   it('usa o contexto completo sem duplicar uma resposta que complementa a mensagem anterior', async () => {
     mocks.prisma.message.findFirst.mockResolvedValueOnce({
       status: 'INFORMACAO_INSUFICIENTE',

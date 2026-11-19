@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 
 import type { CreateDespesaBody, CreateRecebimentoBody } from '@sisgfpa/validation'
 
-import type { FinancialApiClient } from '../financial-api/financial-api-client.js'
+import type { ContatoSelecionavel, FinancialApiClient } from '../financial-api/financial-api-client.js'
 import type { EffectivePermissions } from '@sisgfpa/types'
 import { classificarIntencoesDeNavegacao, type NavigationTopicId } from './navigation-intents.js'
 import { type ParsedMessage, parseMessage } from './message-parser.js'
@@ -29,11 +29,24 @@ export type Plano =
 export interface Escolha {
   alvo?: Alvo
   novo?: boolean
+  contato?: ContatoSelecionavel
 }
 
 export type Interpretacao =
   | { kind: 'desconhecida' }
   | { kind: 'navegacao'; parsed: ParsedMessage; topicos: NavigationTopicId[] }
+  | {
+      kind: 'escolher-contato'
+      parsed: ParsedMessage
+      tipo: 'DESPESA' | 'RECEBIMENTO'
+      contatos: ContatoSelecionavel[]
+    }
+  | {
+      kind: 'contato-nao-encontrado'
+      parsed: ParsedMessage
+      tipo: 'DESPESA' | 'RECEBIMENTO'
+      nome: string
+    }
   | { kind: 'faltando'; parsed: ParsedMessage }
   | { kind: 'nao-encontrado'; parsed: ParsedMessage; texto: string }
   | { kind: 'escolher'; parsed: ParsedMessage; candidatos: Alvo[] }
@@ -53,6 +66,24 @@ const permissaoPorTopico: Record<Exclude<NavigationTopicId, 'profile'>, keyof Ef
 
 function podeAcessarTopico(topico: NavigationTopicId, permissions: EffectivePermissions) {
   return topico === 'profile' || permissions[permissaoPorTopico[topico]]
+}
+
+async function buscarContatoParaTitulo(
+  client: FinancialApiClient,
+  tipo: 'DESPESA' | 'RECEBIMENTO',
+  nome: string,
+  escolha: Escolha
+): Promise<
+  | { kind: 'selecionado'; contato: ContatoSelecionavel }
+  | { kind: 'escolher'; contatos: ContatoSelecionavel[] }
+  | { kind: 'nao-encontrado' }
+> {
+  if (escolha.contato?.tipo === tipo) return { kind: 'selecionado', contato: escolha.contato }
+  if (nome.trim().length < 2) return { kind: 'nao-encontrado' }
+
+  const { items } = await client.listContactOptions(tipo, nome)
+  const contatos = items.map((item) => ({ ...item, tipo }))
+  return contatos.length > 0 ? { kind: 'escolher', contatos } : { kind: 'nao-encontrado' }
 }
 
 async function despesasAbertas(client: FinancialApiClient, fornecedor: string): Promise<Alvo[]> {
@@ -175,23 +206,59 @@ export async function interpretar(
     liquidarNoAto: parsed.liquidado,
   }
 
-  return despesa
-    ? {
-        kind: 'plano',
+  if (despesa) {
+    const contato = parsed.fornecedor
+      ? await buscarContatoParaTitulo(client, 'DESPESA', parsed.fornecedor, escolha)
+      : null
+    if (contato?.kind === 'escolher')
+      return { kind: 'escolher-contato', parsed, tipo: 'DESPESA', contatos: contato.contatos }
+    if (contato?.kind === 'nao-encontrado')
+      return {
+        kind: 'contato-nao-encontrado',
         parsed,
-        plano: {
-          tipo: 'CRIAR_DESPESA',
-          body: { ...base, fornecedor: parsed.fornecedor ?? NAO_INFORMADO },
-          categoria: parsed.categoria,
-        },
+        tipo: 'DESPESA',
+        nome: parsed.fornecedor!,
       }
-    : {
-        kind: 'plano',
-        parsed,
-        plano: {
-          tipo: 'CRIAR_RECEBIMENTO',
-          body: { ...base, cliente: parsed.cliente ?? NAO_INFORMADO },
-          categoria: parsed.categoria,
+
+    return {
+      kind: 'plano',
+      parsed,
+      plano: {
+        tipo: 'CRIAR_DESPESA',
+        body: {
+          ...base,
+          fornecedor: contato?.kind === 'selecionado' ? contato.contato.nome : NAO_INFORMADO,
+          fornecedorContatoId: contato?.kind === 'selecionado' ? contato.contato.id : undefined,
         },
-      }
+        categoria: parsed.categoria,
+      },
+    }
+  }
+
+  const contato = parsed.cliente
+    ? await buscarContatoParaTitulo(client, 'RECEBIMENTO', parsed.cliente, escolha)
+    : null
+  if (contato?.kind === 'escolher')
+    return { kind: 'escolher-contato', parsed, tipo: 'RECEBIMENTO', contatos: contato.contatos }
+  if (contato?.kind === 'nao-encontrado')
+    return {
+      kind: 'contato-nao-encontrado',
+      parsed,
+      tipo: 'RECEBIMENTO',
+      nome: parsed.cliente!,
+    }
+
+  return {
+    kind: 'plano',
+    parsed,
+    plano: {
+      tipo: 'CRIAR_RECEBIMENTO',
+      body: {
+        ...base,
+        cliente: contato?.kind === 'selecionado' ? contato.contato.nome : NAO_INFORMADO,
+        clienteContatoId: contato?.kind === 'selecionado' ? contato.contato.id : undefined,
+      },
+      categoria: parsed.categoria,
+    },
+  }
 }

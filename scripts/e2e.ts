@@ -39,6 +39,25 @@ async function signIn(email: string): Promise<Session> {
   return { cookie: cookieDe(res.headers.getSetCookie()) }
 }
 
+async function criarContatoE2E(
+  session: Session,
+  nome: string,
+  papel: 'CLIENTE' | 'FORNECEDOR',
+  indice: number
+) {
+  const documento = String(10_000_000_000 + (Math.floor(run / 1000) % 70_000_000_000) + indice)
+  const contato = await http(API, session, 'POST', '/contatos/', {
+    nome,
+    documento,
+    tipoPessoa: 'FISICA',
+    papeis: [papel],
+    telefone: '(67) 3333-4000',
+    cidade: 'Campo Grande',
+    uf: 'MS',
+  })
+  assert.equal(contato.status, 201, JSON.stringify(contato.body))
+}
+
 async function main() {
   const { prisma } = await import('../packages/database/dist/index.js')
   const { auth } = await import('../packages/auth/dist/index.js')
@@ -49,6 +68,10 @@ async function main() {
     body: { name: 'Administrador E2E', email: adminEmail, password: 'senha12345', role: 'ADMIN' },
   })
   const admin = await signIn(adminEmail)
+  for (const [indice, nome] of [ABC, KALUNGA, FABER, DIST].entries())
+    await criarContatoE2E(admin, nome, 'FORNECEDOR', indice + 1)
+  await criarContatoE2E(admin, JOAO, 'CLIENTE', 5)
+  await criarContatoE2E(admin, MARIA, 'CLIENTE', 6)
   const caixaAtual = await http(API, admin, 'GET', '/caixa')
   assert.equal(caixaAtual.status, 200, JSON.stringify(caixaAtual.body))
   if (!caixaAtual.body.caixa) {
@@ -71,8 +94,13 @@ async function main() {
 
   /** Envia a mensagem; se o bot pedir confirmação, confirma. */
   async function dizer(s: Session, chatId: string, content: string, confirmar = true) {
-    const sent = await http(BOT, s, 'POST', `/chats/${chatId}/messages`, { content })
+    let sent = await http(BOT, s, 'POST', `/chats/${chatId}/messages`, { content })
     assert.equal(sent.status, 200, JSON.stringify(sent.body))
+    const contatos = sent.body.userMessage?.parsedData?.contatos
+    if (Array.isArray(contatos) && contatos.length > 0) {
+      sent = await http(BOT, s, 'POST', `/chats/${chatId}/messages`, { content: '1' })
+      assert.equal(sent.status, 200, JSON.stringify(sent.body))
+    }
     if (!sent.body.confirmacao || !confirmar) return { sent: sent.body, done: null as Json | null }
     const done = await http(
       BOT,
@@ -192,6 +220,19 @@ async function main() {
     )
     assert.equal(cancel.status, 200)
     assert.equal(cancel.body.userMessage.status, 'CANCELADA')
+    assert.equal((await http(API, func, 'GET', '/despesas?pageSize=100')).body.total, antes)
+  })
+
+  await step('não cria título quando o fornecedor informado não está ativo', async () => {
+    const antes = (await http(API, func, 'GET', '/despesas?pageSize=100')).body.total
+    const semContato = await dizer(
+      func,
+      chatF,
+      `Compramos cadernos do fornecedor Fantasma${suf} por R$ 10`,
+      false
+    )
+    assert.equal(semContato.sent.confirmacao, null)
+    assert.match(semContato.sent.assistantMessage.content, /Nenhum título foi criado/)
     assert.equal((await http(API, func, 'GET', '/despesas?pageSize=100')).body.total, antes)
   })
 

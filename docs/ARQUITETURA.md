@@ -104,7 +104,7 @@ Esta revisão é estrutural. Os pontos abaixo merecem decisão do autor do TCC:
 5. **Alterar valor/vencimento** (sem pagamentos) apaga e recria as parcelas do título.
 6. **Chatbot: "pagou/pagamos" + fornecedor/cliente com título em aberto** vira pagamento/baixa nesse título
    (heurística; sempre passa por confirmação, com resumo explícito).
-7. **Contatos comerciais:** uma pessoa/empresa pode atuar como cliente, fornecedor ou ambos. Títulos mantêm o nome histórico em texto e têm vínculo opcional; os registros antigos só são associados por ação manual, com sugestões de nome e confirmação por seleção. Contatos são inativados, não apagados.
+7. **Contatos comerciais:** uma pessoa/empresa pode atuar como cliente, fornecedor ou ambos. Títulos mantêm o nome histórico em texto e têm vínculo opcional; o Chatbot busca contatos ativos autorizados e exige confirmação por seleção antes de criar um título com contraparte informada. Registros antigos só são associados por ação manual, com sugestões de nome e confirmação por seleção. Contatos são inativados, não apagados.
 8. **Permissões de funcionários:** sem configuração individual, os acessos atuais a despesas e recebimentos são
    mantidos. O ADMIN pode remover ou restabelecer o acesso por módulo; a API consulta a permissão no banco em cada
    requisição, inclusive nas chamadas originadas pelo Chatbot. Cancelamentos, relatórios e gestão de contas seguem

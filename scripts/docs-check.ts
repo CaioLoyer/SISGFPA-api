@@ -206,6 +206,17 @@ async function main() {
     return { cookie: r.setCookie.map((c) => c.split(';')[0]).join('; ') } as Session
   }
 
+  const enviarMensagemComContato = async (session: Session, chatId: string, content: string) => {
+    let response = await http(BOT, session, 'POST', `/chats/${chatId}/messages`, { content })
+    assert.equal(response.status, 200, response.text)
+    const contacts = response.body.userMessage?.parsedData?.contatos
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      response = await http(BOT, session, 'POST', `/chats/${chatId}/messages`, { content: '1' })
+      assert.equal(response.status, 200, response.text)
+    }
+    return response
+  }
+
   console.log('\nAutenticação (exemplos do Scalar)')
   let admin!: Session
   let func!: Session
@@ -652,13 +663,8 @@ async function main() {
   })
   let messageId = ''
   await step('Enviar mensagem: exemplo → resumo pede confirmação', async () => {
-    const r = await http(
-      BOT,
-      admin,
-      'POST',
-      `/chats/${chatId}/messages`,
-      bot.body('POST', '/chats/{chatId}/messages')
-    )
+    const body = bot.body('POST', '/chats/{chatId}/messages')
+    const r = await enviarMensagemComContato(admin, chatId, body.content)
     assert.equal(r.status, 200, r.text)
     assert.ok(r.body.confirmacao)
     assert.match(r.body.confirmacao.resumo, /Distribuidora Escolar ABC/)
@@ -671,10 +677,11 @@ async function main() {
     assert.equal(r.body.userMessage.status, 'EXECUTADA')
     const titulo = await http(API, admin, 'GET', `/despesas/${r.body.userMessage.despesaId}`)
     assert.equal(titulo.body.fornecedor, 'Distribuidora Escolar ABC')
+    assert.equal(titulo.body.fornecedorContatoId, EXEMPLOS.contatoId)
     assert.equal(titulo.body.valor, 2500)
     assert.equal(titulo.body.categoria.nome, 'Mercadorias')
     const hist = await http(BOT, admin, 'GET', `/chats/${chatId}`)
-    assert.equal(hist.body.messages.length, 3) // usuário (atualizada para EXECUTADA), resumo e resultado do bot
+    assert.equal(hist.body.messages.length, 5) // solicitação, seleção, confirmação e resultado do bot
     assert.ok(hist.body.messages.some((m: Json) => m.status === 'EXECUTADA' && m.despesaId))
     assert.ok((await http(BOT, admin, 'GET', '/chats')).body.some((c: Json) => c.id === chatId))
   })
@@ -704,13 +711,8 @@ async function main() {
     const criada = await http(BOT, admin, 'POST', '/chats', bot.body('POST', '/chats/'))
     assert.equal(criada.status, 201, criada.text)
     const alvoId = criada.body.id as string
-    const proposta = await http(
-      BOT,
-      admin,
-      'POST',
-      `/chats/${alvoId}/messages`,
-      bot.body('POST', '/chats/{chatId}/messages')
-    )
+    const body = bot.body('POST', '/chats/{chatId}/messages')
+    const proposta = await enviarMensagemComContato(admin, alvoId, body.content)
     assert.equal(proposta.status, 200, proposta.text)
     assert.ok(proposta.body.confirmacao)
 
