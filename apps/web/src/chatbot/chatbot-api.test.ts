@@ -75,6 +75,11 @@ describe('cliente HTTP do Chatbot', () => {
   it('envia mensagem e preserva referência à confirmação pendente', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       response({
+        chat: {
+          ...chat,
+          title: 'Compramos cadernos por R$ 50',
+          updatedAt: '2026-10-21T12:01:00.000Z',
+        },
         userMessage,
         assistantMessage,
         confirmacao: { messageId: userMessage.id, resumo: 'Confirma?' },
@@ -83,6 +88,7 @@ describe('cliente HTTP do Chatbot', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(enviarMensagem(chat.id, userMessage.content)).resolves.toMatchObject({
+      chat: { title: 'Compramos cadernos por R$ 50' },
       confirmacao: { messageId: userMessage.id },
       userMessage: { status: 'PENDENTE_CONFIRMACAO' },
     })

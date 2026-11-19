@@ -31,6 +31,7 @@ export interface ChatConfirmation {
 }
 
 export interface SendMessageResult {
+  chat: ChatSummary
   userMessage: ChatMessage
   assistantMessage: ChatMessage
   confirmacao: ChatConfirmation | null
@@ -103,6 +104,7 @@ function parseSendResult(value: unknown): SendMessageResult {
     return invalidResponse()
   }
   return {
+    chat: parseChat(value.chat),
     userMessage: parseMessage(value.userMessage),
     assistantMessage: parseMessage(value.assistantMessage),
     confirmacao: confirmation as ChatConfirmation | null,

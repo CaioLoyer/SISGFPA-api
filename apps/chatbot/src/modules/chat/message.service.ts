@@ -11,6 +11,7 @@ import {
   perguntaFaltando,
   resumoDoPlano,
 } from '../interpreter/replies.js'
+import { gerarTituloAutomatico } from './chat-title.js'
 import { buscarChatDoUsuario } from './chat.service.js'
 
 const json = (value: unknown) => value as Prisma.InputJsonValue
@@ -48,7 +49,7 @@ export async function processarMensagem(input: {
   client: FinancialApiClient
 }) {
   const { chatId, userId, content, client } = input
-  await buscarChatDoUsuario(chatId, userId)
+  const chatInicial = await buscarChatDoUsuario(chatId, userId)
 
   // Última mensagem do usuário ainda incompleta (o bot perguntou algo)?
   const ultima = await prisma.message.findFirst({
@@ -86,12 +87,32 @@ export async function processarMensagem(input: {
     interpretacao = await interpretar(textoBase, client, escolha)
   }
 
-  const criar = (
+  const atualizarConversa = async () => {
+    const updatedAt = new Date()
+    const titulo = gerarTituloAutomatico(chatInicial.title, textoBase)
+
+    if (titulo) {
+      const atualizacao = await prisma.chat.updateMany({
+        where: { id: chatId, userId, title: chatInicial.title },
+        data: { title: titulo, updatedAt },
+      })
+      // Outra mensagem pode ter definido o título primeiro; atualiza só a data nesse caso.
+      if (atualizacao.count === 0) {
+        await prisma.chat.update({ where: { id: chatId }, data: { updatedAt } })
+      }
+    } else {
+      await prisma.chat.update({ where: { id: chatId }, data: { updatedAt } })
+    }
+
+    return buscarChatDoUsuario(chatId, userId)
+  }
+
+  const criar = async (
     status: MensagemStatus,
     intent: MensagemIntencao | undefined,
     parsedData: ParsedData | undefined
-  ) =>
-    prisma.message.create({
+  ) => {
+    const userMessage = await prisma.message.create({
       data: {
         chatId,
         userId,
@@ -102,50 +123,51 @@ export async function processarMensagem(input: {
         parsedData: parsedData ? json(parsedData) : undefined,
       },
     })
-
-  await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } })
+    const chat = await atualizarConversa()
+    return { userMessage, chat }
+  }
 
   switch (interpretacao.kind) {
     case 'desconhecida': {
-      const userMessage = await criar('INFORMATIVA', 'DESCONHECIDA', { textoBase })
+      const { userMessage, chat } = await criar('INFORMATIVA', 'DESCONHECIDA', { textoBase })
       const assistantMessage = await assistente(chatId, userId, MENSAGEM_NAO_ENTENDIDA)
-      return { userMessage, assistantMessage, confirmacao: null }
+      return { userMessage, assistantMessage, confirmacao: null, chat }
     }
     case 'faltando': {
-      const userMessage = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
+      const { userMessage, chat } = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
         textoBase,
         parsed: interpretacao.parsed,
       })
       const assistantMessage = await assistente(chatId, userId, perguntaFaltando(interpretacao.parsed))
-      return { userMessage, assistantMessage, confirmacao: null }
+      return { userMessage, assistantMessage, confirmacao: null, chat }
     }
     case 'nao-encontrado': {
-      const userMessage = await criar('INFORMATIVA', interpretacao.parsed.intent, {
+      const { userMessage, chat } = await criar('INFORMATIVA', interpretacao.parsed.intent, {
         textoBase,
         parsed: interpretacao.parsed,
       })
       const assistantMessage = await assistente(chatId, userId, interpretacao.texto)
-      return { userMessage, assistantMessage, confirmacao: null }
+      return { userMessage, assistantMessage, confirmacao: null, chat }
     }
     case 'escolher': {
-      const userMessage = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
+      const { userMessage, chat } = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
         textoBase,
         parsed: interpretacao.parsed,
         candidatos: interpretacao.candidatos,
       })
       const assistantMessage = await assistente(chatId, userId, perguntaEscolha(interpretacao.candidatos))
-      return { userMessage, assistantMessage, confirmacao: null }
+      return { userMessage, assistantMessage, confirmacao: null, chat }
     }
     case 'plano': {
       const intent: MensagemIntencao = interpretacao.plano.tipo
-      const userMessage = await criar('PENDENTE_CONFIRMACAO', intent, {
+      const { userMessage, chat } = await criar('PENDENTE_CONFIRMACAO', intent, {
         textoBase,
         parsed: interpretacao.parsed,
         plano: interpretacao.plano,
       })
       const resumo = resumoDoPlano(interpretacao.plano)
       const assistantMessage = await assistente(chatId, userId, resumo)
-      return { userMessage, assistantMessage, confirmacao: { messageId: userMessage.id, resumo } }
+      return { userMessage, assistantMessage, confirmacao: { messageId: userMessage.id, resumo }, chat }
     }
   }
 }

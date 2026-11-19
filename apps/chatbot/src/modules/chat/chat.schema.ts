@@ -60,6 +60,7 @@ export const MessageCancelParamsSchema = z.object({
 })
 
 export const SendMessageResponseSchema = z.object({
+  chat: ChatSchema,
   userMessage: MessageSchema,
   assistantMessage: MessageSchema,
   // Preenchido quando há uma operação aguardando confirmação do usuário.

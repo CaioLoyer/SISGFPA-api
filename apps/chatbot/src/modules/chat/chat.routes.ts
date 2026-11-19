@@ -91,6 +91,7 @@ export const chatRoutes: FastifyPluginAsyncZod = async (app) => {
         client: financialApiFor(request.headers),
       })
       return {
+        chat: toChatDto(result.chat),
         userMessage: toMessageDto(result.userMessage),
         assistantMessage: toMessageDto(result.assistantMessage),
         confirmacao: result.confirmacao,

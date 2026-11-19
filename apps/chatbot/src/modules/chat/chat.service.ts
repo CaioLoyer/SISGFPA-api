@@ -10,7 +10,7 @@ export async function buscarChatDoUsuario(chatId: string, userId: string) {
 }
 
 export async function criarChat(userId: string, title?: string) {
-  return prisma.chat.create({ data: { userId, title: title?.trim() || 'Chat financeiro' } })
+  return prisma.chat.create({ data: { userId, title: title?.trim() || 'Nova conversa' } })
 }
 
 export async function listarChats(userId: string) {

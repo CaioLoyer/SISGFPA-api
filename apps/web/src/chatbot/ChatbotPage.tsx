@@ -108,7 +108,7 @@ export function ChatbotPage() {
     setErro('')
     setCarregandoConversa(true)
     try {
-      const conversa = await criarConversa('Nova conversa')
+      const conversa = await criarConversa()
       setConversas((atuais) => [conversa, ...atuais.filter((item) => item.id !== conversa.id)])
       setConversaId(conversa.id)
       setMensagens([])
@@ -129,7 +129,7 @@ export function ChatbotPage() {
     try {
       let id = conversaId
       if (!id) {
-        const nova = await criarConversa(content.slice(0, 80))
+        const nova = await criarConversa()
         id = nova.id
         setConversaId(nova.id)
         setConversas((atuais) => [nova, ...atuais.filter((item) => item.id !== nova.id)])
@@ -139,10 +139,7 @@ export function ChatbotPage() {
       setRascunho('')
       setMensagens((atuais) => [...atuais, resultado.userMessage, resultado.assistantMessage])
       setConversas((atuais) => {
-        const encontrada = atuais.find((item) => item.id === id)
-        if (!encontrada) return atuais
-        const atualizada = { ...encontrada, updatedAt: new Date().toISOString() }
-        return [atualizada, ...atuais.filter((item) => item.id !== id)]
+        return [resultado.chat, ...atuais.filter((item) => item.id !== resultado.chat.id)]
       })
     } catch (error) {
       setErro(mensagemErro(error))
