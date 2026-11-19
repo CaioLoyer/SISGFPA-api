@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from '../auth/auth-api'
 import { canAccessAdmin } from '../auth/protected-route'
 import { Icon } from '../shared/Icon'
 import type { IconName } from '../shared/Icon'
+import { UserAvatar } from '../shared/UserAvatar'
 import './layout.css'
 
 const compactQuery = '(max-width: 900px)'
@@ -16,15 +17,6 @@ function isFinancialRoute(pathname: string) {
   return ['/despesas', '/recebimentos', '/caixa'].some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   )
-}
-
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase('pt-BR') ?? '')
-    .join('')
 }
 
 export function AppShell({
@@ -251,9 +243,7 @@ export function AppShell({
         </nav>
 
         <div className="workspace-user">
-          <span aria-hidden="true" className="workspace-avatar">
-            {initials(user.name)}
-          </span>
+          <UserAvatar className="workspace-avatar" image={user.image} name={user.name} />
           <div className="workspace-user-copy">
             <strong title={user.name}>{user.name}</strong>
             <span>{admin ? 'Administrador' : 'Funcionário'}</span>

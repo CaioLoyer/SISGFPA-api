@@ -18,6 +18,9 @@ import {
   resetPasswordWithCode,
   signIn,
   signOut,
+  getProfileImageUrl,
+  removeOwnProfileImage,
+  uploadOwnProfileImage,
   updateCurrentUserName,
   updateFuncionarioPermissoes,
   verifyCurrentUserPassword,
@@ -54,6 +57,57 @@ describe('cliente de autenticação da API Financeira', () => {
     )
 
     await expect(getCurrentUser()).resolves.toEqual(user)
+  })
+
+  it('converte apenas caminhos de foto gerados pela API em URLs de imagem', () => {
+    expect(getProfileImageUrl('/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png')).toBe(
+      'http://localhost:8080/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    )
+    expect(getProfileImageUrl('https://externo.example/foto.png')).toBeNull()
+    expect(getProfileImageUrl(null)).toBeNull()
+  })
+
+  it('envia a foto com cookies e remove a própria imagem pela API', async () => {
+    const image = '/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ image }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ image: null }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const file = new File([new Uint8Array([0, 1, 2])], 'foto.png', { type: 'image/png' })
+
+    await expect(uploadOwnProfileImage(file)).resolves.toBe(image)
+    await expect(removeOwnProfileImage()).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/usuarios/me/foto',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ imageBase64: 'AAEC' }),
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/usuarios/me/foto',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+    )
+  })
+
+  it('recusa tipos de arquivo não permitidos e fotos maiores que 2 MB antes do envio', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const svg = new File(['<svg/>'], 'foto.svg', { type: 'image/svg+xml' })
+    await expect(uploadOwnProfileImage(svg)).rejects.toMatchObject({
+      message: 'Escolha uma imagem JPEG, PNG ou WebP.',
+    })
+
+    const oversized = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'foto.png', { type: 'image/png' })
+    await expect(uploadOwnProfileImage(oversized)).rejects.toMatchObject({
+      message: 'A foto deve ter até 2 MB.',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('interpreta sessão ausente como usuário anônimo após expiração', async () => {

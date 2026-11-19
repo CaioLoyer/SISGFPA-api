@@ -38,6 +38,19 @@ async function encaminharParaAuth(request: FastifyRequest, reply: FastifyReply) 
     return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
   }
 
+  if (
+    normalizedPath === '/api/auth/update-user' &&
+    request.method === 'POST' &&
+    typeof request.body === 'object' &&
+    request.body !== null &&
+    'image' in request.body
+  ) {
+    return reply.code(400).send({
+      error: 'Atualize a foto pela área de Perfil.',
+      code: 'PROFILE_IMAGE_ROUTE_REQUIRED',
+    })
+  }
+
   if (normalizedPath.startsWith(emailOtpPrefix) && !allowedEmailOtpPaths.has(normalizedPath)) {
     return reply.code(404).send({ error: 'Rota não encontrada', code: 'NOT_FOUND' })
   }

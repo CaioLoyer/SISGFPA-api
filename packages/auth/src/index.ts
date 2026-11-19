@@ -40,6 +40,7 @@ export interface AuthenticatedUser {
   name: string
   email: string
   role: Role
+  image?: string | null
 }
 
 // Resolve o usuário autenticado a partir dos cabeçalhos HTTP (cookie de sessão do Better Auth).
@@ -48,7 +49,13 @@ export async function getAuthenticatedUser(headers: NodeHeaders): Promise<Authen
   if (!session) return null
 
   const user = session.user as unknown as AuthenticatedUser
-  return { id: user.id, name: user.name, email: user.email, role: user.role }
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    image: typeof user.image === 'string' ? user.image : null,
+  }
 }
 
 export { fromNodeHeaders }

@@ -10,6 +10,7 @@ import { despesasRoutes } from './modules/despesas/despesas.routes.js'
 import { recebimentosRoutes } from './modules/recebimentos/recebimentos.routes.js'
 import { relatoriosRoutes } from './modules/relatorios/relatorios.routes.js'
 import { usuariosRoutes } from './modules/usuarios/usuarios.routes.js'
+import { profileImageRoutes } from './modules/usuarios/profile-image.routes.js'
 
 /** Monta a API Financeira. Separado de server.ts para poder ser usado em testes (`app.inject`). */
 export async function buildApp() {
@@ -32,6 +33,7 @@ export async function buildApp() {
   await app.register(contatosRoutes, { prefix: '/contatos' })
   await app.register(dashboardRoutes, { prefix: '/dashboard' })
   await app.register(usuariosRoutes, { prefix: '/usuarios' })
+  await app.register(profileImageRoutes, { prefix: '/usuarios' })
 
   return app
 }

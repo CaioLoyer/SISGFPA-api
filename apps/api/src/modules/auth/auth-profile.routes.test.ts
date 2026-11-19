@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 
@@ -10,6 +14,12 @@ vi.mock('@sisgfpa/auth', async () => {
       return testState.auth
     },
     fromNodeHeaders,
+    getAuthenticatedUser: async (headers: Record<string, string | string[] | undefined>) => {
+      const session = await testState.auth.api.getSession({ headers: fromNodeHeaders(headers) })
+      if (!session) return null
+      const { id, name, email, role, image } = session.user
+      return { id, name, email, role, image }
+    },
   }
 })
 
@@ -18,6 +28,8 @@ const password = 'senha-inicial-123'
 const changedPassword = 'senha-alterada-456'
 const userEmail = 'perfil@regression.test'
 const adminEmail = 'perfil-admin@regression.test'
+const profilePng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXJkAAAAASUVORK5CYII='
 
 describe('perfil e segurança da própria conta', () => {
   let app: FastifyInstance
@@ -26,8 +38,11 @@ describe('perfil e segurança da própria conta', () => {
   let originalSession = ''
   let otherSession = ''
   let adminSession = ''
+  let profileStorageDirectory = ''
 
   beforeAll(async () => {
+    profileStorageDirectory = await mkdtemp(join(tmpdir(), 'sisgfpa-profile-image-auth-'))
+    process.env.PROFILE_IMAGE_STORAGE_DIR = profileStorageDirectory
     const [{ getTestInstance }, { openAPI }, { createSisgfpaAdminPlugin, emailAndPasswordOptions }] =
       await Promise.all([
         import('better-auth/test'),
@@ -48,7 +63,10 @@ describe('perfil e segurança da própria conta', () => {
     testState.auth = instance.auth
 
     const { createApp } = await import('@sisgfpa/http')
-    const { authRoutes } = await import('./auth.routes.js')
+    const [{ authRoutes }, { profileImageRoutes }] = await Promise.all([
+      import('./auth.routes.js'),
+      import('../usuarios/profile-image.routes.js'),
+    ])
     app = await createApp({
       title: 'API de teste',
       description: 'Teste do perfil do usuário',
@@ -58,6 +76,7 @@ describe('perfil e segurança da própria conta', () => {
       logger: false,
     })
     await app.register(authRoutes)
+    await app.register(profileImageRoutes, { prefix: '/usuarios' })
     await app.ready()
 
     const user = await instance.auth.api.createUser({
@@ -75,7 +94,9 @@ describe('perfil e segurança da própria conta', () => {
   }, 30_000)
 
   afterAll(async () => {
+    delete process.env.PROFILE_IMAGE_STORAGE_DIR
     await app?.close()
+    if (profileStorageDirectory) await rm(profileStorageDirectory, { recursive: true, force: true })
   })
 
   function cookieFrom(response: Awaited<ReturnType<FastifyInstance['inject']>>): string {
@@ -132,6 +153,14 @@ describe('perfil e segurança da própria conta', () => {
     const roleChange = await post('/api/auth/update-user', { role: 'ADMIN' }, originalSession)
     expect(roleChange.statusCode).toBe(400)
 
+    const imageChange = await post(
+      '/api/auth/update-user',
+      { image: 'https://images.example.test/other-user.png' },
+      originalSession
+    )
+    expect(imageChange.statusCode).toBe(400)
+    expect(imageChange.json().code).toBe('PROFILE_IMAGE_ROUTE_REQUIRED')
+
     const update = await post(
       '/api/auth/update-user',
       { name: 'Funcionária Atualizada', userId: adminId },
@@ -152,6 +181,42 @@ describe('perfil e segurança da própria conta', () => {
       name: 'Administrador Original',
       role: 'ADMIN',
     })
+  })
+
+  it('persiste a própria foto na sessão e impede que outra conta a consulte', async () => {
+    const unauthenticated = await post('/usuarios/me/foto', { imageBase64: profilePng })
+    expect(unauthenticated.statusCode).toBe(401)
+
+    const uploaded = await post('/usuarios/me/foto', { imageBase64: profilePng }, originalSession)
+    expect(uploaded.statusCode).toBe(200)
+    const { image } = uploaded.json() as { image: string }
+    const updatedSession = await getSession(originalSession)
+    expect(updatedSession.json().user.image).toBe(image)
+
+    const ownPhoto = await app.inject({
+      method: 'GET',
+      url: image,
+      headers: { host: 'localhost:8080', origin, cookie: originalSession },
+    })
+    expect(ownPhoto.statusCode).toBe(200)
+    expect(ownPhoto.headers['content-type']).toContain('image/png')
+    expect(Buffer.from(ownPhoto.rawPayload).toString('base64')).toBe(profilePng)
+
+    const anotherUserPhoto = await app.inject({
+      method: 'GET',
+      url: image,
+      headers: { host: 'localhost:8080', origin, cookie: adminSession },
+    })
+    expect(anotherUserPhoto.statusCode).toBe(404)
+
+    const removed = await app.inject({
+      method: 'DELETE',
+      url: '/usuarios/me/foto',
+      headers: { host: 'localhost:8080', origin, cookie: originalSession },
+    })
+    expect(removed.statusCode).toBe(200)
+    expect(removed.json()).toEqual({ image: null })
+    expect((await getSession(originalSession)).json().user.image).toBeNull()
   })
 
   it('altera a própria senha, mantém a sessão atual e encerra as demais', async () => {

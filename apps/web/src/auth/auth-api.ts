@@ -3,12 +3,14 @@ import type { Role, ModulePermissions, EffectivePermissions } from '@sisgfpa/typ
 import { notifyPermissionDenied } from './module-access'
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
+const profileImagePathPattern = /^\/usuarios\/me\/foto\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/
 
 export interface AuthenticatedUser {
   id: string
   name: string
   email: string
   role: Role
+  image?: string | null
 }
 
 export interface CreatedFuncionario {
@@ -156,6 +158,51 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   }
 
   throw new AuthApiError('A API Financeira retornou uma sessão inválida.')
+}
+
+export function getProfileImageUrl(image: string | null | undefined): string | null {
+  return image && profileImagePathPattern.test(image) ? `${apiBaseUrl}${image}` : null
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
+  }
+  return btoa(binary)
+}
+
+export async function uploadOwnProfileImage(file: File): Promise<string> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new AuthApiError('Escolha uma imagem JPEG, PNG ou WebP.')
+  }
+  if (file.size < 1 || file.size > 2 * 1024 * 1024) {
+    throw new AuthApiError('A foto deve ter até 2 MB.')
+  }
+
+  const imageBase64 = encodeBase64(new Uint8Array(await file.arrayBuffer()))
+  const body = await request(`${apiBaseUrl}/usuarios/me/foto`, {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64 }),
+  })
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('image' in body) ||
+    typeof body.image !== 'string' ||
+    !profileImagePathPattern.test(body.image)
+  ) {
+    throw new AuthApiError('A API Financeira retornou uma foto de perfil inválida.')
+  }
+  return body.image
+}
+
+export async function removeOwnProfileImage(): Promise<void> {
+  const body = await request(`${apiBaseUrl}/usuarios/me/foto`, { method: 'DELETE' })
+  if (typeof body !== 'object' || body === null || !('image' in body) || body.image !== null) {
+    throw new AuthApiError('A API Financeira não confirmou a remoção da foto.')
+  }
 }
 
 export async function signOut(): Promise<void> {

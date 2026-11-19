@@ -71,6 +71,29 @@ describe('CORS das edicoes no frontend', () => {
     }
   })
 
+  it('autoriza DELETE com cookies na origem confiavel sem exigir sessao no preflight', async () => {
+    const app = await buildTestApp()
+    try {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/editar',
+        headers: {
+          origin: 'http://localhost:3000',
+          'access-control-request-method': 'DELETE',
+          'access-control-request-headers': 'content-type',
+        },
+      })
+
+      expect(response.statusCode).toBe(204)
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000')
+      expect(response.headers['access-control-allow-credentials']).toBe('true')
+      expect(String(response.headers['access-control-allow-methods']).split(/,\s*/)).toContain('DELETE')
+      expect(getAuthenticatedUser).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
   it('mantem autenticacao e cabecalhos CORS na requisicao PATCH efetiva', async () => {
     getAuthenticatedUser.mockResolvedValue(funcionario)
     const app = await buildTestApp()

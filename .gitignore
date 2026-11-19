@@ -6,3 +6,4 @@ dist/
 **/src/generated/
 .env
 **/.env
+**/.data/profile-images/

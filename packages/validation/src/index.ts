@@ -32,6 +32,35 @@ export const CreateFuncionarioResponseSchema = z.object({
   role: z.literal('FUNCIONARIO'),
 })
 
+export const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+export const PROFILE_IMAGE_MAX_BASE64_LENGTH = 4 * Math.ceil(PROFILE_IMAGE_MAX_BYTES / 3)
+export const UploadProfileImageBodySchema = z
+  .strictObject({
+    imageBase64: z
+      .string()
+      .min(1)
+      .max(PROFILE_IMAGE_MAX_BASE64_LENGTH)
+      .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/)
+      .meta({ description: 'Imagem JPEG, PNG ou WebP codificada em base64, com até 2 MB.' }),
+  })
+  .meta({
+    example: {
+      imageBase64:
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXJkAAAAASUVORK5CYII=',
+    },
+  })
+
+export const ProfileImageResponseSchema = z
+  .object({ image: z.string().nullable() })
+  .meta({ example: { image: '/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png' } })
+
+export const ProfileImageParamsSchema = z.object({
+  arquivo: z
+    .string()
+    .regex(/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/)
+    .meta({ example: '9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png' }),
+})
+
 export const FuncionarioPermissoesSchema = z
   .strictObject({
     despesas: z.boolean(),

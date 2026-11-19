@@ -6,9 +6,18 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
-  user: { id: 'user-1', name: 'Maria da Silva', email: 'maria@example.test', role: 'FUNCIONARIO' as const },
+  user: {
+    id: 'user-1',
+    name: 'Maria da Silva',
+    email: 'maria@example.test',
+    role: 'FUNCIONARIO' as const,
+    image: null as string | null,
+  },
   atualizarNome: vi.fn(),
+  atualizarFoto: vi.fn(),
   updateCurrentUserName: vi.fn(),
+  uploadOwnProfileImage: vi.fn(),
+  removeOwnProfileImage: vi.fn(),
   verifyCurrentUserPassword: vi.fn(),
   changeCurrentUserPassword: vi.fn(),
   completeAdminPasswordReset: vi.fn(),
@@ -21,12 +30,15 @@ vi.mock('../auth/session-context', () => ({
   useSession: () => ({
     user: state.user,
     updateCurrentUserName: state.atualizarNome,
+    updateCurrentUserImage: state.atualizarFoto,
     refresh: state.refresh,
   }),
 }))
 vi.mock('../auth/auth-api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   updateCurrentUserName: state.updateCurrentUserName,
+  uploadOwnProfileImage: state.uploadOwnProfileImage,
+  removeOwnProfileImage: state.removeOwnProfileImage,
   verifyCurrentUserPassword: state.verifyCurrentUserPassword,
   changeCurrentUserPassword: state.changeCurrentUserPassword,
   completeAdminPasswordReset: state.completeAdminPasswordReset,
@@ -39,6 +51,8 @@ import { ProfilePage } from './ProfilePage'
 
 let container: HTMLDivElement
 let root: Root
+let originalCreateObjectURL: PropertyDescriptor | undefined
+let originalRevokeObjectURL: PropertyDescriptor | undefined
 
 async function render() {
   await act(async () => {
@@ -70,9 +84,29 @@ async function fill(id: string, value: string) {
 
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-  state.user = { id: 'user-1', name: 'Maria da Silva', email: 'maria@example.test', role: 'FUNCIONARIO' }
+  originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+  originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: vi.fn(() => 'blob:profile-preview'),
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+  state.user = {
+    id: 'user-1',
+    name: 'Maria da Silva',
+    email: 'maria@example.test',
+    role: 'FUNCIONARIO',
+    image: null,
+  }
   state.atualizarNome.mockReset()
+  state.atualizarFoto.mockReset().mockImplementation((image: string | null) => {
+    state.user.image = image
+  })
   state.updateCurrentUserName.mockReset()
+  state.uploadOwnProfileImage
+    .mockReset()
+    .mockResolvedValue('/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png')
+  state.removeOwnProfileImage.mockReset().mockResolvedValue(undefined)
   state.verifyCurrentUserPassword.mockReset().mockResolvedValue(undefined)
   state.changeCurrentUserPassword.mockReset().mockResolvedValue(undefined)
   state.completeAdminPasswordReset.mockReset().mockResolvedValue(undefined)
@@ -93,11 +127,85 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
+  if (originalCreateObjectURL) Object.defineProperty(URL, 'createObjectURL', originalCreateObjectURL)
+  else Reflect.deleteProperty(URL, 'createObjectURL')
+  if (originalRevokeObjectURL) Object.defineProperty(URL, 'revokeObjectURL', originalRevokeObjectURL)
+  else Reflect.deleteProperty(URL, 'revokeObjectURL')
   vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
 
 describe('troca de senha pelo Perfil', () => {
+  it('abre o seletor ao clicar no círculo da foto e envia a imagem escolhida', async () => {
+    let resolveUpload!: (image: string) => void
+    const uploadPromise = new Promise<string>((resolve) => {
+      resolveUpload = resolve
+    })
+    state.uploadOwnProfileImage.mockReturnValueOnce(uploadPromise)
+    await render()
+    const photoButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Alterar foto do perfil"]'
+    )
+    const fileInput = container.querySelector<HTMLInputElement>('#profile-photo-file')
+    expect(photoButton).toBeTruthy()
+    expect(fileInput?.accept).toBe('image/jpeg,image/png,image/webp')
+    const inputClick = vi.spyOn(fileInput!, 'click')
+    await act(async () => photoButton!.click())
+    expect(inputClick).toHaveBeenCalledOnce()
+
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'foto.png', { type: 'image/png' })
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] })
+    await act(async () => {
+      fileInput!.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(photoButton?.querySelector('img')?.getAttribute('src')).toBe('blob:profile-preview')
+    await act(async () => {
+      resolveUpload('/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png')
+      await uploadPromise
+    })
+
+    expect(state.uploadOwnProfileImage).toHaveBeenCalledWith(file)
+    expect(state.atualizarFoto).toHaveBeenCalledWith(
+      '/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    )
+    expect(photoButton?.querySelector('img')?.getAttribute('src')).toBe(
+      'http://localhost:8080/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    )
+    expect(container.textContent).toContain('Foto de perfil atualizada.')
+  })
+
+  it('permite remover a foto existente pelo Perfil', async () => {
+    state.user = {
+      id: 'user-1',
+      name: 'Maria da Silva',
+      email: 'maria@example.test',
+      role: 'FUNCIONARIO',
+      image: '/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png',
+    }
+    await render()
+    await click('Remover foto')
+
+    expect(state.removeOwnProfileImage).toHaveBeenCalledOnce()
+    expect(state.atualizarFoto).toHaveBeenCalledWith(null)
+    expect(container.textContent).toContain('Foto removida.')
+  })
+
+  it('exibe a foto da conta dentro do círculo clicável do Perfil', async () => {
+    state.user.image = '/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    await render()
+
+    const photoButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Alterar foto do perfil"]'
+    )
+    const image = photoButton?.querySelector('img')
+    expect(image?.getAttribute('src')).toBe(
+      'http://localhost:8080/usuarios/me/foto/9a82f177-bf5e-4a3d-a8f8-4e463a31bb8c.png'
+    )
+    expect(image?.getAttribute('crossorigin')).toBe('use-credentials')
+  })
+
   it('mantém os campos ocultos até abrir o popup e não avança com senha atual incorreta', async () => {
     state.verifyCurrentUserPassword.mockRejectedValueOnce(new AuthApiError('Invalid password', 400))
     await render()

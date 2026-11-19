@@ -19,6 +19,7 @@ interface SessionContextValue {
   refreshPermissions: () => Promise<void>
   refresh: () => Promise<AuthenticatedUser | null>
   updateCurrentUserName: (name: string) => void
+  updateCurrentUserImage: (image: string | null) => void
   login: (email: string, password: string) => Promise<AuthenticatedUser>
   logout: () => Promise<void>
 }
@@ -97,6 +98,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser((current) => (current ? { ...current, name } : current))
   }, [])
 
+  const updateCurrentUserImage = useCallback((image: string | null) => {
+    setUser((current) => (current ? { ...current, image } : current))
+  }, [])
+
   const login = useCallback(
     async (email: string, password: string) => {
       await apiSignIn(email, password)
@@ -120,8 +125,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   const value = useMemo(
-    () => ({ status, user, permissions, refreshPermissions, refresh, updateCurrentUserName, login, logout }),
-    [status, user, permissions, refreshPermissions, refresh, updateCurrentUserName, login, logout]
+    () => ({
+      status,
+      user,
+      permissions,
+      refreshPermissions,
+      refresh,
+      updateCurrentUserName,
+      updateCurrentUserImage,
+      login,
+      logout,
+    }),
+    [
+      status,
+      user,
+      permissions,
+      refreshPermissions,
+      refresh,
+      updateCurrentUserName,
+      updateCurrentUserImage,
+      login,
+      logout,
+    ]
   )
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

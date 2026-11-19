@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent } from 'react'
+import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import {
@@ -7,24 +7,36 @@ import {
   changeCurrentUserPassword,
   completeAdminPasswordReset,
   getMyPasswordResetRequest,
+  removeOwnProfileImage,
   requestAdminPasswordReset,
+  uploadOwnProfileImage,
   updateCurrentUserName,
   verifyCurrentUserPassword,
 } from '../auth/auth-api'
 import type { PasswordResetRequest, PasswordResetRequestStatus } from '../auth/auth-api'
 import { useSession } from '../auth/session-context'
 import { PageHeader } from '../shared/PageHeader'
+import { UserAvatar } from '../shared/UserAvatar'
 import './profile.css'
 
 type PasswordDialogStep = 'verify' | 'change' | 'waiting' | 'approved'
 
 export function ProfilePage() {
-  const { user, updateCurrentUserName: atualizarNomeNaSessao, refresh } = useSession()
+  const {
+    user,
+    updateCurrentUserName: atualizarNomeNaSessao,
+    updateCurrentUserImage: atualizarFotoNaSessao,
+    refresh,
+  } = useSession()
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name ?? '')
   const [nameError, setNameError] = useState('')
   const [nameSaved, setNameSaved] = useState(false)
   const [savingName, setSavingName] = useState(false)
+  const [savingPhoto, setSavingPhoto] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const [photoSaved, setPhotoSaved] = useState('')
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [passwordStep, setPasswordStep] = useState<PasswordDialogStep>('verify')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -43,6 +55,15 @@ export function ProfilePage() {
   const currentPasswordInputRef = useRef<HTMLInputElement>(null)
   const newPasswordInputRef = useRef<HTMLInputElement>(null)
   const passwordDialogWasOpenRef = useRef(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const photoPreviewRef = useRef<string | null>(null)
+
+  useEffect(
+    () => () => {
+      if (photoPreviewRef.current) URL.revokeObjectURL(photoPreviewRef.current)
+    },
+    []
+  )
 
   useEffect(() => {
     if (passwordDialogOpen) {
@@ -96,13 +117,6 @@ export function ProfilePage() {
 
   if (!user) return null
 
-  const userInitials = user.name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toLocaleUpperCase('pt-BR')
   const roleLabel = user.role === 'ADMIN' ? 'Administrador' : 'Funcionário'
 
   async function handleNameSubmit(event: FormEvent<HTMLFormElement>) {
@@ -125,6 +139,47 @@ export function ProfilePage() {
       setNameError(caught instanceof Error ? caught.message : 'Não foi possível atualizar o nome.')
     } finally {
       setSavingName(false)
+    }
+  }
+
+  async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+
+    setPhotoError('')
+    setPhotoSaved('')
+    setSavingPhoto(true)
+    try {
+      if (photoPreviewRef.current) URL.revokeObjectURL(photoPreviewRef.current)
+      photoPreviewRef.current = URL.createObjectURL(file)
+      setPhotoPreview(photoPreviewRef.current)
+      const image = await uploadOwnProfileImage(file)
+      atualizarFotoNaSessao(image)
+      setPhotoSaved('Foto de perfil atualizada.')
+    } catch (caught) {
+      setPhotoError(caught instanceof Error ? caught.message : 'Não foi possível salvar a foto.')
+    } finally {
+      if (photoPreviewRef.current) URL.revokeObjectURL(photoPreviewRef.current)
+      photoPreviewRef.current = null
+      setPhotoPreview(null)
+      setSavingPhoto(false)
+    }
+  }
+
+  async function handlePhotoRemove() {
+    if (savingPhoto) return
+    setPhotoError('')
+    setPhotoSaved('')
+    setSavingPhoto(true)
+    try {
+      await removeOwnProfileImage()
+      atualizarFotoNaSessao(null)
+      setPhotoSaved('Foto removida.')
+    } catch (caught) {
+      setPhotoError(caught instanceof Error ? caught.message : 'Não foi possível remover a foto.')
+    } finally {
+      setSavingPhoto(false)
     }
   }
 
@@ -321,8 +376,46 @@ export function ProfilePage() {
 
       <div className="profile-content">
         <section className="profile-identity" aria-label="Conta conectada">
-          <div className="profile-avatar" aria-hidden="true">
-            {userInitials || 'U'}
+          <div className="profile-avatar-actions">
+            <button
+              aria-label="Alterar foto do perfil"
+              className="profile-avatar-control"
+              disabled={savingPhoto}
+              onClick={() => photoInputRef.current?.click()}
+              title="Clique para alterar sua foto"
+              type="button"
+            >
+              <UserAvatar
+                className="profile-avatar"
+                image={user.image}
+                name={user.name}
+                previewSrc={photoPreview}
+              />
+              <span aria-hidden="true" className="profile-avatar-overlay">
+                {savingPhoto ? 'Salvando' : 'Editar'}
+              </span>
+            </button>
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              aria-label="Selecionar foto do perfil"
+              className="profile-photo-input"
+              id="profile-photo-file"
+              onChange={(event) => void handlePhotoChange(event)}
+              ref={photoInputRef}
+              tabIndex={-1}
+              type="file"
+            />
+            <span className="profile-avatar-instruction">Clique na foto para alterar</span>
+            {user.image && (
+              <button
+                className="profile-avatar-remove"
+                disabled={savingPhoto}
+                onClick={() => void handlePhotoRemove()}
+                type="button"
+              >
+                Remover foto
+              </button>
+            )}
           </div>
           <div className="profile-identity-copy">
             <span className="profile-overline">CONTA CONECTADA</span>
@@ -331,6 +424,17 @@ export function ProfilePage() {
           </div>
           <span className="profile-role">{roleLabel}</span>
         </section>
+
+        {photoError && (
+          <p className="form-error profile-photo-feedback" role="alert">
+            {photoError}
+          </p>
+        )}
+        {photoSaved && (
+          <p className="form-success profile-photo-feedback" role="status">
+            {photoSaved}
+          </p>
+        )}
 
         <div className="profile-panels">
           <section className="profile-panel" aria-labelledby="profile-data-title">

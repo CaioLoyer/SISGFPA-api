@@ -41,7 +41,7 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
   await app.register(fastifyCors, {
     origin: options.trustedOrigins,
     credentials: true,
-    methods: ['GET', 'HEAD', 'POST', 'PATCH'],
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
   })
 
   await app.register(fastifySwagger, {
