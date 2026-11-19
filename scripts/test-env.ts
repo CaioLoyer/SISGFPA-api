@@ -1,0 +1,10 @@
+/** Ambiente isolado para testes: credencial fictícia, sem SMTP e sem acesso ao banco local. */
+process.env.BETTER_AUTH_SECRET = 'sisgfpa-vitest-only-secret-not-for-any-deployment'
+process.env.BETTER_AUTH_URL = 'http://localhost:8080'
+process.env.DATABASE_URL = 'postgresql://sisgfpa_test:sisgfpa_test@127.0.0.1:1/sisgfpa_vitest?schema=public'
+process.env.SMTP_HOST = ''
+process.env.SMTP_PORT = ''
+process.env.SMTP_SECURE = ''
+process.env.SMTP_USER = ''
+process.env.SMTP_PASSWORD = ''
+process.env.SMTP_FROM = ''

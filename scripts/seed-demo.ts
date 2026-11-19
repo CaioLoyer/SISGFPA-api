@@ -157,7 +157,6 @@ export async function seedDemo() {
       id: EXEMPLOS.despesaId,
       descricao: 'Compra de cadernos',
       fornecedor: 'Distribuidora Escolar ABC',
-      fornecedorContatoId: EXEMPLOS.contatoId,
       valor: 2500,
       dataLancamento: new Date('2026-09-30'),
       dataVencimento: new Date('2026-10-30'),
@@ -196,6 +195,7 @@ export async function seedDemo() {
     body: {
       descricao: 'Compra de cadernos',
       fornecedor: 'Distribuidora Escolar ABC',
+      fornecedorContatoId: EXEMPLOS.contatoId,
       valor: 2500,
       dataVencimento: '2026-10-30',
       dataLancamento: '2026-09-30',

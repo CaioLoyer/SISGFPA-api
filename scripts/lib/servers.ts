@@ -6,7 +6,7 @@ export const BOT = 'http://localhost:3001'
 const children: ChildProcess[] = []
 
 function start(cwd: string, env: Record<string, string>) {
-  const child = spawn('pnpm', ['exec', 'tsx', 'src/server.ts'], {
+  const child = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], {
     cwd,
     env: { ...process.env, ...env, NODE_ENV: 'test', RATE_LIMIT_MAX: '5000' },
     stdio: 'ignore',

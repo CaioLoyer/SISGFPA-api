@@ -12,12 +12,7 @@ vi.mock('@sisgfpa/database', () => ({
   },
 }))
 
-import {
-  contasAPagar,
-  contasAPagarCsv,
-  contasAReceber,
-  contasAReceberCsv,
-} from './relatorios.service.js'
+import { contasAPagar, contasAPagarCsv, contasAReceber, contasAReceberCsv } from './relatorios.service.js'
 
 const periodo = { dataInicio: '2026-10-01', dataFim: '2026-10-31' }
 const dataDentroPeriodo = new Date('2026-10-15T12:00:00.000Z')
@@ -131,7 +126,10 @@ type QueryWhere = {
   dataVencimento?: { gte?: Date; lte?: Date }
 }
 
-function resultadoDaConsulta<T extends { status: string; dataVencimento: Date }>(records: T[], where: QueryWhere) {
+function resultadoDaConsulta<T extends { status: string; dataVencimento: Date }>(
+  records: T[],
+  where: QueryWhere
+) {
   return records.filter((record) => {
     if (where.status?.not && record.status === where.status.not) return false
     if (where.dataVencimento?.gte && record.dataVencimento < where.dataVencimento.gte) return false

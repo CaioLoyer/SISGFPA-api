@@ -6,6 +6,8 @@ import { BusinessRuleError, ConflictError, NotFoundError, UnauthorizedError } fr
 import type { StatusSolicitacaoRedefinicaoSenha } from '@sisgfpa/database'
 import type { FastifyRequest } from 'fastify'
 
+import { getBetterAuthSecret } from '../../config/env.js'
+
 const requestLifetimeMs = 24 * 60 * 60 * 1000
 const approvalLifetimeMs = 10 * 60 * 1000
 const requestLimitPerDay = 3
@@ -15,9 +17,11 @@ type Headers = FastifyRequest['headers']
 type Decision = 'APROVAR' | 'RECUSAR'
 
 function getGrantSecret() {
-  const secret = process.env.BETTER_AUTH_SECRET
-  if (!secret) throw new Error('BETTER_AUTH_SECRET é necessária para autorizar a redefinição de senha.')
-  return secret
+  try {
+    return getBetterAuthSecret()
+  } catch {
+    throw new Error('BETTER_AUTH_SECRET é necessária para autorizar a redefinição de senha.')
+  }
 }
 
 async function getSession(headers: Headers) {

@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 import { auth, fromNodeHeaders } from '@sisgfpa/auth'
 import { BusinessRuleError } from '@sisgfpa/http'
 import { PROFILE_IMAGE_MAX_BASE64_LENGTH, PROFILE_IMAGE_MAX_BYTES } from '@sisgfpa/validation'
 import type { FastifyRequest } from 'fastify'
+
+import { getProfileImageStorageDirectory } from '../../config/env.js'
 
 export const MAX_PROFILE_IMAGE_BYTES = PROFILE_IMAGE_MAX_BYTES
 export const MAX_PROFILE_IMAGE_BASE64_LENGTH = PROFILE_IMAGE_MAX_BASE64_LENGTH
@@ -191,7 +193,7 @@ function decodeImage(encoded: string): Buffer {
 }
 
 function storageDirectory(): string {
-  return resolve(process.env.PROFILE_IMAGE_STORAGE_DIR ?? join(process.cwd(), '.data', 'profile-images'))
+  return getProfileImageStorageDirectory()
 }
 
 function userFilePrefix(userId: string): string {

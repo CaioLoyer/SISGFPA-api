@@ -324,13 +324,15 @@ async function main() {
 
   await step('exclusão lógica oculta a conversa e descarta uma proposta pendente', async () => {
     const chatExclusao = (await http(BOT, admin, 'POST', '/chats', {})).body.id as string
-    const pendente = await http(BOT, admin, 'POST', `/chats/${chatExclusao}/messages`, {
-      content: `Compramos cadernos do fornecedor ${ABC} por R$ 25.`,
-    })
-    assert.equal(pendente.status, 200, JSON.stringify(pendente.body))
-    assert.ok(pendente.body.confirmacao)
+    const pendente = await dizer(
+      admin,
+      chatExclusao,
+      `Compramos cadernos do fornecedor ${ABC} por R$ 25.`,
+      false
+    )
+    assert.ok(pendente.sent.confirmacao)
 
-    const messageId = pendente.body.confirmacao.messageId as string
+    const messageId = pendente.sent.confirmacao.messageId as string
     await prisma.message.update({ where: { id: messageId }, data: { status: 'PROCESSANDO' } })
     assert.equal((await http(BOT, admin, 'DELETE', `/chats/${chatExclusao}`)).status, 409)
     assert.equal((await http(BOT, admin, 'GET', `/chats/${chatExclusao}`)).status, 200)
@@ -348,7 +350,7 @@ async function main() {
       (await http(BOT, admin, 'POST', `/chats/${chatExclusao}/messages/${messageId}/confirm`)).status,
       404
     )
-    const mensagem = await prisma.message.findUnique({ where: { id: pendente.body.confirmacao.messageId } })
+    const mensagem = await prisma.message.findUnique({ where: { id: pendente.sent.confirmacao.messageId } })
     assert.equal(mensagem?.status, 'CANCELADA')
   })
 
@@ -380,6 +382,12 @@ async function main() {
     assert.equal((await http(API, func, 'GET', '/contatos/opcoes?tipo=RECEBIMENTO&busca=Maria')).status, 200)
     assert.equal((await http(API, func, 'GET', '/contatos/opcoes?tipo=DESPESA&busca=ABC')).status, 403)
     assert.equal((await http(API, func, 'PATCH', path, { despesas: true })).status, 403)
+    const chat = await http(BOT, func, 'POST', '/chats', {})
+    const suggestions = await http(BOT, func, 'POST', `/chats/${chat.body.id}/messages`, {
+      content: 'Quero consultar o financeiro',
+    })
+    assert.deepEqual(suggestions.body.userMessage.parsedData.topicos, ['receipts'])
+    assert.equal(suggestions.body.confirmacao, null)
     for (const formato of ['json', 'csv']) {
       assert.equal(
         (await http(API, func, 'GET', `/relatorios/contas-a-pagar?formato=${formato}`)).status,

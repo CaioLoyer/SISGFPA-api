@@ -363,6 +363,12 @@ async function main() {
     const deniedAfterPermissionChange = await http(API, func, 'GET', '/despesas')
     assert.equal(deniedAfterPermissionChange.status, 403)
     assert.equal((await http(API, func, 'GET', '/recebimentos')).status, 200)
+    const chat = await http(BOT, func, 'POST', '/chats', {})
+    const suggestions = await http(BOT, func, 'POST', `/chats/${chat.body.id}/messages`, {
+      content: 'Quero consultar o financeiro',
+    })
+    assert.deepEqual(suggestions.body.userMessage.parsedData.topicos, ['receipts'])
+    assert.equal(suggestions.body.confirmacao, null)
 
     const cancelPermissionGrant = await http(
       API,
