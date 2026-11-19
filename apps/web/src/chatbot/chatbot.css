@@ -149,8 +149,17 @@
   list-style: none;
 }
 
+.chatbot-conversation-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 4px;
+}
+
 .chatbot-conversation-button {
   display: grid;
+  min-width: 0;
   width: 100%;
   gap: 5px;
   padding: 10px;
@@ -187,6 +196,43 @@
 .chatbot-conversation-button span {
   color: #718077;
   font-size: 9px;
+}
+
+.chatbot-conversation-delete {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #e5e9e6;
+  border-radius: 8px;
+  color: #718077;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 0.16s,
+    color 0.16s,
+    background 0.16s;
+}
+
+.chatbot-conversation-delete svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.chatbot-conversation-delete:hover:not(:disabled) {
+  border-color: #e9c4c0;
+  color: #9f3831;
+  background: #fff3f2;
+}
+
+.chatbot-conversation-delete:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .chatbot-topics-heading {
@@ -444,6 +490,12 @@
   font-size: 10px;
 }
 
+.chatbot-message-state {
+  margin: -3px 0 0 8px;
+  color: #805f26;
+  font-size: 10px;
+}
+
 .chatbot-confirmation-controls > div {
   display: flex;
   flex-wrap: wrap;
@@ -454,6 +506,114 @@
   min-height: 36px;
   padding: 0 11px;
   font-size: 10px;
+}
+
+.chatbot-delete-backdrop {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  overflow-y: auto;
+  place-items: center;
+  inset: 0;
+  padding: 24px;
+  background: #102318a6;
+  backdrop-filter: blur(3px);
+}
+
+.chatbot-delete-dialog {
+  display: grid;
+  width: min(100%, 460px);
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #dce2de;
+  border-radius: 14px;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 22px 70px #081b1080;
+}
+
+.chatbot-delete-dialog:focus-visible {
+  outline: 3px solid #78ad8b;
+  outline-offset: 3px;
+}
+
+.chatbot-delete-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chatbot-delete-dialog-heading .chatbot-overline {
+  margin-bottom: 7px;
+}
+
+.chatbot-delete-dialog-heading h2 {
+  margin: 0;
+  color: #20382a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.chatbot-delete-dialog-close {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #dce2de;
+  border-radius: 8px;
+  color: #4f6256;
+  background: #f8faf8;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chatbot-delete-dialog-close:hover:not(:disabled) {
+  color: #183b27;
+  background: #edf6f0;
+}
+
+.chatbot-delete-dialog-description {
+  margin: 0;
+  color: #68796e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.chatbot-delete-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f0c8c4;
+  border-radius: 8px;
+  color: #8e2b24;
+  background: #fff3f2;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.chatbot-delete-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.chatbot-delete-dialog-actions .button {
+  min-height: 40px;
+  width: auto;
+}
+
+.chatbot-delete-confirm {
+  border: 1px solid #a83b34;
+  color: #fff;
+  background: #a83b34;
+}
+
+.chatbot-delete-confirm:hover:not(:disabled) {
+  border-color: #8e302a;
+  background: #8e302a;
 }
 
 .chatbot-composer {
@@ -507,6 +667,8 @@
 .chatbot-topic-link:focus-visible,
 .chatbot-topic-card:focus-visible,
 .chatbot-new-button:focus-visible,
+.chatbot-conversation-delete:focus-visible,
+.chatbot-delete-dialog-close:focus-visible,
 .chatbot-error .button:focus-visible {
   outline: 3px solid #85c69c;
   outline-offset: 2px;
@@ -611,6 +773,25 @@
   }
 
   .chatbot-composer-footer .button {
+    width: 100%;
+  }
+
+  .chatbot-delete-backdrop {
+    place-items: end center;
+    padding: 12px;
+  }
+
+  .chatbot-delete-dialog {
+    gap: 15px;
+    padding: 20px;
+  }
+
+  .chatbot-delete-dialog-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chatbot-delete-dialog-actions .button {
     width: 100%;
   }
 }

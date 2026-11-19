@@ -1,6 +1,6 @@
 import { type Prisma, prisma } from '@sisgfpa/database'
 import type { MensagemIntencao, MensagemStatus } from '@sisgfpa/database'
-import { ConflictError } from '@sisgfpa/http'
+import { ConflictError, NotFoundError } from '@sisgfpa/http'
 
 import { type FinancialApiClient, FinancialApiError } from '../financial-api/financial-api-client.js'
 import { type Escolha, interpretar, type Alvo, type Plano } from '../interpreter/planner.js'
@@ -87,32 +87,89 @@ export async function processarMensagem(input: {
     interpretacao = await interpretar(textoBase, client, escolha)
   }
 
-  const atualizarConversa = async () => {
-    const updatedAt = new Date()
-    const titulo = gerarTituloAutomatico(chatInicial.title, textoBase)
-
-    if (titulo) {
-      const atualizacao = await prisma.chat.updateMany({
-        where: { id: chatId, userId, title: chatInicial.title },
-        data: { title: titulo, updatedAt },
-      })
-      // Outra mensagem pode ter definido o título primeiro; atualiza só a data nesse caso.
-      if (atualizacao.count === 0) {
-        await prisma.chat.update({ where: { id: chatId }, data: { updatedAt } })
-      }
-    } else {
-      await prisma.chat.update({ where: { id: chatId }, data: { updatedAt } })
+  let status: MensagemStatus
+  let intent: MensagemIntencao | undefined
+  let parsedData: ParsedData | undefined
+  let assistantContent: string
+  let confirmationPlan: Plano | null = null
+  switch (interpretacao.kind) {
+    case 'desconhecida': {
+      status = 'INFORMATIVA'
+      intent = 'DESCONHECIDA'
+      parsedData = { textoBase }
+      assistantContent = MENSAGEM_NAO_ENTENDIDA
+      break
     }
-
-    return buscarChatDoUsuario(chatId, userId)
+    case 'faltando': {
+      status = 'INFORMACAO_INSUFICIENTE'
+      intent = interpretacao.parsed.intent
+      parsedData = {
+        textoBase,
+        parsed: interpretacao.parsed,
+      }
+      assistantContent = perguntaFaltando(interpretacao.parsed)
+      break
+    }
+    case 'nao-encontrado': {
+      status = 'INFORMATIVA'
+      intent = interpretacao.parsed.intent
+      parsedData = {
+        textoBase,
+        parsed: interpretacao.parsed,
+      }
+      assistantContent = interpretacao.texto
+      break
+    }
+    case 'escolher': {
+      status = 'INFORMACAO_INSUFICIENTE'
+      intent = interpretacao.parsed.intent
+      parsedData = {
+        textoBase,
+        parsed: interpretacao.parsed,
+        candidatos: interpretacao.candidatos,
+      }
+      assistantContent = perguntaEscolha(interpretacao.candidatos)
+      break
+    }
+    case 'plano': {
+      status = 'PENDENTE_CONFIRMACAO'
+      intent = interpretacao.plano.tipo
+      parsedData = {
+        textoBase,
+        parsed: interpretacao.parsed,
+        plano: interpretacao.plano,
+      }
+      confirmationPlan = interpretacao.plano
+      assistantContent = resumoDoPlano(interpretacao.plano)
+      break
+    }
   }
 
-  const criar = async (
-    status: MensagemStatus,
-    intent: MensagemIntencao | undefined,
-    parsedData: ParsedData | undefined
-  ) => {
-    const userMessage = await prisma.message.create({
+  // Bloqueia a conversa enquanto grava as duas mensagens. Se a exclusão ganhar a
+  // corrida, nenhuma mensagem é persistida; se este envio ganhar, ambas ficam no histórico.
+  const { userMessage, assistantMessage, chat } = await prisma.$transaction(async (tx) => {
+    const updatedAt = new Date()
+    const titulo = gerarTituloAutomatico(chatInicial.title, textoBase)
+    const atualizacaoComTitulo = titulo
+      ? await tx.chat.updateMany({
+          where: { id: chatId, userId, deletedAt: null, title: chatInicial.title },
+          data: { title: titulo, updatedAt },
+        })
+      : { count: 0 }
+
+    // Se outro envio definiu o título primeiro, mantém esse título e só atualiza a atividade.
+    if (atualizacaoComTitulo.count === 0) {
+      const atualizacaoAtiva = await tx.chat.updateMany({
+        where: { id: chatId, userId, deletedAt: null },
+        data: { updatedAt },
+      })
+      if (atualizacaoAtiva.count === 0) throw new NotFoundError('Chat não encontrado')
+    }
+
+    const chat = await tx.chat.findFirst({ where: { id: chatId, userId, deletedAt: null } })
+    if (!chat) throw new NotFoundError('Chat não encontrado')
+
+    const userMessage = await tx.message.create({
       data: {
         chatId,
         userId,
@@ -123,53 +180,16 @@ export async function processarMensagem(input: {
         parsedData: parsedData ? json(parsedData) : undefined,
       },
     })
-    const chat = await atualizarConversa()
-    return { userMessage, chat }
-  }
+    const assistantMessage = await tx.message.create({
+      data: { chatId, userId, papel: 'ASSISTENTE', content: assistantContent, status: 'INFORMATIVA' },
+    })
+    return { userMessage, assistantMessage, chat }
+  })
 
-  switch (interpretacao.kind) {
-    case 'desconhecida': {
-      const { userMessage, chat } = await criar('INFORMATIVA', 'DESCONHECIDA', { textoBase })
-      const assistantMessage = await assistente(chatId, userId, MENSAGEM_NAO_ENTENDIDA)
-      return { userMessage, assistantMessage, confirmacao: null, chat }
-    }
-    case 'faltando': {
-      const { userMessage, chat } = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
-        textoBase,
-        parsed: interpretacao.parsed,
-      })
-      const assistantMessage = await assistente(chatId, userId, perguntaFaltando(interpretacao.parsed))
-      return { userMessage, assistantMessage, confirmacao: null, chat }
-    }
-    case 'nao-encontrado': {
-      const { userMessage, chat } = await criar('INFORMATIVA', interpretacao.parsed.intent, {
-        textoBase,
-        parsed: interpretacao.parsed,
-      })
-      const assistantMessage = await assistente(chatId, userId, interpretacao.texto)
-      return { userMessage, assistantMessage, confirmacao: null, chat }
-    }
-    case 'escolher': {
-      const { userMessage, chat } = await criar('INFORMACAO_INSUFICIENTE', interpretacao.parsed.intent, {
-        textoBase,
-        parsed: interpretacao.parsed,
-        candidatos: interpretacao.candidatos,
-      })
-      const assistantMessage = await assistente(chatId, userId, perguntaEscolha(interpretacao.candidatos))
-      return { userMessage, assistantMessage, confirmacao: null, chat }
-    }
-    case 'plano': {
-      const intent: MensagemIntencao = interpretacao.plano.tipo
-      const { userMessage, chat } = await criar('PENDENTE_CONFIRMACAO', intent, {
-        textoBase,
-        parsed: interpretacao.parsed,
-        plano: interpretacao.plano,
-      })
-      const resumo = resumoDoPlano(interpretacao.plano)
-      const assistantMessage = await assistente(chatId, userId, resumo)
-      return { userMessage, assistantMessage, confirmacao: { messageId: userMessage.id, resumo }, chat }
-    }
-  }
+  const confirmacao = confirmationPlan
+    ? { messageId: userMessage.id, resumo: resumoDoPlano(confirmationPlan) }
+    : null
+  return { userMessage, assistantMessage, confirmacao, chat }
 }
 
 /** Categorias são resolvidas por nome na API (fonte única de categorias = domínio financeiro). */
@@ -188,13 +208,29 @@ export async function confirmarMensagem(input: {
   const { chatId, messageId, userId, client } = input
   await buscarChatDoUsuario(chatId, userId)
 
-  // "Reivindica" a mensagem de forma atômica: confirmar duas vezes não duplica lançamentos.
-  const claim = await prisma.message.updateMany({
-    where: { id: messageId, chatId, userId, papel: 'USUARIO', status: 'PENDENTE_CONFIRMACAO' },
-    data: { status: 'EXECUTADA' },
+  // Atualizar a conversa e reivindicar a mensagem na mesma transação serializa
+  // confirmação e exclusão. A exclusão vê PROCESSANDO e espera a operação terminar.
+  await prisma.$transaction(async (tx) => {
+    const conversaAtiva = await tx.chat.updateMany({
+      where: { id: chatId, userId, deletedAt: null },
+      data: { updatedAt: new Date() },
+    })
+    if (conversaAtiva.count === 0) throw new NotFoundError('Chat não encontrado')
+
+    const claim = await tx.message.updateMany({
+      where: {
+        id: messageId,
+        chatId,
+        userId,
+        papel: 'USUARIO',
+        status: 'PENDENTE_CONFIRMACAO',
+        chat: { is: { userId, deletedAt: null } },
+      },
+      data: { status: 'PROCESSANDO' },
+    })
+    if (claim.count === 0)
+      throw new ConflictError('MESSAGE_NOT_PENDING', 'Mensagem não está aguardando confirmação')
   })
-  if (claim.count === 0)
-    throw new ConflictError('MESSAGE_NOT_PENDING', 'Mensagem não está aguardando confirmação')
 
   const mensagem = await prisma.message.findUniqueOrThrow({ where: { id: messageId } })
   const plano = lerParsedData(mensagem.parsedData)?.plano as Plano
@@ -258,7 +294,7 @@ export async function confirmarMensagem(input: {
 
     const userMessage = await prisma.message.update({
       where: { id: messageId },
-      data: { resultado: json(resultado), despesaId, recebimentoId },
+      data: { status: 'EXECUTADA', resultado: json(resultado), despesaId, recebimentoId },
     })
     const assistantMessage = await assistente(chatId, userId, texto)
     return { userMessage, assistantMessage, erro: null }
@@ -297,7 +333,14 @@ export async function cancelarConfirmacao(input: { chatId: string; messageId: st
   await buscarChatDoUsuario(chatId, userId)
 
   const claim = await prisma.message.updateMany({
-    where: { id: messageId, chatId, userId, papel: 'USUARIO', status: 'PENDENTE_CONFIRMACAO' },
+    where: {
+      id: messageId,
+      chatId,
+      userId,
+      papel: 'USUARIO',
+      status: 'PENDENTE_CONFIRMACAO',
+      chat: { is: { userId, deletedAt: null } },
+    },
     data: { status: 'CANCELADA' },
   })
   if (claim.count === 0)

@@ -278,6 +278,37 @@ async function main() {
   await step('conversa de outro usuário não é acessível (404)', async () => {
     assert.equal((await http(BOT, func, 'GET', `/chats/${chatA}`)).status, 404)
     assert.equal((await http(BOT, func, 'POST', `/chats/${chatA}/messages`, { content: 'oi' })).status, 404)
+    assert.equal((await http(BOT, func, 'DELETE', `/chats/${chatA}`)).status, 404)
+  })
+
+  await step('exclusão lógica oculta a conversa e descarta uma proposta pendente', async () => {
+    const chatExclusao = (await http(BOT, admin, 'POST', '/chats', {})).body.id as string
+    const pendente = await http(BOT, admin, 'POST', `/chats/${chatExclusao}/messages`, {
+      content: `Compramos cadernos do fornecedor ${ABC} por R$ 25.`,
+    })
+    assert.equal(pendente.status, 200, JSON.stringify(pendente.body))
+    assert.ok(pendente.body.confirmacao)
+
+    const messageId = pendente.body.confirmacao.messageId as string
+    await prisma.message.update({ where: { id: messageId }, data: { status: 'PROCESSANDO' } })
+    assert.equal((await http(BOT, admin, 'DELETE', `/chats/${chatExclusao}`)).status, 409)
+    assert.equal((await http(BOT, admin, 'GET', `/chats/${chatExclusao}`)).status, 200)
+    await prisma.message.update({ where: { id: messageId }, data: { status: 'PENDENTE_CONFIRMACAO' } })
+
+    const removida = await http(BOT, admin, 'DELETE', `/chats/${chatExclusao}`)
+    assert.equal(removida.status, 204, removida.text)
+    assert.ok(!(await http(BOT, admin, 'GET', '/chats')).body.some((chat: Json) => chat.id === chatExclusao))
+    assert.equal((await http(BOT, admin, 'GET', `/chats/${chatExclusao}`)).status, 404)
+    assert.equal(
+      (await http(BOT, admin, 'POST', `/chats/${chatExclusao}/messages`, { content: 'oi' })).status,
+      404
+    )
+    assert.equal(
+      (await http(BOT, admin, 'POST', `/chats/${chatExclusao}/messages/${messageId}/confirm`)).status,
+      404
+    )
+    const mensagem = await prisma.message.findUnique({ where: { id: pendente.body.confirmacao.messageId } })
+    assert.equal(mensagem?.status, 'CANCELADA')
   })
 
   await step('Chat/Message guardam intenção, dados extraídos e referência ao título', async () => {

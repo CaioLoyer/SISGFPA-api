@@ -189,6 +189,10 @@ export async function buscarConversa(chatId: string): Promise<ChatWithMessages> 
   return { ...parseChat(value), messages: value.messages.map(parseMessage) }
 }
 
+export async function excluirConversa(chatId: string): Promise<void> {
+  await request(`/chats/${encodeURIComponent(chatId)}`, { method: 'DELETE' })
+}
+
 export async function enviarMensagem(chatId: string, content: string): Promise<SendMessageResult> {
   return parseSendResult(
     await request(`/chats/${encodeURIComponent(chatId)}/messages`, {

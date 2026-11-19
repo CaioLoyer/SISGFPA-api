@@ -484,6 +484,7 @@ enum MensagemPapel {
 enum MensagemStatus {
   INFORMACAO_INSUFICIENTE // faltam dados (ex.: valor); o bot perguntou
   PENDENTE_CONFIRMACAO // interpretada; aguardando o usuário confirmar
+  PROCESSANDO // confirmada; chamada à API Financeira em andamento
   EXECUTADA // enviada à API Financeira com sucesso
   CANCELADA // usuário desistiu
   ERRO // API Financeira recusou (ex.: sem permissão)
@@ -505,11 +506,13 @@ model Chat {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
+  deletedAt DateTime? @db.Timestamptz()
   messages  Message[]
   createdAt DateTime  @default(now()) @db.Timestamptz()
   updatedAt DateTime  @updatedAt @db.Timestamptz()
 
   @@index([userId])
+  @@index([userId, deletedAt, updatedAt])
   @@map("chat")
 }
 

@@ -109,7 +109,7 @@ O cadastro Comercial mantém um contato único com código, nome, CPF/CNPJ, tipo
 
 ## Chatbot
 
-`POST /chats` → `POST /chats/:id/messages` → (se houver operação) `POST /chats/:id/messages/:messageId/confirm` ou `/cancel`.
+`POST /chats` → `POST /chats/:id/messages` → (se houver operação) `POST /chats/:id/messages/:messageId/confirm` ou `/cancel`. `DELETE /chats/:id` oculta uma conversa do histórico do usuário e cancela propostas pendentes; retorna `409` enquanto uma confirmação financeira estiver em processamento. Mensagens e registros financeiros permanecem preservados.
 
 - Interpretação por regras em pt-BR (sem IA generativa): intenção, valor, fornecedor/cliente, parcelas, vencimento, quantidade e categoria.
 - Faltou informação (ex.: "Comprei cadernos") → pergunta ("Qual foi o valor da compra?") e **não cria nada**; a resposta seguinte completa a operação.

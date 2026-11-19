@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  tx: {
+    chat: { updateMany: vi.fn(), findFirst: vi.fn() },
+    message: { create: vi.fn(), updateMany: vi.fn() },
+  },
   prisma: {
-    chat: { updateMany: vi.fn(), update: vi.fn() },
-    message: { findFirst: vi.fn(), create: vi.fn() },
+    $transaction: vi.fn(),
+    message: { findFirst: vi.fn(), updateMany: vi.fn() },
   },
   buscarChatDoUsuario: vi.fn(),
   interpretar: vi.fn(),
@@ -25,19 +29,31 @@ vi.mock('@sisgfpa/http', () => {
       super(409, code, message)
     }
   }
-  return { AppError, ConflictError }
+  class NotFoundError extends AppError {
+    constructor(message: string) {
+      super(404, 'NOT_FOUND', message)
+    }
+  }
+  return { AppError, ConflictError, NotFoundError }
 })
 vi.mock('./chat.service.js', () => ({ buscarChatDoUsuario: mocks.buscarChatDoUsuario }))
 vi.mock('../interpreter/planner.js', () => ({ interpretar: mocks.interpretar }))
 
-import { processarMensagem } from './message.service.js'
+import { cancelarConfirmacao, confirmarMensagem, processarMensagem } from './message.service.js'
 
 const initialDate = new Date('2026-11-18T12:00:00.000Z')
 const chatId = '00000000-0000-4000-8000-000000000001'
 const userId = '00000000-0000-4000-8000-000000000002'
 
 describe('título automático da conversa ao receber mensagem', () => {
-  let currentChat: { id: string; userId: string; title: string; createdAt: Date; updatedAt: Date }
+  let currentChat: {
+    id: string
+    userId: string
+    title: string
+    deletedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -45,13 +61,17 @@ describe('título automático da conversa ao receber mensagem', () => {
       id: chatId,
       userId,
       title: 'Nova conversa',
+      deletedAt: null,
       createdAt: initialDate,
       updatedAt: initialDate,
     }
 
     mocks.buscarChatDoUsuario.mockImplementation(async () => ({ ...currentChat }))
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.tx))
     mocks.prisma.message.findFirst.mockResolvedValue(null)
-    mocks.prisma.message.create.mockImplementation(async ({ data }) => ({
+    mocks.prisma.message.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.message.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.message.create.mockImplementation(async ({ data }) => ({
       id: data.papel === 'USUARIO' ? 'user-message' : 'assistant-message',
       ...data,
       intent: data.intent ?? null,
@@ -61,21 +81,19 @@ describe('título automático da conversa ao receber mensagem', () => {
       recebimentoId: null,
       createdAt: initialDate,
     }))
-    mocks.prisma.chat.updateMany.mockImplementation(async ({ where, data }) => {
+    mocks.tx.chat.updateMany.mockImplementation(async ({ where, data }) => {
       if (
         where.id !== currentChat.id ||
         where.userId !== currentChat.userId ||
-        where.title !== currentChat.title
+        currentChat.deletedAt != null ||
+        (where.title !== undefined && where.title !== currentChat.title)
       ) {
         return { count: 0 }
       }
       currentChat = { ...currentChat, ...data }
       return { count: 1 }
     })
-    mocks.prisma.chat.update.mockImplementation(async ({ data }) => {
-      currentChat = { ...currentChat, ...data }
-      return { ...currentChat }
-    })
+    mocks.tx.chat.findFirst.mockImplementation(async () => ({ ...currentChat }))
     mocks.interpretar.mockResolvedValue({ kind: 'desconhecida' })
   })
 
@@ -89,9 +107,9 @@ describe('título automático da conversa ao receber mensagem', () => {
 
     expect(resposta.chat.title).toBe('Compramos cadernos por R$ 250')
     expect(currentChat.title).toBe('Compramos cadernos por R$ 250')
-    expect(mocks.prisma.chat.updateMany).toHaveBeenCalledWith(
+    expect(mocks.tx.chat.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: chatId, userId, title: 'Nova conversa' },
+        where: { id: chatId, userId, deletedAt: null, title: 'Nova conversa' },
         data: expect.objectContaining({ title: 'Compramos cadernos por R$ 250' }),
       })
     )
@@ -106,9 +124,8 @@ describe('título automático da conversa ao receber mensagem', () => {
     })
 
     expect(resposta.chat.title).toBe('Nova conversa')
-    expect(mocks.prisma.chat.updateMany).not.toHaveBeenCalled()
-    expect(mocks.prisma.chat.update).toHaveBeenCalledWith({
-      where: { id: chatId },
+    expect(mocks.tx.chat.updateMany).toHaveBeenCalledWith({
+      where: { id: chatId, userId, deletedAt: null },
       data: { updatedAt: expect.any(Date) },
     })
   })
@@ -143,7 +160,53 @@ describe('título automático da conversa ao receber mensagem', () => {
     })
 
     expect(resposta.chat.title).toBe('Despesas de novembro')
-    expect(mocks.prisma.chat.updateMany).not.toHaveBeenCalled()
-    expect(mocks.prisma.chat.update).toHaveBeenCalledOnce()
+    expect(mocks.tx.chat.updateMany).toHaveBeenCalledOnce()
+  })
+
+  it('condiciona a confirmação à conversa ainda ativa', async () => {
+    await expect(
+      confirmarMensagem({ chatId, messageId: 'message-1', userId, client: {} as never })
+    ).rejects.toMatchObject({ code: 'MESSAGE_NOT_PENDING' })
+
+    expect(mocks.tx.chat.updateMany).toHaveBeenCalledWith({
+      where: { id: chatId, userId, deletedAt: null },
+      data: { updatedAt: expect.any(Date) },
+    })
+    expect(mocks.tx.message.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'message-1',
+        chatId,
+        userId,
+        papel: 'USUARIO',
+        status: 'PENDENTE_CONFIRMACAO',
+        chat: { is: { userId, deletedAt: null } },
+      },
+      data: { status: 'PROCESSANDO' },
+    })
+    expect(mocks.tx.chat.updateMany).toHaveBeenCalledBefore(mocks.tx.message.updateMany)
+  })
+
+  it('não tenta confirmar nem descartar proposta depois que a conversa foi ocultada', async () => {
+    mocks.buscarChatDoUsuario.mockRejectedValue(new Error('Chat não encontrado'))
+
+    await expect(
+      confirmarMensagem({ chatId, messageId: 'message-1', userId, client: {} as never })
+    ).rejects.toThrow('Chat não encontrado')
+    await expect(cancelarConfirmacao({ chatId, messageId: 'message-1', userId })).rejects.toThrow(
+      'Chat não encontrado'
+    )
+    expect(mocks.prisma.message.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('não grava uma mensagem se a conversa for ocultada durante a interpretação', async () => {
+    mocks.interpretar.mockImplementation(async () => {
+      currentChat.deletedAt = new Date()
+      return { kind: 'desconhecida' }
+    })
+
+    await expect(processarMensagem({ chatId, userId, content: 'oi', client: {} as never })).rejects.toThrow(
+      'Chat não encontrado'
+    )
+    expect(mocks.tx.message.create).not.toHaveBeenCalled()
   })
 })

@@ -9,6 +9,7 @@ import {
   confirmarOperacao,
   criarConversa,
   descartarOperacao,
+  excluirConversa,
   enviarMensagem,
   listarConversas,
 } from './chatbot-api'
@@ -41,9 +42,13 @@ export function ChatbotPage() {
   const [carregandoConversa, setCarregandoConversa] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [acaoPendenteId, setAcaoPendenteId] = useState<string | null>(null)
+  const [conversaParaExcluir, setConversaParaExcluir] = useState<ChatSummary | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState('')
   const [erro, setErro] = useState('')
   const [tentativa, setTentativa] = useState(0)
   const fimDaConversa = useRef<HTMLDivElement>(null)
+  const dialogoExclusaoRef = useRef<HTMLElement>(null)
 
   const conversaAtiva = conversas.find((conversa) => conversa.id === conversaId) ?? null
 
@@ -89,6 +94,10 @@ export function ChatbotPage() {
   useEffect(() => {
     fimDaConversa.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [mensagens.length])
+
+  useEffect(() => {
+    if (conversaParaExcluir) dialogoExclusaoRef.current?.focus()
+  }, [conversaParaExcluir])
 
   const abrirConversa = useCallback(async (id: string) => {
     setCarregandoConversa(true)
@@ -167,6 +176,29 @@ export function ChatbotPage() {
       setErro(mensagemErro(error))
     } finally {
       setAcaoPendenteId(null)
+    }
+  }
+
+  async function confirmarExclusao() {
+    if (!conversaParaExcluir || excluindo) return
+    const alvo = conversaParaExcluir
+    setExcluindo(true)
+    setErroExclusao('')
+    try {
+      await excluirConversa(alvo.id)
+      const restantes = conversas.filter((conversa) => conversa.id !== alvo.id)
+      setConversas(restantes)
+      setConversaParaExcluir(null)
+
+      if (conversaId === alvo.id) {
+        setConversaId(null)
+        setMensagens([])
+        if (restantes[0]) await abrirConversa(restantes[0].id)
+      }
+    } catch (error) {
+      setErroExclusao(mensagemErro(error))
+    } finally {
+      setExcluindo(false)
     }
   }
 
@@ -266,6 +298,11 @@ export function ChatbotPage() {
                           <p>{mensagem.content}</p>
                           <time dateTime={mensagem.createdAt}>{horaDaMensagem(mensagem.createdAt)}</time>
                         </article>
+                        {mensagem.status === 'PROCESSANDO' && (
+                          <p className="chatbot-message-state" role="status">
+                            Operação em processamento. Aguarde antes de excluir esta conversa.
+                          </p>
+                        )}
                         {pendenciaAnterior && (
                           <div className="chatbot-confirmation-controls">
                             <p>Revise o resumo acima antes de enviar a operação.</p>
@@ -332,7 +369,9 @@ export function ChatbotPage() {
               </div>
               <button
                 className="button button-secondary chatbot-new-button"
-                disabled={carregandoLista || carregandoConversa || !podeTrocarConversa}
+                disabled={
+                  carregandoLista || carregandoConversa || !podeTrocarConversa || Boolean(conversaParaExcluir)
+                }
                 onClick={() => void iniciarConversa()}
                 type="button"
               >
@@ -348,7 +387,7 @@ export function ChatbotPage() {
             ) : (
               <ul className="chatbot-conversation-list">
                 {conversas.map((conversa) => (
-                  <li key={conversa.id}>
+                  <li className="chatbot-conversation-item" key={conversa.id}>
                     <button
                       aria-current={conversa.id === conversaId ? 'page' : undefined}
                       aria-label={`Abrir conversa: ${conversa.title}`}
@@ -359,6 +398,23 @@ export function ChatbotPage() {
                     >
                       <strong>{conversa.title}</strong>
                       <span>{new Date(conversa.updatedAt).toLocaleDateString('pt-BR')}</span>
+                    </button>
+                    <button
+                      aria-label={`Excluir conversa: ${conversa.title}`}
+                      className="chatbot-conversation-delete"
+                      disabled={
+                        !podeTrocarConversa || carregandoConversa || Boolean(conversaParaExcluir) || excluindo
+                      }
+                      onClick={() => {
+                        setErroExclusao('')
+                        setConversaParaExcluir(conversa)
+                      }}
+                      title="Excluir conversa"
+                      type="button"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 20 20">
+                        <path d="M4.5 6h11M8 6V4.5h4V6m2.5 0-.7 10h-7.6L5.5 6m3 3v4m3-4v4" />
+                      </svg>
                     </button>
                   </li>
                 ))}
@@ -381,6 +437,72 @@ export function ChatbotPage() {
           </aside>
         </div>
       </div>
+
+      {conversaParaExcluir && (
+        <div
+          className="chatbot-delete-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !excluindo) setConversaParaExcluir(null)
+          }}
+        >
+          <section
+            aria-describedby="chatbot-delete-description"
+            aria-labelledby="chatbot-delete-title"
+            aria-modal="true"
+            className="chatbot-delete-dialog"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !excluindo) setConversaParaExcluir(null)
+            }}
+            ref={dialogoExclusaoRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <header className="chatbot-delete-dialog-heading">
+              <div>
+                <span className="chatbot-overline">SEU HISTÓRICO</span>
+                <h2 id="chatbot-delete-title">Excluir conversa?</h2>
+              </div>
+              <button
+                aria-label="Fechar"
+                className="chatbot-delete-dialog-close"
+                disabled={excluindo}
+                onClick={() => setConversaParaExcluir(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <p className="chatbot-delete-dialog-description" id="chatbot-delete-description">
+              “{conversaParaExcluir.title}” será ocultada do seu histórico e propostas ainda não confirmadas
+              serão descartadas. Se uma operação estiver em processamento, a exclusão será recusada até ela
+              terminar. Registros financeiros já executados permanecerão no sistema.
+            </p>
+            {erroExclusao && (
+              <p className="chatbot-delete-error" role="alert">
+                {erroExclusao}
+              </p>
+            )}
+            <div className="chatbot-delete-dialog-actions">
+              <button
+                className="button button-secondary"
+                disabled={excluindo}
+                onClick={() => setConversaParaExcluir(null)}
+                type="button"
+              >
+                Manter conversa
+              </button>
+              <button
+                className="button chatbot-delete-confirm"
+                disabled={excluindo}
+                onClick={() => void confirmarExclusao()}
+                type="button"
+              >
+                {excluindo ? 'Excluindo…' : 'Excluir conversa'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   )
 }

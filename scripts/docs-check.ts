@@ -132,6 +132,7 @@ const ESPERADOS_API = [
 const ESPERADOS_BOT = [
   'POST /chats/',
   'GET /chats/',
+  'DELETE /chats/{chatId}',
   'GET /chats/{chatId}',
   'POST /chats/{chatId}/messages',
   'POST /chats/{chatId}/messages/{messageId}/confirm',
@@ -698,6 +699,48 @@ async function main() {
     assert.match(r.body.assistantMessage.content, /Qual foi o valor/)
     assert.equal((await http(BOT, admin, 'POST', `/chats/${chatId}/messages`, {})).status, 400)
     assert.equal((await http(BOT, null, 'GET', '/chats')).status, 401)
+  })
+  await step('Excluir conversa: oculta histórico, cancela proposta e bloqueia novas ações', async () => {
+    const criada = await http(BOT, admin, 'POST', '/chats', bot.body('POST', '/chats/'))
+    assert.equal(criada.status, 201, criada.text)
+    const alvoId = criada.body.id as string
+    const proposta = await http(
+      BOT,
+      admin,
+      'POST',
+      `/chats/${alvoId}/messages`,
+      bot.body('POST', '/chats/{chatId}/messages')
+    )
+    assert.equal(proposta.status, 200, proposta.text)
+    assert.ok(proposta.body.confirmacao)
+
+    const messageId = proposta.body.confirmacao.messageId as string
+    await prisma.message.update({ where: { id: messageId }, data: { status: 'PROCESSANDO' } })
+    const emAndamento = await http(BOT, admin, 'DELETE', `/chats/${alvoId}`)
+    assert.equal(emAndamento.status, 409)
+    assert.equal((await http(BOT, admin, 'GET', `/chats/${alvoId}`)).status, 200)
+    await prisma.message.update({ where: { id: messageId }, data: { status: 'PENDENTE_CONFIRMACAO' } })
+
+    const excluida = await http(
+      BOT,
+      admin,
+      'DELETE',
+      bot.url('DELETE', '/chats/{chatId}', { chatId: alvoId })
+    )
+    assert.equal(excluida.status, 204, excluida.text)
+    assert.ok(!(await http(BOT, admin, 'GET', '/chats')).body.some((c: Json) => c.id === alvoId))
+    assert.equal((await http(BOT, admin, 'GET', `/chats/${alvoId}`)).status, 404)
+    assert.equal((await http(BOT, admin, 'POST', `/chats/${alvoId}/messages`, { content: 'oi' })).status, 404)
+    assert.equal(
+      (await http(BOT, admin, 'POST', `/chats/${alvoId}/messages/${messageId}/confirm`)).status,
+      404
+    )
+    const arquivada = await prisma.chat.findUnique({ where: { id: alvoId } })
+    const mensagemCancelada = await prisma.message.findFirst({
+      where: { chatId: alvoId, status: 'CANCELADA' },
+    })
+    assert.ok(arquivada?.deletedAt instanceof Date)
+    assert.ok(mensagemCancelada)
   })
 
   await step(

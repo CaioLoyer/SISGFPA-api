@@ -56,6 +56,24 @@ export const chatRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => (await chats.listarChats(request.user.id)).map(toChatDto)
   )
 
+  app.delete(
+    '/:chatId',
+    {
+      schema: {
+        tags: ['Chat'],
+        summary: 'Excluir uma conversa do próprio histórico',
+        description:
+          'Exclusão lógica: oculta a conversa e cancela propostas pendentes. Retorna 409 se uma operação estiver em processamento.',
+        params: ChatParamsSchema,
+        response: responses({ 204: z.null() }, 401, 404, 409),
+      },
+    },
+    async (request, reply) => {
+      await chats.excluirChat(request.params.chatId, request.user.id)
+      return reply.status(204).send(null)
+    }
+  )
+
   app.get(
     '/:chatId',
     {

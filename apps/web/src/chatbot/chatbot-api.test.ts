@@ -5,6 +5,7 @@ import {
   confirmarOperacao,
   criarConversa,
   descartarOperacao,
+  excluirConversa,
   enviarMensagem,
   listarConversas,
 } from './chatbot-api'
@@ -69,6 +70,18 @@ describe('cliente HTTP do Chatbot', () => {
     await expect(buscarConversa(chat.id)).resolves.toMatchObject({ messages: [userMessage] })
     expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toEqual({
       title: 'Conversa de teste',
+    })
+  })
+
+  it('exclui uma conversa autenticada sem enviar nem esperar um corpo de resposta', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(excluirConversa(chat.id)).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(`http://localhost:3001/chats/${chat.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {},
     })
   })
 
