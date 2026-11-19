@@ -134,7 +134,7 @@ export async function consultarVisaoGeral(
         LEFT JOIN categoria cr ON cr.id = r."categoriaId"
         WHERE m."caixaId" = ${caixa.id} AND m.tipo = 'SAIDA'
           AND m.data >= ${start.toISOString()}::timestamptz AND m.data < ${end.toISOString()}::timestamptz AND ${access}
-        GROUP BY COALESCE(cd.nome, cr.nome, 'Sem categoria') ORDER BY valor DESC, nome ASC
+        GROUP BY 1 ORDER BY valor DESC, nome ASC
       `),
         tx.$queryRaw<
           (Omit<DashboardOverview['ultimasMovimentacoes'][number], 'valor'> & { valor: unknown })[]

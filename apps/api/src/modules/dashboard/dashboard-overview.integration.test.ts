@@ -215,7 +215,13 @@ describe.skipIf(!testUrl)('dashboard com PostgreSQL isolado', () => {
 
   it('restringe todos os agregados e estornos por módulo e reavalia permissões na próxima consulta', async () => {
     const defaults = await consult({ mes: '2026-11' }, employee)
-    expect(defaults.indicadores).toEqual((await consult({ mes: '2026-11' }, admin)).indicadores)
+    // Funcionários não têm acesso aos lançamentos avulsos exclusivos do ADMIN.
+    expect(defaults.indicadores).toEqual({
+      entradas: { valor: 350, variacaoPercentual: 75 },
+      saidas: { valor: 150, variacaoPercentual: 200 },
+      resultado: { valor: 200, variacaoPercentual: 33.3 },
+      ticketMedio: { valor: 83.33, variacaoPercentual: -58.3 },
+    })
     expect(defaults.resumo.saldoAtual).toBeNull()
     await db.funcionarioPermissao.create({
       data: { funcionarioId: employee.id, despesas: true, recebimentos: false },
