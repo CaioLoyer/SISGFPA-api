@@ -14,24 +14,8 @@ import { AppShell } from './layout/AppShell'
 import { ProfilePage } from './perfil/ProfilePage'
 import { RelatoriosPage } from './relatorios/RelatoriosPage'
 import { TitulosPage } from './titulos/TitulosPage'
+import { BrandLogo } from './shared/BrandLogo'
 import './auth/login.css'
-
-function BrandMark({ small = false }: { small?: boolean }) {
-  return (
-    <div className={`brand-mark${small ? ' brand-mark-small' : ''}`} aria-hidden="true">
-      <svg viewBox="0 0 40 40" fill="none">
-        <path
-          d="M20 32V14M20 19c-7 0-11-4-11-10 7 0 11 4 11 10ZM20 24c7 0 11-4 11-10-7 0-11 4-11 10Z"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path d="M11 32h18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    </div>
-  )
-}
 
 function LoadingScreen({ label = 'Verificando sua sessão…' }: { label?: string }) {
   return (
@@ -46,7 +30,7 @@ function ApiUnavailable({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="full-screen-state full-screen-error">
       <div className="state-card">
-        <BrandMark small />
+        <BrandLogo alt="Logo da Papelaria Mil Folhas" className="brand-logo-status" />
         <h1>Não foi possível conectar</h1>
         <p>Confira se a API Financeira está em execução e tente novamente.</p>
         <button className="button button-primary" onClick={onRetry} type="button">
@@ -93,12 +77,7 @@ function LoginPage() {
       <section className="login-card" aria-labelledby="login-title">
         <div className="login-accent" aria-hidden="true" />
         <div className="login-content">
-          <div className="login-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="5" y="11" width="14" height="11" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+          <BrandLogo className="brand-logo-auth" />
           <h1 id="login-title">Mil Folhas</h1>
 
           <div className="login-fields">

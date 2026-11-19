@@ -36,30 +36,39 @@ a {
   text-decoration: none;
 }
 
-.brand-mark {
+.brand-logo {
   display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #fff;
+}
+.brand-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+}
+.brand-logo-auth {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 12px;
+  padding: 6px;
+  border-color: #1b7a4b;
+  box-shadow:
+    0 10px 15px -3px #0000001a,
+    0 4px 6px -4px #0000001a;
+}
+.brand-logo-status {
   width: 64px;
   height: 64px;
-  place-items: center;
-  margin: 0 auto 16px;
-  border-radius: 20px;
-  color: #fff;
-  background: linear-gradient(145deg, #258653, #145b37);
+  margin: 0 auto 20px;
+  padding: 4px;
+  border-color: #1b7548;
   box-shadow: 0 10px 22px #175d3930;
-}
-.brand-mark svg {
-  width: 38px;
-  height: 38px;
-}
-.brand-mark-small {
-  width: 42px;
-  height: 42px;
-  margin: 0;
-  border-radius: 14px;
-}
-.brand-mark-small svg {
-  width: 28px;
-  height: 28px;
 }
 
 .auth-page {
@@ -105,9 +114,6 @@ a {
 .auth-content {
   padding: 35px 42px 28px;
   text-align: center;
-}
-.auth-content .brand-mark {
-  margin-bottom: 17px;
 }
 .eyebrow {
   margin: 0 0 8px;
@@ -272,9 +278,6 @@ a {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 14px 42px #12321c0c;
-}
-.state-card .brand-mark {
-  margin: 0 auto 20px;
 }
 .state-card h1 {
   margin: 0;

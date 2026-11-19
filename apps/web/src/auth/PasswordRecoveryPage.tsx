@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { requestPasswordRecoveryCode, resetPasswordWithCode } from './auth-api'
+import { BrandLogo } from '../shared/BrandLogo'
 import './recovery.css'
 
 type RecoveryStep = 'email' | 'code' | 'password' | 'success'
@@ -31,35 +32,6 @@ const codeErrors = new Map([
   ['OTP expired', 'O código expirou. Solicite um novo código para continuar.'],
   ['Too many attempts', 'Limite de tentativas atingido. Solicite um novo código.'],
 ])
-
-function RecoveryIcon({ step }: { step: RecoveryStep }) {
-  return (
-    <div className="login-mark" aria-hidden="true">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {step === 'email' ? (
-          <>
-            <rect x="5" y="11" width="14" height="11" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </>
-        ) : step === 'code' ? (
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.79a2 2 0 0 1-.45 2.11L8.09 9.89a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.33 1.83.56 2.79.69A2 2 0 0 1 22 16.92Z" />
-        ) : (
-          <>
-            <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />
-            <path d="m9 12 2 2 4-4" />
-          </>
-        )}
-      </svg>
-    </div>
-  )
-}
 
 export function PasswordRecoveryPage() {
   const [step, setStep] = useState<RecoveryStep>('email')
@@ -166,7 +138,7 @@ export function PasswordRecoveryPage() {
       <section className="login-card" aria-labelledby="recovery-title">
         <div className="login-accent" aria-hidden="true" />
         <div className="login-content">
-          <RecoveryIcon step={step} />
+          <BrandLogo alt="Logo da Papelaria Mil Folhas" className="brand-logo-auth" />
           <h1 id="recovery-title" ref={heading} tabIndex={-1}>
             {headings[step].title}
           </h1>

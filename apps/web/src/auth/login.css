@@ -31,25 +31,6 @@
   text-align: center;
 }
 
-.login-mark {
-  display: grid;
-  width: 64px;
-  height: 64px;
-  place-items: center;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--login-green);
-  box-shadow:
-    0 10px 15px -3px #0000001a,
-    0 4px 6px -4px #0000001a;
-}
-
-.login-mark svg {
-  width: 26px;
-  height: 26px;
-}
-
 .login-content h1 {
   margin: 0 0 16px;
   color: var(--login-green-dark);

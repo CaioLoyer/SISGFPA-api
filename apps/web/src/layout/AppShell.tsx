@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from '../auth/auth-api'
 import { canAccessAdmin } from '../auth/protected-route'
 import { Icon } from '../shared/Icon'
 import type { IconName } from '../shared/Icon'
+import { BrandLogo } from '../shared/BrandLogo'
 import { UserAvatar } from '../shared/UserAvatar'
 import './layout.css'
 
@@ -139,7 +140,7 @@ export function AppShell({
       </a>
       <div className="workspace-mobile-bar" inert={drawerOpen}>
         <Link className="workspace-mobile-brand" onClick={handleNavigation} to="/dashboard">
-          <Icon name="user" />
+          <BrandLogo className="brand-logo-mobile" />
           <span>Mil Folhas</span>
         </Link>
         <button
@@ -180,9 +181,7 @@ export function AppShell({
             onClick={handleNavigation}
             to="/dashboard"
           >
-            <span className="workspace-brand-mark">
-              <Icon name="user" />
-            </span>
+            <BrandLogo className="brand-logo-sidebar" />
             <span>
               <strong>Mil Folhas</strong>
               <small>Papelaria</small>

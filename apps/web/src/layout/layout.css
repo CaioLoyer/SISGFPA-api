@@ -63,19 +63,10 @@
   padding: 16px;
 }
 
-.workspace-brand-mark {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 2px solid #fff;
-  border-radius: 50%;
-}
-
-.workspace-brand-mark svg {
-  width: 20px;
-  height: 20px;
+.brand-logo-sidebar {
+  width: 48px;
+  height: 48px;
+  padding: 3px;
 }
 
 .workspace-brand strong,
@@ -372,6 +363,13 @@
     color: var(--green-dark);
     font-size: 14px;
     font-weight: 600;
+  }
+
+  .brand-logo-mobile {
+    width: 32px;
+    height: 32px;
+    padding: 2px;
+    border-color: var(--green);
   }
 
   .workspace-menu-button {
