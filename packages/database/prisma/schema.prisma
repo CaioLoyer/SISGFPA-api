@@ -31,11 +31,13 @@ model User {
   sessions Session[]
   accounts Account[]
 
-  permissoesFuncionario FuncionarioPermissao?
-  permissoesAlteradas   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAutor")
-  historicoPermissoes   FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAlvo")
-  papeisAlterados       UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAutor")
-  historicoPapeis       UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAlvo")
+  permissoesFuncionario        FuncionarioPermissao?
+  permissoesAlteradas          FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAutor")
+  historicoPermissoes          FuncionarioPermissaoHistorico[] @relation("FuncionarioPermissaoAlvo")
+  papeisAlterados              UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAutor")
+  historicoPapeis              UsuarioPapelHistorico[]         @relation("UsuarioPapelHistoricoAlvo")
+  solicitacoesRedefinicaoSenha PasswordResetRequest[]          @relation("PasswordResetRequester")
+  decisoesRedefinicaoSenha     PasswordResetRequest[]          @relation("PasswordResetDecider")
 
   // Conversas (Chatbot)
   chats    Chat[]
@@ -96,6 +98,33 @@ model UsuarioPapelHistorico {
   @@index([usuarioId, createdAt])
   @@index([alteradoPorId, createdAt])
   @@map("usuario_papel_historico")
+}
+
+enum StatusSolicitacaoRedefinicaoSenha {
+  PENDENTE
+  APROVADA
+  RECUSADA
+  CONSUMIDA
+  EXPIRADA
+}
+
+model PasswordResetRequest {
+  id                 String                            @id @default(uuid())
+  requesterId        String
+  requester          User                              @relation("PasswordResetRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  requesterSessionId String
+  status             StatusSolicitacaoRedefinicaoSenha @default(PENDENTE)
+  requestedAt        DateTime                          @default(now()) @db.Timestamptz()
+  decidedById        String?
+  decidedBy          User?                             @relation("PasswordResetDecider", fields: [decidedById], references: [id], onDelete: Restrict)
+  decidedAt          DateTime?                         @db.Timestamptz()
+  expiresAt          DateTime                          @db.Timestamptz()
+  consumedAt         DateTime?                         @db.Timestamptz()
+
+  @@index([status, requestedAt])
+  @@index([requesterId, requestedAt])
+  @@index([decidedById, decidedAt])
+  @@map("password_reset_request")
 }
 
 model Session {

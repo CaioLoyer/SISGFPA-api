@@ -114,6 +114,53 @@ export const PromoverFuncionarioResponseSchema = UsuarioAdministracaoBaseSchema.
   role: z.literal('ADMIN'),
 })
 
+export const StatusSolicitacaoRedefinicaoSenhaSchema = z.enum([
+  'PENDENTE',
+  'APROVADA',
+  'RECUSADA',
+  'CONSUMIDA',
+  'EXPIRADA',
+])
+
+export const SolicitacaoRedefinicaoSenhaParamsSchema = z.object({
+  id: z.uuid().meta({ example: '00000000-0000-4000-8000-000000000041' }),
+})
+
+export const DecidirSolicitacaoRedefinicaoSenhaBodySchema = z
+  .strictObject({
+    decisao: z.enum(['APROVAR', 'RECUSAR']).meta({ example: 'APROVAR' }),
+  })
+  .meta({ example: { decisao: 'APROVAR' } })
+
+export const SolicitacaoRedefinicaoSenhaSchema = z.object({
+  id: z.uuid(),
+  status: StatusSolicitacaoRedefinicaoSenhaSchema,
+  requestedAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  grantToken: z.string().nullable(),
+})
+
+export const SolicitacaoRedefinicaoSenhaAdminSchema = z.object({
+  id: z.uuid(),
+  requesterId: z.string(),
+  requesterName: z.string(),
+  requesterEmail: z.email(),
+  requestedAt: z.iso.datetime(),
+})
+
+export const ListSolicitacoesRedefinicaoSenhaResponseSchema = z.object({
+  items: z.array(SolicitacaoRedefinicaoSenhaAdminSchema),
+})
+
+export const ResultadoRedefinicaoSenhaSchema = z.object({ success: z.literal(true) })
+
+export const ConcluirRedefinicaoSenhaBodySchema = z
+  .strictObject({
+    grantToken: z.string().min(1).max(2048).meta({ example: 'token-de-autorizacao-temporario' }),
+    newPassword: z.string().min(8).max(128).meta({ example: 'senha-nova-123' }),
+  })
+  .meta({ example: { grantToken: 'token-de-autorizacao-temporario', newPassword: 'senha-nova-123' } })
+
 export const FuncionarioPermissoesResponseSchema = z
   .object({
     funcionarioId: z.string(),

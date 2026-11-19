@@ -5,11 +5,13 @@ import { Link } from 'react-router-dom'
 import { canAccessAdmin } from '../auth/protected-route'
 import {
   createFuncionario,
+  decideAdminPasswordResetRequest,
+  listAdminPasswordResetRequests,
   listUsuariosAdministracao,
   promoverFuncionario,
   updateFuncionarioPermissoes,
 } from '../auth/auth-api'
-import type { FuncionarioPermissoes, UsuarioAdministracao } from '../auth/auth-api'
+import type { AdminPasswordResetRequest, FuncionarioPermissoes, UsuarioAdministracao } from '../auth/auth-api'
 import { useSession } from '../auth/session-context'
 import { Icon } from '../shared/Icon'
 import { PageHeader } from '../shared/PageHeader'
@@ -138,7 +140,178 @@ export function AdminPage() {
           </section>
           <EmployeePermissionsPanel refreshKey={refreshFuncionarios} />
         </div>
+        <PasswordResetRequestsPanel refreshKey={refreshFuncionarios} />
       </div>
+    </section>
+  )
+}
+
+function PasswordResetRequestsPanel({ refreshKey }: { refreshKey: number }) {
+  const [requests, setRequests] = useState<AdminPasswordResetRequest[]>([])
+  const [loading, setLoading] = useState(true)
+  const [retryVersion, setRetryVersion] = useState(0)
+  const [loadError, setLoadError] = useState('')
+  const [decisionError, setDecisionError] = useState('')
+  const [decisionTarget, setDecisionTarget] = useState<{
+    request: AdminPasswordResetRequest
+    decision: 'APROVAR' | 'RECUSAR'
+  } | null>(null)
+  const [savingId, setSavingId] = useState('')
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setLoadError('')
+    void listAdminPasswordResetRequests()
+      .then((items) => {
+        if (active) setRequests(items)
+      })
+      .catch((caught: unknown) => {
+        if (active)
+          setLoadError(
+            caught instanceof Error ? caught.message : 'Não foi possível carregar as solicitações.'
+          )
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [refreshKey, retryVersion])
+
+  async function confirmDecision() {
+    if (!decisionTarget || savingId) return
+    const { request, decision } = decisionTarget
+    setSavingId(request.id)
+    setDecisionError('')
+    setNotice('')
+    try {
+      await decideAdminPasswordResetRequest(request.id, decision)
+      setRequests((current) => current.filter((item) => item.id !== request.id))
+      setDecisionTarget(null)
+      setNotice(
+        decision === 'APROVAR'
+          ? `Solicitação de ${request.requesterName} aprovada. A nova senha será definida pelo próprio usuário.`
+          : `Solicitação de ${request.requesterName} recusada.`
+      )
+    } catch (caught) {
+      setDecisionError(caught instanceof Error ? caught.message : 'Não foi possível salvar a decisão.')
+    } finally {
+      setSavingId('')
+    }
+  }
+
+  return (
+    <section className="admin-panel admin-password-reset-panel" aria-labelledby="password-reset-title">
+      <header className="admin-panel-heading">
+        <span className="admin-heading-icon">
+          <Icon name="settings" />
+        </span>
+        <div>
+          <h2 id="password-reset-title">Solicitações de redefinição de senha</h2>
+          <p>Revise os pedidos da equipe. O ADMIN autoriza; a pessoa informa a própria nova senha.</p>
+        </div>
+        <button
+          className="button button-secondary admin-save-button admin-reset-refresh"
+          disabled={loading}
+          onClick={() => setRetryVersion((version) => version + 1)}
+          type="button"
+        >
+          Atualizar
+        </button>
+      </header>
+      {loadError && (
+        <p className="admin-alert admin-alert-error" role="alert">
+          {loadError}{' '}
+          <button type="button" onClick={() => setRetryVersion((version) => version + 1)}>
+            Tentar novamente
+          </button>
+        </p>
+      )}
+      {decisionError && (
+        <p className="admin-alert admin-alert-error" role="alert">
+          {decisionError}
+        </p>
+      )}
+      {notice && (
+        <p className="admin-alert admin-alert-success" role="status">
+          {notice}
+        </p>
+      )}
+      {loading ? (
+        <p className="admin-list-state" role="status">
+          <span className="spinner" aria-hidden="true" />
+          Carregando solicitações…
+        </p>
+      ) : loadError ? null : requests.length === 0 ? (
+        <p className="admin-list-state">Não há solicitações pendentes.</p>
+      ) : (
+        <div className="admin-reset-request-list">
+          {requests.map((request) => (
+            <article className="admin-reset-request" key={request.id}>
+              <div className="admin-reset-request-copy">
+                <strong>{request.requesterName}</strong>
+                <span>{request.requesterEmail}</span>
+                <time dateTime={request.requestedAt}>
+                  Solicitado em {new Date(request.requestedAt).toLocaleString('pt-BR')}
+                </time>
+              </div>
+              {decisionTarget?.request.id === request.id ? (
+                <div className="admin-reset-confirm" role="group" aria-label="Confirmar decisão">
+                  <p>
+                    {decisionTarget.decision === 'APROVAR'
+                      ? 'A pessoa poderá escolher uma nova senha por 10 minutos. Continuar?'
+                      : 'Recusar este pedido de redefinição?'}
+                  </p>
+                  <button
+                    className="button button-primary admin-save-button"
+                    disabled={savingId === request.id}
+                    onClick={() => void confirmDecision()}
+                    type="button"
+                  >
+                    {savingId === request.id ? 'Salvando…' : 'Confirmar'}
+                  </button>
+                  <button
+                    className="button button-secondary admin-save-button"
+                    disabled={savingId === request.id}
+                    onClick={() => setDecisionTarget(null)}
+                    type="button"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="admin-reset-request-actions">
+                  <button
+                    className="button button-secondary admin-save-button"
+                    disabled={savingId !== ''}
+                    onClick={() => {
+                      setDecisionError('')
+                      setDecisionTarget({ request, decision: 'RECUSAR' })
+                    }}
+                    type="button"
+                  >
+                    Recusar
+                  </button>
+                  <button
+                    className="button button-primary admin-save-button"
+                    disabled={savingId !== ''}
+                    onClick={() => {
+                      setDecisionError('')
+                      setDecisionTarget({ request, decision: 'APROVAR' })
+                    }}
+                    type="button"
+                  >
+                    Aprovar
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

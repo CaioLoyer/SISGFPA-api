@@ -292,6 +292,36 @@
 .profile-password-modal-form {
   gap: 16px;
 }
+.profile-password-request-link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  color: #246444;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.profile-password-request-link:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.profile-password-request-state {
+  display: grid;
+  gap: 14px;
+}
+.profile-password-request-status {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dce9df;
+  border-radius: 8px;
+  color: #315640;
+  background: #f5faf6;
+  font-size: 12px;
+  line-height: 1.5;
+}
 
 .profile-password-modal-actions,
 .profile-password-modal-actions-end {
@@ -302,7 +332,13 @@
 
 .profile-password-modal-actions {
   justify-content: space-between;
+  flex-wrap: wrap;
   margin-top: 2px;
+}
+
+.profile-password-modal-actions-end {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .profile-password-modal-actions .button {

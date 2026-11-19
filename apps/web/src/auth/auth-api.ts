@@ -43,6 +43,24 @@ export interface PromotedAdmin extends UsuarioAdministracaoBase {
   role: 'ADMIN'
 }
 
+export type PasswordResetRequestStatus = 'PENDENTE' | 'APROVADA' | 'RECUSADA' | 'CONSUMIDA' | 'EXPIRADA'
+
+export interface PasswordResetRequest {
+  id: string
+  status: PasswordResetRequestStatus
+  requestedAt: string
+  expiresAt: string
+  grantToken: string | null
+}
+
+export interface AdminPasswordResetRequest {
+  id: string
+  requesterId: string
+  requesterName: string
+  requesterEmail: string
+  requestedAt: string
+}
+
 export class AuthApiError extends Error {
   constructor(
     message: string,
@@ -361,4 +379,103 @@ export async function updateFuncionarioPermissoes(
   }
 
   return body.permissoes
+}
+
+function isPasswordResetRequestStatus(value: unknown): value is PasswordResetRequestStatus {
+  return ['PENDENTE', 'APROVADA', 'RECUSADA', 'CONSUMIDA', 'EXPIRADA'].includes(String(value))
+}
+
+function isPasswordResetRequest(value: unknown): value is PasswordResetRequest {
+  if (typeof value !== 'object' || value === null) return false
+  return (
+    'id' in value &&
+    'status' in value &&
+    'requestedAt' in value &&
+    'expiresAt' in value &&
+    'grantToken' in value &&
+    typeof value.id === 'string' &&
+    isPasswordResetRequestStatus(value.status) &&
+    typeof value.requestedAt === 'string' &&
+    typeof value.expiresAt === 'string' &&
+    (typeof value.grantToken === 'string' || value.grantToken === null)
+  )
+}
+
+function isAdminPasswordResetRequest(value: unknown): value is AdminPasswordResetRequest {
+  if (typeof value !== 'object' || value === null) return false
+  return (
+    'id' in value &&
+    'requesterId' in value &&
+    'requesterName' in value &&
+    'requesterEmail' in value &&
+    'requestedAt' in value &&
+    typeof value.id === 'string' &&
+    typeof value.requesterId === 'string' &&
+    typeof value.requesterName === 'string' &&
+    typeof value.requesterEmail === 'string' &&
+    typeof value.requestedAt === 'string'
+  )
+}
+
+export async function requestAdminPasswordReset(): Promise<PasswordResetRequest> {
+  const body = await request(`${apiBaseUrl}/usuarios/me/redefinicao-senha`, { method: 'POST' })
+  if (!isPasswordResetRequest(body)) {
+    throw new AuthApiError('A API Financeira retornou a solicitação em formato inválido.')
+  }
+  return body
+}
+
+export async function getMyPasswordResetRequest(): Promise<PasswordResetRequest | null> {
+  const body = await request(`${apiBaseUrl}/usuarios/me/redefinicao-senha`)
+  if (body === null) return null
+  if (!isPasswordResetRequest(body)) {
+    throw new AuthApiError('A API Financeira retornou o status da solicitação em formato inválido.')
+  }
+  return body
+}
+
+export async function completeAdminPasswordReset(input: {
+  grantToken: string
+  newPassword: string
+}): Promise<void> {
+  const body = await request(`${apiBaseUrl}/usuarios/me/redefinicao-senha/concluir`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  if (typeof body !== 'object' || body === null || !('success' in body) || body.success !== true) {
+    throw new AuthApiError('A API Financeira não confirmou a redefinição da senha.')
+  }
+}
+
+export async function listAdminPasswordResetRequests(): Promise<AdminPasswordResetRequest[]> {
+  const body = await request(`${apiBaseUrl}/usuarios/redefinicoes-senha`)
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('items' in body) ||
+    !Array.isArray(body.items) ||
+    !body.items.every(isAdminPasswordResetRequest)
+  ) {
+    throw new AuthApiError('A API Financeira retornou solicitações em formato inválido.')
+  }
+  return body.items
+}
+
+export async function decideAdminPasswordResetRequest(
+  requestId: string,
+  decision: 'APROVAR' | 'RECUSAR'
+): Promise<void> {
+  const body = await request(`${apiBaseUrl}/usuarios/redefinicoes-senha/${encodeURIComponent(requestId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ decisao: decision }),
+  })
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('id' in body && 'status' in body) ||
+    body.id !== requestId ||
+    body.status !== (decision === 'APROVAR' ? 'APROVADA' : 'RECUSADA')
+  ) {
+    throw new AuthApiError('A API Financeira não confirmou a decisão da solicitação.')
+  }
 }

@@ -2,6 +2,7 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
@@ -10,16 +11,27 @@ const state = vi.hoisted(() => ({
   updateCurrentUserName: vi.fn(),
   verifyCurrentUserPassword: vi.fn(),
   changeCurrentUserPassword: vi.fn(),
+  completeAdminPasswordReset: vi.fn(),
+  getMyPasswordResetRequest: vi.fn(),
+  requestAdminPasswordReset: vi.fn(),
+  refresh: vi.fn(),
 }))
 
 vi.mock('../auth/session-context', () => ({
-  useSession: () => ({ user: state.user, updateCurrentUserName: state.atualizarNome }),
+  useSession: () => ({
+    user: state.user,
+    updateCurrentUserName: state.atualizarNome,
+    refresh: state.refresh,
+  }),
 }))
 vi.mock('../auth/auth-api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   updateCurrentUserName: state.updateCurrentUserName,
   verifyCurrentUserPassword: state.verifyCurrentUserPassword,
   changeCurrentUserPassword: state.changeCurrentUserPassword,
+  completeAdminPasswordReset: state.completeAdminPasswordReset,
+  getMyPasswordResetRequest: state.getMyPasswordResetRequest,
+  requestAdminPasswordReset: state.requestAdminPasswordReset,
 }))
 
 import { AuthApiError } from '../auth/auth-api'
@@ -30,7 +42,11 @@ let root: Root
 
 async function render() {
   await act(async () => {
-    root.render(<ProfilePage />)
+    root.render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>
+    )
   })
 }
 
@@ -59,6 +75,16 @@ beforeEach(() => {
   state.updateCurrentUserName.mockReset()
   state.verifyCurrentUserPassword.mockReset().mockResolvedValue(undefined)
   state.changeCurrentUserPassword.mockReset().mockResolvedValue(undefined)
+  state.completeAdminPasswordReset.mockReset().mockResolvedValue(undefined)
+  state.getMyPasswordResetRequest.mockReset().mockResolvedValue(null)
+  state.requestAdminPasswordReset.mockReset().mockResolvedValue({
+    id: 'reset-1',
+    status: 'PENDENTE',
+    requestedAt: '2032-03-01T12:00:00.000Z',
+    expiresAt: '2032-03-02T12:00:00.000Z',
+    grantToken: null,
+  })
+  state.refresh.mockReset().mockResolvedValue(null)
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
@@ -144,5 +170,43 @@ describe('troca de senha pelo Perfil', () => {
     await click('Redefinir senha')
     expect(container.querySelector<HTMLInputElement>('#profile-current-password')?.value).toBe('')
     expect(container.querySelector('#profile-new-password')).toBeNull()
+  })
+
+  it('solicita aprovação ao ADMIN, aguarda o status e envia a nova senha apenas após a liberação', async () => {
+    state.getMyPasswordResetRequest.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'reset-1',
+      status: 'APROVADA',
+      requestedAt: '2032-03-01T12:00:00.000Z',
+      expiresAt: '2032-03-01T12:10:00.000Z',
+      grantToken: 'grant-token',
+    })
+    await render()
+    await click('Redefinir senha')
+    await click('Solicitar autorização ao ADMIN')
+    expect(container.textContent).toContain('Não há solicitação ativa')
+    expect(state.requestAdminPasswordReset).not.toHaveBeenCalled()
+
+    await click('Solicitar autorização')
+    expect(state.requestAdminPasswordReset).toHaveBeenCalledOnce()
+    expect(container.textContent).toContain('O pedido foi enviado')
+    expect(container.querySelector('#profile-new-password')).toBeNull()
+
+    await click('Atualizar status')
+    expect(container.querySelector('#profile-new-password')).toBeTruthy()
+    await fill('profile-new-password', 'senha-nova-456')
+    await fill('profile-password-confirmation', 'senha-nova-456')
+    const submit = container.querySelector<HTMLButtonElement>(
+      '.profile-password-modal-actions-end .button-primary'
+    )
+    expect(submit?.textContent).toContain('Redefinir senha')
+    await act(async () => submit?.click())
+
+    expect(state.completeAdminPasswordReset).toHaveBeenCalledWith({
+      grantToken: 'grant-token',
+      newPassword: 'senha-nova-456',
+    })
+    expect(state.changeCurrentUserPassword).not.toHaveBeenCalled()
+    expect(state.refresh).toHaveBeenCalledOnce()
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 })

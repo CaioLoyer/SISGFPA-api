@@ -3,13 +3,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AuthApiError,
   changeCurrentUserPassword,
+  completeAdminPasswordReset,
   createFuncionario,
+  decideAdminPasswordResetRequest,
   getCurrentUser,
   getCurrentPermissions,
+  getMyPasswordResetRequest,
+  listAdminPasswordResetRequests,
   listUsuariosAdministracao,
   listFuncionarios,
   promoverFuncionario,
   requestPasswordRecoveryCode,
+  requestAdminPasswordReset,
   resetPasswordWithCode,
   signIn,
   signOut,
@@ -358,5 +363,60 @@ describe('gestão de papéis na área ADMIN', () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...promoted, role: 'FUNCIONARIO' })))
     )
     await expect(promoverFuncionario('func-1')).rejects.toThrow('não confirmou a promoção')
+  })
+})
+
+describe('aprovação administrativa de redefinição de senha', () => {
+  it('usa as rotas próprias para solicitar, acompanhar, concluir e decidir pedidos', async () => {
+    const request = {
+      id: 'request-1',
+      status: 'APROVADA',
+      requestedAt: '2032-03-01T12:00:00.000Z',
+      expiresAt: '2032-03-01T12:10:00.000Z',
+      grantToken: 'grant-token',
+    }
+    const pending = {
+      id: 'request-2',
+      requesterId: 'user-2',
+      requesterName: 'Funcionário',
+      requesterEmail: 'func@example.com',
+      requestedAt: '2032-03-01T12:00:00.000Z',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ...request, status: 'PENDENTE', grantToken: null }), { status: 201 })
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(request), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [pending] }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: pending.id, status: 'APROVADA' }), { status: 200 })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(requestAdminPasswordReset()).resolves.toMatchObject({ status: 'PENDENTE', grantToken: null })
+    await expect(getMyPasswordResetRequest()).resolves.toEqual(request)
+    await expect(
+      completeAdminPasswordReset({ grantToken: 'grant-token', newPassword: 'senha-nova-123' })
+    ).resolves.toBeUndefined()
+    await expect(listAdminPasswordResetRequests()).resolves.toEqual([pending])
+    await expect(decideAdminPasswordResetRequest(pending.id, 'APROVAR')).resolves.toBeUndefined()
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ['http://localhost:8080/usuarios/me/redefinicao-senha', 'POST'],
+      ['http://localhost:8080/usuarios/me/redefinicao-senha', undefined],
+      ['http://localhost:8080/usuarios/me/redefinicao-senha/concluir', 'POST'],
+      ['http://localhost:8080/usuarios/redefinicoes-senha', undefined],
+      ['http://localhost:8080/usuarios/redefinicoes-senha/request-2', 'PATCH'],
+    ])
+  })
+
+  it('rejeita resposta de solicitação sem token/status válido', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'request-1' }), { status: 201 }))
+    )
+    await expect(requestAdminPasswordReset()).rejects.toThrow('solicitação em formato inválido')
   })
 })

@@ -11,6 +11,8 @@ import {
   getCurrentPermissions,
   getCurrentUser,
   listUsuariosAdministracao,
+  listAdminPasswordResetRequests,
+  decideAdminPasswordResetRequest,
   promoverFuncionario,
   updateFuncionarioPermissoes,
 } from './auth-api'
@@ -22,6 +24,8 @@ vi.mock('./auth-api', async (original) => ({
   getCurrentUser: vi.fn(),
   getCurrentPermissions: vi.fn(),
   listUsuariosAdministracao: vi.fn(),
+  listAdminPasswordResetRequests: vi.fn(),
+  decideAdminPasswordResetRequest: vi.fn(),
   promoverFuncionario: vi.fn(),
   updateFuncionarioPermissoes: vi.fn(),
 }))
@@ -48,6 +52,9 @@ beforeEach(() => {
     email: 'func@teste.local',
     role: 'FUNCIONARIO',
   })
+  vi.mocked(listUsuariosAdministracao).mockResolvedValue([])
+  vi.mocked(listAdminPasswordResetRequests).mockResolvedValue([])
+  vi.mocked(decideAdminPasswordResetRequest).mockResolvedValue(undefined)
   vi.mocked(listarTitulos).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 })
   vi.mocked(listarCategorias).mockResolvedValue([])
   vi.mocked(consultarRelatorio).mockResolvedValue({ total: 100, liquidado: 25, pendente: 75, itens: [] })
@@ -74,6 +81,41 @@ async function render(path: string) {
 }
 
 describe('permissões da sessão nas telas reais', () => {
+  it('ADMIN aprova uma solicitação sem receber nem definir a senha nova', async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 'admin',
+      name: 'Admin',
+      email: 'admin@teste.local',
+      role: 'ADMIN',
+    })
+    vi.mocked(getCurrentPermissions).mockResolvedValue(effectivePermissions('ADMIN'))
+    vi.mocked(listAdminPasswordResetRequests).mockResolvedValue([
+      {
+        id: 'reset-1',
+        requesterId: 'func',
+        requesterName: 'Funcionário',
+        requesterEmail: 'func@teste.local',
+        requestedAt: '2032-03-01T12:00:00.000Z',
+      },
+    ])
+    await render('/admin')
+    expect(container.textContent).toContain('Funcionário')
+    expect(container.textContent).toMatch(/solicitações de redefinição de senha/i)
+    await act(async () =>
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Aprovar')
+        ?.click()
+    )
+    expect(container.textContent).toContain('A pessoa poderá escolher uma nova senha')
+    await act(async () =>
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Confirmar')
+        ?.click()
+    )
+    expect(decideAdminPasswordResetRequest).toHaveBeenCalledExactlyOnceWith('reset-1', 'APROVAR')
+    expect(container.textContent).toContain('A nova senha será definida pelo próprio usuário')
+  })
+
   it('ADMIN salva Comercial, Financeiro e Relatórios pelos controles existentes', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue({
       id: 'admin',

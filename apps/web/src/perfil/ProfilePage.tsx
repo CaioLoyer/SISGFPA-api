@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   AuthApiError,
   changeCurrentUserPassword,
+  completeAdminPasswordReset,
+  getMyPasswordResetRequest,
+  requestAdminPasswordReset,
   updateCurrentUserName,
   verifyCurrentUserPassword,
 } from '../auth/auth-api'
+import type { PasswordResetRequest, PasswordResetRequestStatus } from '../auth/auth-api'
 import { useSession } from '../auth/session-context'
 import { PageHeader } from '../shared/PageHeader'
 import './profile.css'
 
-type PasswordDialogStep = 'verify' | 'change'
+type PasswordDialogStep = 'verify' | 'change' | 'waiting' | 'approved'
 
 export function ProfilePage() {
-  const { user, updateCurrentUserName: atualizarNomeNaSessao } = useSession()
+  const { user, updateCurrentUserName: atualizarNomeNaSessao, refresh } = useSession()
+  const navigate = useNavigate()
   const [name, setName] = useState(user?.name ?? '')
   const [nameError, setNameError] = useState('')
   const [nameSaved, setNameSaved] = useState(false)
@@ -27,6 +33,11 @@ export function ProfilePage() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [requestStatus, setRequestStatus] = useState<PasswordResetRequest | null>(null)
+  const [grantToken, setGrantToken] = useState('')
+  const [checkingRequest, setCheckingRequest] = useState(false)
+  const [requestingAdmin, setRequestingAdmin] = useState(false)
+  const [requestError, setRequestError] = useState('')
   const passwordTriggerRef = useRef<HTMLButtonElement>(null)
   const passwordDialogRef = useRef<HTMLElement>(null)
   const currentPasswordInputRef = useRef<HTMLInputElement>(null)
@@ -36,13 +47,52 @@ export function ProfilePage() {
   useEffect(() => {
     if (passwordDialogOpen) {
       passwordDialogWasOpenRef.current = true
-      const input = passwordStep === 'verify' ? currentPasswordInputRef.current : newPasswordInputRef.current
-      input?.focus()
+      const input =
+        passwordStep === 'verify'
+          ? currentPasswordInputRef.current
+          : passwordStep === 'change' || passwordStep === 'approved'
+            ? newPasswordInputRef.current
+            : null
+      if (input) input.focus()
+      else passwordDialogRef.current?.focus()
     } else if (passwordDialogWasOpenRef.current) {
       passwordTriggerRef.current?.focus()
       passwordDialogWasOpenRef.current = false
     }
   }, [passwordDialogOpen, passwordStep])
+
+  useEffect(() => {
+    if (
+      !passwordDialogOpen ||
+      passwordStep !== 'waiting' ||
+      requestStatus?.status !== 'PENDENTE' ||
+      checkingRequest
+    )
+      return
+    let active = true
+    const checkStatus = async () => {
+      try {
+        const latest = await getMyPasswordResetRequest()
+        if (!active || !latest) return
+        setRequestStatus(latest)
+        setRequestError('')
+        if (latest.status === 'APROVADA' && latest.grantToken) {
+          setGrantToken(latest.grantToken)
+          setPasswordStep('approved')
+        }
+      } catch (caught) {
+        if (active)
+          setRequestError(
+            caught instanceof Error ? caught.message : 'Não foi possível consultar a solicitação.'
+          )
+      }
+    }
+    const interval = window.setInterval(() => void checkStatus(), 10_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [checkingRequest, passwordDialogOpen, passwordStep, requestStatus?.status])
 
   if (!user) return null
 
@@ -83,19 +133,23 @@ export function ProfilePage() {
     setNewPassword('')
     setPasswordConfirmation('')
     setPasswordError('')
+    setRequestError('')
+    setGrantToken('')
   }
 
   function openPasswordDialog() {
     clearPasswordFields()
     setPasswordStep('verify')
+    setRequestStatus(null)
     setPasswordSaved(false)
     setPasswordDialogOpen(true)
   }
 
   function closePasswordDialog() {
-    if (savingPassword) return
+    if (savingPassword || requestingAdmin || checkingRequest) return
     clearPasswordFields()
     setPasswordStep('verify')
+    setRequestStatus(null)
     setPasswordDialogOpen(false)
   }
 
@@ -135,6 +189,18 @@ export function ProfilePage() {
 
     setSavingPassword(true)
     try {
+      if (passwordStep === 'approved') {
+        if (!grantToken) {
+          setPasswordError('A autorização expirou. Consulte novamente o status com o administrador.')
+          setPasswordStep('waiting')
+          return
+        }
+        await completeAdminPasswordReset({ grantToken, newPassword })
+        setPasswordDialogOpen(false)
+        await refresh()
+        navigate('/login', { replace: true })
+        return
+      }
       await changeCurrentUserPassword({ currentPassword, newPassword })
       clearPasswordFields()
       setPasswordStep('verify')
@@ -152,6 +218,68 @@ export function ProfilePage() {
     } finally {
       setSavingPassword(false)
     }
+  }
+
+  async function openAdminResetFlow() {
+    setPasswordError('')
+    setRequestError('')
+    setRequestStatus(null)
+    setGrantToken('')
+    setPasswordStep('waiting')
+    setCheckingRequest(true)
+    try {
+      const latest = await getMyPasswordResetRequest()
+      if (latest) {
+        setRequestStatus(latest)
+        if (latest.status === 'APROVADA' && latest.grantToken) {
+          setGrantToken(latest.grantToken)
+          setPasswordStep('approved')
+        }
+      }
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : 'Não foi possível consultar a solicitação.')
+    } finally {
+      setCheckingRequest(false)
+    }
+  }
+
+  async function submitAdminResetRequest() {
+    setRequestError('')
+    setRequestingAdmin(true)
+    try {
+      const createdRequest = await requestAdminPasswordReset()
+      setRequestStatus(createdRequest)
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : 'Não foi possível solicitar a redefinição.')
+    } finally {
+      setRequestingAdmin(false)
+    }
+  }
+
+  async function refreshAdminResetStatus() {
+    setRequestError('')
+    setCheckingRequest(true)
+    try {
+      const latest = await getMyPasswordResetRequest()
+      setRequestStatus(latest)
+      if (latest?.status === 'APROVADA' && latest.grantToken) {
+        setGrantToken(latest.grantToken)
+        setPasswordStep('approved')
+      }
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : 'Não foi possível consultar a solicitação.')
+    } finally {
+      setCheckingRequest(false)
+    }
+  }
+
+  function passwordRequestMessage(status: PasswordResetRequestStatus | undefined) {
+    if (status === 'PENDENTE') return 'O pedido foi enviado. Aguarde a análise de um ADMIN.'
+    if (status === 'APROVADA') return 'O ADMIN aprovou o pedido. Atualize o status para continuar.'
+    if (status === 'RECUSADA') return 'O ADMIN recusou a solicitação. Você pode enviar um novo pedido.'
+    if (status === 'EXPIRADA') return 'A solicitação expirou. Envie um novo pedido para continuar.'
+    if (status === 'CONSUMIDA') return 'Esta autorização já foi utilizada. Se necessário, solicite novamente.'
+    return 'Não há solicitação ativa. Você pode pedir autorização ao ADMIN.'
   }
 
   function handlePasswordDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -270,8 +398,8 @@ export function ProfilePage() {
               </div>
             </div>
             <p className="profile-security-note">
-              Confirme sua senha atual para continuar. Sua sessão permanece conectada; as outras serão
-              encerradas após a troca.
+              Troque a senha com sua senha atual ou solicite autorização ao ADMIN. A redefinição aprovada
+              encerra todas as sessões e direciona ao login.
             </p>
             <div className="profile-security-actions">
               <button
@@ -313,13 +441,17 @@ export function ProfilePage() {
               <div>
                 <span className="profile-overline">SEGURANÇA DA CONTA</span>
                 <h2 id="profile-password-dialog-title">
-                  {passwordStep === 'verify' ? 'Confirme sua senha atual' : 'Defina sua nova senha'}
+                  {passwordStep === 'verify'
+                    ? 'Confirme sua senha atual'
+                    : passwordStep === 'waiting'
+                      ? 'Autorização do administrador'
+                      : 'Defina sua nova senha'}
                 </h2>
               </div>
               <button
                 aria-label="Fechar"
                 className="profile-password-modal-close"
-                disabled={savingPassword}
+                disabled={savingPassword || requestingAdmin || checkingRequest}
                 onClick={closePasswordDialog}
                 type="button"
               >
@@ -329,7 +461,11 @@ export function ProfilePage() {
             <p className="profile-password-modal-description" id="profile-password-dialog-description">
               {passwordStep === 'verify'
                 ? 'A senha é confirmada com segurança pela API antes de liberar a próxima etapa.'
-                : 'Digite uma senha de 8 a 128 caracteres e confirme para concluir a troca.'}
+                : passwordStep === 'waiting'
+                  ? 'A senha nova só poderá ser informada depois que um ADMIN autorizar o pedido.'
+                  : passwordStep === 'approved'
+                    ? 'Defina a senha em até 10 minutos. Ao concluir, todas as sessões serão encerradas.'
+                    : 'Digite uma senha de 8 a 128 caracteres e confirme para concluir a troca.'}
             </p>
 
             {passwordStep === 'verify' ? (
@@ -368,7 +504,66 @@ export function ProfilePage() {
                     {savingPassword ? 'Confirmando…' : 'Continuar'}
                   </button>
                 </div>
+                <button
+                  className="profile-password-request-link"
+                  disabled={savingPassword || checkingRequest}
+                  onClick={() => void openAdminResetFlow()}
+                  type="button"
+                >
+                  Solicitar autorização ao ADMIN
+                </button>
               </form>
+            ) : passwordStep === 'waiting' ? (
+              <div className="profile-password-request-state">
+                <p className="profile-password-request-status" role="status">
+                  {checkingRequest
+                    ? 'Consultando solicitação…'
+                    : passwordRequestMessage(requestStatus?.status)}
+                </p>
+                {requestError && (
+                  <p className="form-error" role="alert">
+                    {requestError}
+                  </p>
+                )}
+                <div className="profile-password-modal-actions">
+                  <button
+                    className="button button-secondary"
+                    disabled={checkingRequest || requestingAdmin}
+                    onClick={() => {
+                      setPasswordStep('verify')
+                      setRequestError('')
+                    }}
+                    type="button"
+                  >
+                    Voltar
+                  </button>
+                  <div className="profile-password-modal-actions-end">
+                    {(requestStatus?.status === 'PENDENTE' ||
+                      requestStatus?.status === 'APROVADA' ||
+                      !requestStatus) && (
+                      <button
+                        className="button button-secondary"
+                        disabled={checkingRequest || requestingAdmin}
+                        onClick={() => void refreshAdminResetStatus()}
+                        type="button"
+                      >
+                        Atualizar status
+                      </button>
+                    )}
+                    {(!requestStatus ||
+                      ['RECUSADA', 'EXPIRADA', 'CONSUMIDA'].includes(requestStatus.status)) && (
+                      <button
+                        className="button button-primary"
+                        disabled={checkingRequest || requestingAdmin}
+                        onClick={() => void submitAdminResetRequest()}
+                        type="button"
+                      >
+                        {requestingAdmin ? 'Enviando…' : 'Solicitar autorização'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             ) : (
               <form
                 className="profile-form profile-password-modal-form"
@@ -420,15 +615,27 @@ export function ProfilePage() {
                       className="button button-secondary"
                       disabled={savingPassword}
                       onClick={() => {
-                        clearPasswordFields()
-                        setPasswordStep('verify')
+                        setNewPassword('')
+                        setPasswordConfirmation('')
+                        setPasswordError('')
+                        if (passwordStep === 'approved') {
+                          setPasswordStep('waiting')
+                          void refreshAdminResetStatus()
+                        } else {
+                          clearPasswordFields()
+                          setPasswordStep('verify')
+                        }
                       }}
                       type="button"
                     >
                       Voltar
                     </button>
                     <button className="button button-primary" disabled={savingPassword} type="submit">
-                      {savingPassword ? 'Alterando…' : 'Alterar senha'}
+                      {savingPassword
+                        ? 'Alterando…'
+                        : passwordStep === 'approved'
+                          ? 'Redefinir senha'
+                          : 'Alterar senha'}
                     </button>
                   </div>
                 </div>
