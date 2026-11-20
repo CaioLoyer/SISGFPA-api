@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.14.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter api --filter web dev",
+    "dev": "pnpm --parallel --filter api --filter web --filter chatbot dev",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:chatbot": "pnpm --filter chatbot dev",
