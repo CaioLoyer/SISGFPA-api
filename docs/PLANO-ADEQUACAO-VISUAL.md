@@ -21,6 +21,7 @@ As decisões em `docs/PLANO-INTEGRACAO-TELAS.md` continuam válidas: cadastro p�
 - Verde principal `#1b7a4b`, verde escuro `#0f4f2c`, verde claro `#e8f2ec`, campos `#e4e9e5`, vermelho `#c0392b`.
 - Login com fundo `#0f512d`, cartão de até 384 px, cantos de 16 px, faixa superior de 12 px e ícone circular de 64 px.
 - Páginas internas com cabeçalhos brancos, cartões claros, tabelas e formulários em seções. O exemplo usa menu lateral de 224 px e subitens financeiros.
+- No menu lateral, o item ativo usa fundo verde e texto branco, sem contorno vermelho, inclusive no Financeiro e no celular. O contorno claro indica o foco do teclado.
 - Em larguras menores, adaptar menu, grades, tabelas e formulários para manter leitura e acesso às ações. O protótipo não resolve todos esses tamanhos; preservar sua linguagem visual ao acrescentar responsividade.
 
 ## Forma de entrega e autoria

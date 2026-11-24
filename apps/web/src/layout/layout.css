@@ -131,7 +131,6 @@
 .workspace-nav-link-active:hover {
   color: #fff;
   background: var(--green);
-  box-shadow: 0 0 0 1px #f8717199;
 }
 
 .workspace-finance-toggle {
